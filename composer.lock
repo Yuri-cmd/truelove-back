@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b6b791b7c2d9f52c2a51c2f76126b970",
+    "content-hash": "cfc126a1b46d15bee6ba1f0ca1d1b97d",
     "packages": [
         {
             "name": "brick/math",
@@ -3424,6 +3424,70 @@
                 }
             ],
             "time": "2024-11-04T18:26:57+00:00"
+        },
+        {
+            "name": "sendinblue/api-v3-sdk",
+            "version": "v8.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sendinblue/APIv3-php-library.git",
+                "reference": "5d08398c7247a2f5d80f285d08a6dbe169f18eab"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sendinblue/APIv3-php-library/zipball/5d08398c7247a2f5d80f285d08a6dbe169f18eab",
+                "reference": "5d08398c7247a2f5d80f285d08a6dbe169f18eab",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "guzzlehttp/guzzle": "^7.4.0",
+                "php": ">=5.6"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "~1.12",
+                "phpunit/phpunit": "^4.8",
+                "squizlabs/php_codesniffer": "~2.6"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "8.x.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "SendinBlue\\Client\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "SendinBlue Developers",
+                    "email": "contact@sendinblue.com",
+                    "homepage": "https://www.sendinblue.com/"
+                }
+            ],
+            "description": "Official SendinBlue provided RESTFul API V3 php library",
+            "homepage": "https://github.com/sendinblue/APIv3-php-library",
+            "keywords": [
+                "api",
+                "php",
+                "sdk",
+                "sendinblue",
+                "swagger"
+            ],
+            "support": {
+                "issues": "https://github.com/sendinblue/APIv3-php-library/issues",
+                "source": "https://github.com/sendinblue/APIv3-php-library/tree/v8.4.2"
+            },
+            "abandoned": "getbrevo/brevo-php",
+            "time": "2023-03-10T04:21:43+00:00"
         },
         {
             "name": "spatie/backtrace",
@@ -8776,12 +8840,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }

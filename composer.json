@@ -9,6 +9,7 @@
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "sendinblue/api-v3-sdk": "^8.4",
         "spatie/laravel-ray": "^1.37"
     },
     "require-dev": {
