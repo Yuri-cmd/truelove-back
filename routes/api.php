@@ -3,18 +3,52 @@
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailVerificationController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\NegocioController;
+use App\Http\Controllers\SucursalController;
+use App\Http\Controllers\EstablecimientoController;
+use App\Http\Controllers\DatosClaveNegocioController;
+use App\Http\Controllers\DatosBancariosController;
+use App\Http\Controllers\RevisarDatosController;
+use App\Http\Controllers\IdsController;
+
 use Illuminate\Support\Facades\Route;
+
 
 Route::post('/admin/login', [AuthAdminController::class, 'login']);
 Route::get('/admin/user', [UserController::class, 'all']);
 Route::post('/admin/users/change/state/{id}', [UserController::class, 'changeState']);
 Route::post('/admin/users/create', [UserController::class, 'store']);
 
-Route::post('/register',[EmailVerificationController::class,'register']);
-Route::post('/verify',[EmailVerificationController::class,'verify']);
+// rutas del email
+Route::post('/register', [EmailVerificationController::class, 'register']);
+Route::post('/verify', [EmailVerificationController::class, 'verify']);
 Route::post('/resend-code', [EmailVerificationController::class, 'resendCode']);
 
-Route::middleware('auth:sanctum')->group(function () {
 
+Route::get('/tipos-negocio', [NegocioController::class, 'getTiposNegocio']);
+Route::get('/categorias/{tipoNegocioId}', [NegocioController::class, 'getCategorias']);
+Route::post('/negocios', [NegocioController::class, 'store']);
+Route::put('/negocios/{negocio}', [NegocioController::class, 'update']);
+Route::post('/negocios/{negocio}/sucursales', [SucursalController::class, 'store']);
+
+
+Route::post('/establecimientos', [EstablecimientoController::class, 'store']);
+Route::put('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'update']);
+Route::get('/obtener-ultimos-ids', [IdsController::class, 'obtenerUltimosIds']);
+Route::get('/establecimientos', [EstablecimientoController::class, 'index']);
+Route::get('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'show']);
+Route::delete('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'destroy']);
+
+
+Route::get('/revisarDatos', [RevisarDatosController::class, 'obtenerDatosRevision']);
+Route::get('/revisarDatos/{negocioId}', [RevisarDatosController::class, 'obtenerDatosRevision']);
+
+Route::post('/datos-bancarios', [DatosBancariosController::class, 'store']);
+Route::get('/establecimiento/{id}/direccion', [DatosBancariosController::class, 'getEstablecimientoDireccion']);
+
+Route::post('/datos-clave-negocio', [DatosClaveNegocioController::class, 'guardar']);
+
+
+Route::middleware('auth:sanctum')->group(function () {
+  
 });
