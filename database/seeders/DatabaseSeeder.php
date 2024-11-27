@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TipoNegocioSeeder::class,
             CategoriaSeeder::class,
+            CiudadesYDistritosPeruSeeder::class,
+            TiposCuentaBancariaSeeder::class,
+            BancosSeeder::class,
         ]);
     }
 }
