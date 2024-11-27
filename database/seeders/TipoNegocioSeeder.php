@@ -11,9 +11,9 @@ class TipoNegocioSeeder extends Seeder
     public function run()
     {
         $tipos = [
-            ['nombre' => 'Restaurant', 'slug' => 'restaurant'],
-            ['nombre' => 'Retail Store', 'slug' => 'retail-store'],
-            ['nombre' => 'Service', 'slug' => 'service'],
+            ['nombre' => 'Restaurante', 'slug' => 'restaurant'],
+            ['nombre' => 'Tienda Minorista', 'slug' => 'retail-store'],
+            ['nombre' => 'Servicios', 'slug' => 'service'],
             ['nombre' => 'Hotel', 'slug' => 'hotel'],
         ];
 
