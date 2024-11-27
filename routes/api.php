@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthAdminController;
+use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\NegocioController;
@@ -10,7 +12,9 @@ use App\Http\Controllers\DatosClaveNegocioController;
 use App\Http\Controllers\DatosBancariosController;
 use App\Http\Controllers\RevisarDatosController;
 use App\Http\Controllers\IdsController;
+use App\Http\Middleware\EncryptionHandler;
 
+use App\Http\Controllers\DatosPersonalesRepartoController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -48,6 +52,16 @@ Route::get('/establecimiento/{id}/direccion', [DatosBancariosController::class, 
 
 Route::post('/datos-clave-negocio', [DatosClaveNegocioController::class, 'guardar']);
 
+Route::post('/reparto/registro',[RepartoRegistroController::class,'store']);
+
+Route::get('/ciudades', [DatosPersonalesRepartoController::class, 'obtenerCiudades']);
+Route::get('/distritos/{ciudadId}', [DatosPersonalesRepartoController::class, 'obtenerDistritos']);
+Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guardar']);
+
+
+Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
+Route::get('/tipos-cuenta', [DatosBancariosRepartoController::class, 'obtenerTiposCuenta']);
+Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guardarCuentaBancaria']);
 
 Route::middleware('auth:sanctum')->group(function () {
   
