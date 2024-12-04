@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -36,5 +37,30 @@ class ClienteController extends Controller
                 'error' => $e->getMessage() // Detalle del error para depuración
             ], 500);
         }
+    }
+
+    public function store(Request $request)
+    {
+        // Validar los datos del request
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'apellido' => 'required|string|max:255',
+            'fecha_nacimiento' => 'required|date',
+            'email' => 'required|email',
+            'genero' => 'required|string|in:Femenino,Masculino,No Binario',
+        ]);
+
+        $profile = new Cliente();
+        $profile->nombre = $validatedData['nombre'];
+        $profile->apellido = $validatedData['apellido'];
+        $profile->fecha_nacimiento = $validatedData['fecha_nacimiento'];
+        $profile->genero = $validatedData['genero'];
+        $profile->email = $validatedData['email'];
+        $profile->save();
+
+        return response()->json([
+            'message' => 'Perfil creado exitosamente',
+            'data' => $validatedData,
+        ], 200);
     }
 }

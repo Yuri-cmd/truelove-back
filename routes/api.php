@@ -74,3 +74,4 @@ Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guarda
 
 //rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
+Route::post('/profile', [ClienteController::class, 'store']);
