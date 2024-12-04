@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthAdminController;
+use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\UserController;
@@ -69,3 +70,7 @@ Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guar
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
 Route::get('/tipos-cuenta', [DatosBancariosRepartoController::class, 'obtenerTiposCuenta']);
 Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guardarCuentaBancaria']);
+
+
+//rutas app clientes
+Route::post('/send-code', [ClienteController::class, 'sendCode']);
