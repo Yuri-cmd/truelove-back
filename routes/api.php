@@ -76,3 +76,4 @@ Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guarda
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
 Route::post('/get-dni', [ClienteController::class, 'getDni']);
+Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);

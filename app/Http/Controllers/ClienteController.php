@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
 use App\Models\Cliente;
+use App\Models\ClienteDireccion;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -89,5 +90,22 @@ class ClienteController extends Controller
         } catch (Exception $e) {
             return response()->json(['error' => 'Excepción capturada: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function actualizarInfoCliente(Request $request)
+    {
+        $profile = Cliente::find($request->idCliente);
+
+        $profile->celular = $request->celular;
+        $profile->save();
+
+        $direccion = new ClienteDireccion();
+        $direccion->id_cliente = $request->idCliente;
+        $direccion->direccion = $request->direccion;
+        $direccion->departamento = $request->departamento;
+        $direccion->referencia = $request->referencia;
+        $direccion->alias = $request->alias;
+        $direccion->coordenadas = $request->coordenadas;
+        $direccion->save();
     }
 }
