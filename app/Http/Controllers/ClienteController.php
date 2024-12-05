@@ -49,6 +49,9 @@ class ClienteController extends Controller
             'fecha_nacimiento' => 'required|date',
             'email' => 'required|email',
             'genero' => 'required|string|in:Femenino,Masculino,No Binario',
+            'genero' => 'required|string|in:Femenino,Masculino,No Binario',
+            'documento' => 'required|string|max:255',
+            'nacionalidad' => 'required|string|max:255',
         ]);
 
         $profile = new Cliente();
@@ -57,6 +60,8 @@ class ClienteController extends Controller
         $profile->fecha_nacimiento = $validatedData['fecha_nacimiento'];
         $profile->genero = $validatedData['genero'];
         $profile->email = $validatedData['email'];
+        $profile->documento = $validatedData['documento'];
+        $profile->nacionalidad = $validatedData['nacionalidad'];
         $profile->save();
 
         return response()->json([
