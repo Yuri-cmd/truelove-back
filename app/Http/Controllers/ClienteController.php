@@ -104,7 +104,7 @@ class ClienteController extends Controller
         $direccion->departamento = $request->departamento;
         $direccion->referencia = $request->referencia;
         $direccion->alias = $request->alias;
-        $direccion->coordenadas = $request->selectedPosition;
+        $direccion->coordenadas = json_encode($request->selectedPosition);
         $direccion->save();
 
         return response()->json([
