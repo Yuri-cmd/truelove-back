@@ -14,5 +14,7 @@ class Cliente extends Model
         'apellido',
         'fecha_nacimiento',
         'genero',
+        'documento',
+        'nacionalidad',
     ];
 }
