@@ -104,7 +104,13 @@ class ClienteController extends Controller
         $direccion->departamento = $request->departamento;
         $direccion->referencia = $request->referencia;
         $direccion->alias = $request->alias;
-        $direccion->coordenadas = $request->coordenadas;
+        $direccion->coordenadas = $request->selectedPosition;
         $direccion->save();
+
+        return response()->json([
+            'message' => 'Perfil creado exitosamente',
+            'data' => $profile,
+            'dirreccion' => $direccion,
+        ], 200);
     }
 }
