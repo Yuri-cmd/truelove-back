@@ -95,7 +95,6 @@ class ClienteController extends Controller
     public function actualizarInfoCliente(Request $request)
     {
         $profile = Cliente::find($request->idCliente);
-
         $profile->celular = $request->celular;
         $profile->save();
 
