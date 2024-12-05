@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
 use App\Models\Cliente;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -62,5 +63,26 @@ class ClienteController extends Controller
             'message' => 'Perfil creado exitosamente',
             'data' => $validatedData,
         ], 200);
+    }
+
+    public function getDni(Request $request)
+    {
+
+        if (!$request->documento) {
+            return response()->json(['error' => 'Error al obtener la información.'], 500);
+        }
+
+        $token = env('API_TOKEN');
+        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token={$token}";
+
+        try {
+            $response = file_get_contents($url);
+            if ($response === false) {
+                return response()->json(['error' => 'Error al obtener la información.'], 500);
+            }
+            return response()->json(json_decode($response, true));
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Excepción capturada: ' . $e->getMessage()], 500);
+        }
     }
 }
