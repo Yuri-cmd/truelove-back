@@ -66,7 +66,7 @@ class ClienteController extends Controller
 
         return response()->json([
             'message' => 'Perfil creado exitosamente',
-            'data' => $validatedData,
+            'data' => $profile,
         ], 200);
     }
 
