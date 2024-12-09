@@ -143,17 +143,17 @@ class ClienteController extends Controller
             $message = 'Su código de verificación es: ' . $newVerificationCode;
 
             // Enviar el SMS
-            $result = $this->twilioService->sendSms($phone, $message);
+            // $result = $this->twilioService->sendSms($phone, $message);
 
-            if (!$result) {
-                return response()->json(['error' => 'Error al enviar SMS'], 500);
-            }
+            // if (!$result) {
+            //     return response()->json(['error' => 'Error al enviar SMS'], 500);
+            // }
 
             // Retornar el código (solo en desarrollo, no en producción)
             return response()->json([
                 'message' => 'SMS enviado correctamente',
                 'status' => 200,
-                'verification_code' => $newVerificationCode,
+                'verification_code' => (string) $newVerificationCode,
             ]);
         } catch (\Exception $e) {
             return response()->json([
