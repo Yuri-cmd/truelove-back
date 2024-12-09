@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\RegistroVehiculoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailVerificationController;
@@ -62,6 +63,14 @@ Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guar
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
 Route::get('/tipos-cuenta', [DatosBancariosRepartoController::class, 'obtenerTiposCuenta']);
 Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guardarCuentaBancaria']);
+
+
+Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
+Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostrar']);
+Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
+
+
+
 
 Route::middleware('auth:sanctum')->group(function () {
   
