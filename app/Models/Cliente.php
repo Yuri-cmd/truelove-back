@@ -16,5 +16,6 @@ class Cliente extends Model
         'genero',
         'documento',
         'nacionalidad',
+        'celular',
     ];
 }
