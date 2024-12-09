@@ -125,33 +125,40 @@ class ClienteController extends Controller
     public function sendCodePhone(Request $request)
     {
         try {
-            // Validar los datos recibidos en la solicitud
+            // Validar que el teléfono es requerido
             $request->validate([
-                'phone' => 'required|phone',
+                'phone' => 'required|regex:/^\+?[0-9]{9,15}$/', // Número internacional con 9-15 dígitos
             ]);
 
-            // Generar nuevo código de verificación
-            $newVerificationCode = Str::random(6);
+            $phone = $request->phone;
+
+            // Agregar el prefijo +51 si no está presente
+            if (!str_starts_with($phone, '+51')) {
+                $phone = '+51' . ltrim($phone, '0'); // Elimina ceros iniciales en caso de que existan
+            }
+
+            // Generar código de verificación (6 dígitos numéricos)
+            $newVerificationCode = random_int(100000, 999999);
 
             $message = 'Su código de verificación es: ' . $newVerificationCode;
-            // Enviar el sms con el código de verificación
-            $result = $this->twilioService->sendSms($request->phone, $message);
+
+            // Enviar el SMS
+            $result = $this->twilioService->sendSms($phone, $message);
 
             if (!$result) {
                 return response()->json(['error' => 'Error al enviar SMS'], 500);
             }
 
-            // Retornar el código en la respuesta para ser usado en la aplicación
+            // Retornar el código (solo en desarrollo, no en producción)
             return response()->json([
                 'message' => 'SMS enviado correctamente',
                 'status' => 200,
-                'verification_code' => $newVerificationCode, // Devolver el código
+                'verification_code' => $newVerificationCode,
             ]);
         } catch (\Exception $e) {
-            // Capturar cualquier error y devolver una respuesta de error
             return response()->json([
                 'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
-                'error' => $e->getMessage() // Detalle del error para depuración
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
