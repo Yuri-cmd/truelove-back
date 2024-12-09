@@ -14,6 +14,7 @@ class Cliente extends Model
         'apellido',
         'fecha_nacimiento',
         'genero',
+        'email',
         'documento',
         'nacionalidad',
         'celular',
