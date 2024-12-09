@@ -57,7 +57,6 @@ class ClienteController extends Controller
             'apellido' => 'required|string|max:255',
             'fecha_nacimiento' => 'required|date',
             'genero' => 'required|string|in:Femenino,Masculino,No Binario',
-            'genero' => 'required|string|in:Femenino,Masculino,No Binario',
             'documento' => 'required|string|max:255',
             'nacionalidad' => 'required|string|max:255',
         ]);
@@ -67,7 +66,7 @@ class ClienteController extends Controller
         $profile->apellido = $validatedData['apellido'];
         $profile->fecha_nacimiento = $validatedData['fecha_nacimiento'];
         $profile->genero = $validatedData['genero'];
-        $profile->$request->type = $request->content;
+        $profile->{$request->type} = $request->content;
         $profile->documento = $validatedData['documento'];
         $profile->nacionalidad = $validatedData['nacionalidad'];
         $profile->save();
