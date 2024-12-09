@@ -9,9 +9,17 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use App\Services\TwilioService;
 
 class ClienteController extends Controller
 {
+    protected $twilioService;
+
+    public function __construct(TwilioService $twilioService)
+    {
+        $this->twilioService = $twilioService;
+    }
+
     public function sendCode(Request $request)
     {
         try {
@@ -112,5 +120,39 @@ class ClienteController extends Controller
             'data' => $profile,
             'dirreccion' => $direccion,
         ], 200);
+    }
+
+    public function sendCodePhone(Request $request)
+    {
+        try {
+            // Validar los datos recibidos en la solicitud
+            $request->validate([
+                'phone' => 'required|phone',
+            ]);
+
+            // Generar nuevo código de verificación
+            $newVerificationCode = Str::random(6);
+
+            $message = 'Su código de verificación es: ' . $newVerificationCode;
+            // Enviar el sms con el código de verificación
+            $result = $this->twilioService->sendSms($request->phone, $message);
+
+            if (!$result) {
+                return response()->json(['error' => 'Error al enviar SMS'], 500);
+            }
+
+            // Retornar el código en la respuesta para ser usado en la aplicación
+            return response()->json([
+                'message' => 'SMS enviado correctamente',
+                'status' => 200,
+                'verification_code' => $newVerificationCode, // Devolver el código
+            ]);
+        } catch (\Exception $e) {
+            // Capturar cualquier error y devolver una respuesta de error
+            return response()->json([
+                'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
+                'error' => $e->getMessage() // Detalle del error para depuración
+            ], 500);
+        }
     }
 }
