@@ -27,7 +27,7 @@ class DatosPersonalesRepartoController extends Controller
         $validador = Validator::make($request->all(), [
             'fecha_nacimiento' => 'required|date',
             'genero' => 'required|in:masculino,femenino,otro',
-            'selfie' => 'required|image|max:2048',
+            'selfie' => 'required|image|max:2048', // 2MB Max
             'ciudad_id' => 'required|exists:ciudades,id',
             'distrito_id' => 'required|exists:distritos,id',
         ]);

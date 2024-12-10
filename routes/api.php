@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\RegistroVehiculoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailVerificationController;
@@ -60,7 +61,7 @@ Route::get('/establecimiento/{id}/direccion', [DatosBancariosController::class, 
 
 Route::post('/datos-clave-negocio', [DatosClaveNegocioController::class, 'guardar']);
 
-Route::post('/reparto/registro',[RepartoRegistroController::class,'store']);
+Route::post('/reparto/registro', [RepartoRegistroController::class, 'store']);
 
 Route::get('/ciudades', [DatosPersonalesRepartoController::class, 'obtenerCiudades']);
 Route::get('/distritos/{ciudadId}', [DatosPersonalesRepartoController::class, 'obtenerDistritos']);
@@ -78,3 +79,7 @@ Route::post('/profile', [ClienteController::class, 'store']);
 Route::post('/get-dni', [ClienteController::class, 'getDni']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
+
+Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
+Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostrar']);
+Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
