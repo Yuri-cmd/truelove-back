@@ -25,9 +25,15 @@ use Illuminate\Support\Facades\Route;
 Route::post('/admin/login', [AuthAdminController::class, 'login']);
 
 // rutas del email
-Route::post('/register', [EmailVerificationController::class, 'register']);
+Route::prefix('api')->group(function () {
+    Route::post('/register', [EmailVerificationController::class, 'register']);
+    Route::post('/resend-code', [EmailVerificationController::class, 'resendCode']);
+    Route::post('/negocios', [NegocioController::class, 'store']);
+   
+});
 Route::post('/verify', [EmailVerificationController::class, 'verify']);
-Route::post('/resend-code', [EmailVerificationController::class, 'resendCode']);
+// Route::post('/register', [EmailVerificationController::class, 'register']);
+// Route::post('/verify', [EmailVerificationController::class, 'verify']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/user', [UserController::class, 'all']);
@@ -36,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admin/socio', [SocioController::class, 'all']);
     Route::post('/admin/socio/change/state/{id}', [SocioController::class, 'changeState']);
+    Route::get('/admin/socio/{id}/details', [SocioController::class, 'getDetails']);
+    Route::post('/admin/socio/{id}/aprobar', [SocioController::class, 'aprobar']);
 });
 
 Route::get('/tipos-negocio', [NegocioController::class, 'getTiposNegocio']);

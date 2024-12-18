@@ -15,7 +15,8 @@ class RevisarDatos extends Model
         'datos_clave_negocio_id',
         'datos_bancarios_id',
         'terminos_aceptados',
-        'fecha_revision'
+        'fecha_revision',
+        'business_registration_id'
     ];
 
     protected $casts = [
@@ -41,5 +42,10 @@ class RevisarDatos extends Model
     public function datosBancarios(): BelongsTo
     {
         return $this->belongsTo(DatosBancarios::class);
+    }
+
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
     }
 }

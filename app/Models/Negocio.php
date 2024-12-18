@@ -18,7 +18,8 @@ class Negocio extends Model
         'es_local_calle',
         'metodo_contacto',
         'telefono',
-        'activo'
+        'activo',
+        'business_registration_id'
     ];
 
     public function tipoNegocio()
@@ -39,5 +40,10 @@ class Negocio extends Model
     public function sucursales()
     {
         return $this->hasMany(Sucursal::class);
+    }
+
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
     }
 }

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('datos_clave_negocio', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('business_registration_id')->constrained('business_registrations')->onDelete('cascade');
             $table->string('ruc', 11);
             $table->string('razon_social');
             $table->timestamps();

@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('establecimientos', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('business_registration_id')->constrained('business_registrations')->onDelete('cascade');
             $table->string('nombre_establecimiento');
             $table->string('calle');
             $table->string('numero');

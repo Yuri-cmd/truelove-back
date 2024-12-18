@@ -11,19 +11,22 @@ class DatosClaveNegocio extends Model
     
     protected $fillable = [
         'ruc',
-        'razon_social'
-     
+        'razon_social',
+        'business_registration_id'
     ];
 
-    // Relación con el negocio
     public function negocio(): BelongsTo
     {
         return $this->belongsTo(Negocio::class);
     }
 
-    // Relación con RevisarDatos
     public function revisarDatos()
     {
         return $this->hasOne(RevisarDatos::class);
+    }
+
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessRegistration;
 use App\Models\Negocio;
 use App\Models\TipoNegocio;
 use App\Models\Categoria;
@@ -45,7 +46,7 @@ class NegocioController extends Controller
     public function store(Request $request)
     {
         Log::info('Datos recibidos:', $request->all());
-
+    
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255',
             'tipo_negocio_id' => 'required|exists:tipos_negocios,id',
@@ -54,35 +55,41 @@ class NegocioController extends Controller
             'es_local_calle' => 'required|boolean',
             'metodo_contacto' => 'required|in:WhatsApp,Llamada,SMS',
             'telefono' => 'required|regex:/^\+51\d{9}$/',
+            'business_registration_id' => 'required|exists:business_registrations,id', // Agregar esta validación
         ]);
-
+    
         if ($validator->fails()) {
             Log::error('Validación fallida:', $validator->errors()->toArray());
             return response()->json(['errors' => $validator->errors()], 422);
         }
-
+    
         DB::beginTransaction();
-
+    
         try {
-            // Asignar un user_id temporal para pruebas
-            $userId = 1; // Asegúrate de que este usuario existe en la base de datos
-
+            // Verificar que el registro existe y está verificado
+            $businessRegistration = BusinessRegistration::where('id', $request->business_registration_id)
+                ->whereNotNull('email_verified_at')
+                ->first();
+    
+            if (!$businessRegistration) {
+                throw new \Exception('Registro de negocio no encontrado o email no verificado');
+            }
+    
             $negocio = Negocio::create([
                 'nombre' => $request->nombre,
                 'tipo_negocio_id' => $request->tipo_negocio_id,
                 'categoria_id' => $request->categoria_id,
-                'user_id' => $userId, // Temporalmente usando un ID fijo
+                'user_id' => 1, // Ajusta esto según tu lógica de autenticación
                 'total_sucursales' => $request->total_sucursales,
                 'es_local_calle' => $request->es_local_calle,
                 'metodo_contacto' => $request->metodo_contacto,
                 'telefono' => $request->telefono,
+                'business_registration_id' => $request->business_registration_id,
                 'activo' => true,
             ]);
-
+    
             DB::commit();
-
-            Log::info('Negocio creado exitosamente:', $negocio->toArray());
-
+    
             return response()->json([
                 'mensaje' => 'Negocio registrado exitosamente',
                 'negocio' => $negocio

@@ -15,7 +15,8 @@ class DatosBancarios extends Model
         'documento_titular',
         'codigo_cci',
         'usar_direccion_negocio',
-        'establecimiento_id'
+        'establecimiento_id',
+        'business_registration_id'
     ];
 
     protected $casts = [
@@ -25,5 +26,10 @@ class DatosBancarios extends Model
     public function establecimiento(): BelongsTo
     {
         return $this->belongsTo(Establecimiento::class);
+    }
+
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
     }
 }

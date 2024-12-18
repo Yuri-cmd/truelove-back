@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('datos_bancarios', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('business_registration_id')->constrained('business_registrations')->onDelete('cascade');
             $table->string('titular_cuenta');
             $table->string('numero_cuenta');
             $table->string('nombre_banco');

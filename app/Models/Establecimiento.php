@@ -18,6 +18,12 @@ class Establecimiento extends Model
         'referencia',
         'latitud',
         'longitud',
-        'direccion_completa'
+        'direccion_completa',
+        'business_registration_id'
     ];
+
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
+    }
 }

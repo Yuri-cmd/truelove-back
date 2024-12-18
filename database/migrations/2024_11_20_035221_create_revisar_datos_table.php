@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('revisar_datos', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('business_registration_id')->constrained('business_registrations')->onDelete('cascade');
             $table->foreignId('negocio_id')->constrained('negocios');
             $table->foreignId('establecimiento_id')->constrained('establecimientos');
             $table->foreignId('datos_clave_negocio_id')->constrained('datos_clave_negocio');

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('negocios', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('business_registration_id')->constrained('business_registrations')->onDelete('cascade');
             $table->string('nombre');
             $table->foreignId('tipo_negocio_id')
                   ->constrained('tipos_negocios');
@@ -32,6 +33,7 @@ return new class extends Migration
             $table->index('user_id');
             $table->index('activo');
             $table->index('nombre');
+          
         });
     }
 

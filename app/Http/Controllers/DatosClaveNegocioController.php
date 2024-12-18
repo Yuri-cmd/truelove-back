@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\DatosClaveNegocio;
+use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class DatosClaveNegocioController extends Controller
 {
@@ -16,6 +18,7 @@ class DatosClaveNegocioController extends Controller
         $validador = Validator::make($request->all(), [
             'ruc' => 'required|string|size:11',
             'razon_social' => 'required|string|max:255',
+            'business_registration_id' => 'required|exists:business_registrations,id'
         ]);
 
         if ($validador->fails()) {
@@ -26,11 +29,25 @@ class DatosClaveNegocioController extends Controller
             ], 422);
         }
 
+        DB::beginTransaction();
+
         try {
+            // Verificar que el registro existe y está verificado
+            $businessRegistration = BusinessRegistration::where('id', $request->business_registration_id)
+                ->whereNotNull('email_verified_at')
+                ->first();
+
+            if (!$businessRegistration) {
+                throw new \Exception('Registro de negocio no encontrado o email no verificado');
+            }
+
             $datosClaveNegocio = DatosClaveNegocio::create([
                 'ruc' => $request->ruc,
                 'razon_social' => $request->razon_social,
+                'business_registration_id' => $request->business_registration_id
             ]);
+
+            DB::commit();
 
             Log::info('Datos guardados exitosamente:', $datosClaveNegocio->toArray());
 
@@ -39,6 +56,7 @@ class DatosClaveNegocioController extends Controller
                 'datos' => $datosClaveNegocio
             ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error al guardar datos:', [
                 'mensaje' => $e->getMessage(),
                 'linea' => $e->getLine(),
@@ -52,3 +70,4 @@ class DatosClaveNegocioController extends Controller
         }
     }
 }
+

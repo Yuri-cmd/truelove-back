@@ -77,8 +77,11 @@ class EmailVerificationController extends Controller
             $registration->email_verified_at = now();
             $registration->save();
 
+            // Guardar el ID en la sesión para el siguiente paso
+        session(['business_registration_id' => $registration->id]);
             return response()->json([
-                'message' => 'Email verificado exitosamente'
+                'message' => 'Email verificado exitosamente',
+                'business_registration_id' => $registration->id // También lo enviamos en la respuesta
             ]);
         } catch (\Exception $e) {
             // Capturar cualquier excepción y devolver un mensaje de error genérico
