@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,7 +17,10 @@ return new class extends Migration
             $table->string('apellido');
             $table->date('fecha_nacimiento');
             $table->string('genero');
-            $table->string('email');
+            $table->string('email')->unique();
+            $table->string('documento')->unique();
+            $table->string('nacionalidad');
+            $table->string('celular')->nullable();
             $table->timestamps();
         });
     }
