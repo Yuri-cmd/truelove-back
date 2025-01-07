@@ -14,6 +14,7 @@ class DatosBancariosController extends Controller
 {
     public function store(Request $request)
     {
+        Log::info('Datos recibidos en DatosBancariosController:', $request->all());
         $validator = Validator::make($request->all(), [
             'titular_cuenta' => 'required|string|max:255',
             'numero_cuenta' => 'required|string|max:255',
@@ -75,28 +76,29 @@ class DatosBancariosController extends Controller
     }
 
     public function getEstablecimientoDireccion($id)
-    {
-        try {
-            $establecimiento = Establecimiento::findOrFail($id);
-            
-            return response()->json([
-                'direccion' => [
-                    'calle' => $establecimiento->calle,
-                    'numero' => $establecimiento->numero,
-                    'codigo_postal' => $establecimiento->codigo_postal,
-                    'provincia' => $establecimiento->provincia,
-                    'ciudad' => $establecimiento->ciudad,
-                    'referencia' => $establecimiento->referencia,
-                    'direccion_completa' => $establecimiento->direccion_completa
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al obtener dirección del establecimiento: ' . $e->getMessage());
-            return response()->json([
-                'mensaje' => 'Error al obtener la dirección del establecimiento',
-                'error' => $e->getMessage()
-            ], 404);
-        }
+{
+    try {
+        $establecimiento = Establecimiento::where('business_registration_id', $id)->firstOrFail();
+        
+        return response()->json([
+            'direccion' => [
+                'calle' => $establecimiento->calle,
+                'numero' => $establecimiento->numero,
+                'codigo_postal' => $establecimiento->codigo_postal,
+                'provincia' => $establecimiento->provincia,
+                'ciudad' => $establecimiento->ciudad,
+                'referencia' => $establecimiento->referencia,
+                'direccion_completa' => $establecimiento->direccion_completa
+            ],
+            'establecimiento_id' => $establecimiento->id  //añadi el id de establecimiento para guarda la direccion
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al obtener dirección del establecimiento: ' . $e->getMessage());
+        return response()->json([
+            'mensaje' => 'Error al obtener la dirección del establecimiento',
+            'error' => $e->getMessage()
+        ], 404);
     }
+}
 }
 

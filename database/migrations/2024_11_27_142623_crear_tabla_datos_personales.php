@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('datos_personales', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('reparto_registro_id')->constrained('reparto_registros')->onDelete('cascade');
             $table->date('fecha_nacimiento');
             $table->string('genero');
             $table->string('url_selfie');
@@ -21,7 +22,10 @@ return new class extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('datos_personales');
+        Schema::table('datos_personales', function (Blueprint $table) {
+            $table->dropForeign(['reparto_registro_id']);
+            $table->dropColumn('reparto_registro_id');
+        });
     }
 };
 

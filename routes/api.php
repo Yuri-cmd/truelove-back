@@ -3,8 +3,10 @@
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\RegistroVehiculoController;
 use App\Http\Controllers\RepartoRegistroController;
+use App\Http\Controllers\SociosCuentaBancariaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\SocioController;
@@ -24,16 +26,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/admin/login', [AuthAdminController::class, 'login']);
 
-// rutas del email
-Route::prefix('api')->group(function () {
-    Route::post('/register', [EmailVerificationController::class, 'register']);
-    Route::post('/resend-code', [EmailVerificationController::class, 'resendCode']);
-    Route::post('/negocios', [NegocioController::class, 'store']);
-   
-});
-Route::post('/verify', [EmailVerificationController::class, 'verify']);
-// Route::post('/register', [EmailVerificationController::class, 'register']);
-// Route::post('/verify', [EmailVerificationController::class, 'verify']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/user', [UserController::class, 'all']);
@@ -44,7 +37,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/socio/change/state/{id}', [SocioController::class, 'changeState']);
     Route::get('/admin/socio/{id}/details', [SocioController::class, 'getDetails']);
     Route::post('/admin/socio/{id}/aprobar', [SocioController::class, 'aprobar']);
+
+    Route::get('/admin/motorizado', [MotorizadoController::class, 'all']);
+Route::post('/admin/motorizado/change/state/{id}', [MotorizadoController::class, 'changeState']);
+Route::get('/admin/motorizado/{id}/details', [MotorizadoController::class, 'getDetails']);
+Route::post('/admin/motorizado/{id}/aprobar', [MotorizadoController::class, 'aprobar']);
 });
+
+
+
+   // Rutas de autenticación y verificación
+   Route::controller(EmailVerificationController::class)->group(function () {
+    Route::post('/register', 'register');
+    Route::post('/verify', 'verify');
+    Route::post('/resend-code', 'resendCode');
+});
+
+// Otras rutas
+Route::post('/negocios', [NegocioController::class, 'store']);
 
 Route::get('/tipos-negocio', [NegocioController::class, 'getTiposNegocio']);
 Route::get('/categorias/{tipoNegocioId}', [NegocioController::class, 'getCategorias']);
@@ -91,3 +101,5 @@ Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
 Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
 Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostrar']);
 Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
+
+Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);

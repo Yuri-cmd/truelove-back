@@ -12,12 +12,22 @@ class DatosPersonalesReparto extends Model
     protected $table = 'datos_personales';
 
     protected $fillable = [
+        'reparto_registro_id',
         'fecha_nacimiento',
         'genero',
         'url_selfie',
         'ciudad_id',
         'distrito_id'
     ];
+
+    protected $casts = [
+        'fecha_nacimiento' => 'date',
+    ];
+
+    public function repartoRegistro()
+    {
+        return $this->belongsTo(RepartoRegistro::class);
+    }
 
     public function ciudad()
     {
@@ -29,4 +39,3 @@ class DatosPersonalesReparto extends Model
         return $this->belongsTo(Distrito::class);
     }
 }
-
