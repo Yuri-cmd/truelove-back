@@ -20,6 +20,7 @@ class RegistroVehiculoController extends Controller
 
             // Validar campos de texto
             $validatedData = $request->validate([
+                'reparto_registro_id' => 'required|exists:reparto_registros,id',
                 'placa' => 'required|string|min:6',
                 'licenciaConducir' => 'required|string|min:8',
                 'seguro' => 'required|string|min:8',
@@ -75,6 +76,7 @@ class RegistroVehiculoController extends Controller
 
             // Crear el registro
             $registroVehiculo = RegistroVehiculo::create([
+                'reparto_registro_id' => $validatedData['reparto_registro_id'],
                 'placa' => $validatedData['placa'],
                 'licencia_conducir' => $validatedData['licenciaConducir'],
                 'seguro' => $validatedData['seguro'],

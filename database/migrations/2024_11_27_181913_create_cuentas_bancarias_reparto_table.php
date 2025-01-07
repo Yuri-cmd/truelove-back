@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('cuentas_bancarias_reparto', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('reparto_registro_id')->constrained('reparto_registros')->onDelete('cascade');
             $table->string('titular');
             $table->string('dni');
             $table->foreignId('banco_id')->constrained('bancos');
@@ -26,8 +27,11 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
+    public function down()
     {
-        Schema::dropIfExists('cuentas_bancarias_reparto');
+        Schema::table('cuentas_bancarias_reparto', function (Blueprint $table) {
+            $table->dropForeign(['reparto_registro_id']);
+            $table->dropColumn('reparto_registro_id');
+        });
     }
 };

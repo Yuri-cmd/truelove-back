@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             'remember_token' => Str::random(10),
             'created_at' => now(),
             'updated_at' => now(),
+            'estado' => true, 
         ]);
 
         $this->call([

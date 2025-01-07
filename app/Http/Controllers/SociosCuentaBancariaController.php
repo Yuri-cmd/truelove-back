@@ -2,37 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Banco;
-use App\Models\CuentaBancariaReparto;
-use App\Models\TipoCuentaBancaria;
+use App\Models\SociosCuentaBancaria;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
-class DatosBancariosRepartoController extends Controller
+class SociosCuentaBancariaController extends Controller
 {
-    public function obtenerBancos()
-    {
-        $bancos = Banco::all();
-        return response()->json($bancos);
-    }
-
-    public function obtenerTiposCuenta()
-    {
-        $tiposCuenta = TipoCuentaBancaria::all();
-        return response()->json($tiposCuenta);
-    }
-
-    public function guardarCuentaBancaria(Request $request)
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'reparto_registro_id' => 'required|exists:reparto_registros,id',
-            'titular' => 'required|string|max:255',
-            'dni' => 'required|digits:8',
+            'business_registration_id' => 'required|exists:business_registrations,id',
+            'titular_cuenta' => 'required|string|max:255',
+            'dni' => 'required|string|max:20',
             'banco_id' => 'required|exists:bancos,id',
             'tipo_cuenta_id' => 'required|exists:tipos_cuenta_bancaria,id',
             'numero_cuenta' => 'required|string|max:50',
-            'imagen_cuenta' => 'required|file|mimes:jpeg,png,pdf|max:4096',
+            'imagenes_cuenta' => 'required|array',
+            'imagenes_cuenta.*' => 'file|mimes:jpeg,png,pdf|max:4096',
         ]);
 
         if ($validator->fails()) {
@@ -40,18 +27,20 @@ class DatosBancariosRepartoController extends Controller
         }
 
         try {
-            // Guardar la imagen
-            $rutaImagen = $request->file('imagen_cuenta')->store('cuentas_bancarias', 'public');
+            $imagenes = [];
+            foreach ($request->file('imagenes_cuenta') as $imagen) {
+                $rutaImagen = $imagen->store('cuentas_bancarias_socios', 'public');
+                $imagenes[] = $rutaImagen;
+            }
 
-            // Crear y guardar la cuenta bancaria
-            $cuentaBancaria = CuentaBancariaReparto::create([
-                'reparto_registro_id' => $request->reparto_registro_id,
-                'titular' => $request->titular,
+            $cuentaBancaria = SociosCuentaBancaria::create([
+                'business_registration_id' => $request->business_registration_id,
+                'titular_cuenta' => $request->titular_cuenta,
                 'dni' => $request->dni,
                 'banco_id' => $request->banco_id,
                 'tipo_cuenta_id' => $request->tipo_cuenta_id,
                 'numero_cuenta' => $request->numero_cuenta,
-                'url_imagen_cuenta' => $rutaImagen
+                'imagenes_cuenta' => json_encode($imagenes)
             ]);
 
             return response()->json([
@@ -59,8 +48,8 @@ class DatosBancariosRepartoController extends Controller
                 'cuenta_bancaria' => $cuentaBancaria
             ], 201);
         } catch (\Exception $e) {
-            // Si algo falla, eliminamos la imagen si se subió
-            if (isset($rutaImagen)) {
+            // Si algo falla, eliminamos las imágenes si se subieron
+            foreach ($imagenes as $rutaImagen) {
                 Storage::disk('public')->delete($rutaImagen);
             }
 

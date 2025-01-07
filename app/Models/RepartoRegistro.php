@@ -20,12 +20,31 @@ class RepartoRegistro extends Model
         'email',
         'mayor_edad',
         'acepta_politica',
-        'documento_imagen',
+        'documento_imagen_frente',
+        'documento_imagen_reverso',
+        'estado',
+        'aprobado'
     ];
 
     protected $casts = [
         'mayor_edad' => 'boolean',
         'acepta_politica' => 'boolean',
+        'estado' => 'boolean',
+        'aprobado' => 'boolean'
     ];
-}
 
+    public function datosPersonales()
+    {
+        return $this->hasOne(DatosPersonalesReparto::class);
+    }
+
+    public function datosBancarios()
+    {
+        return $this->hasOne(CuentaBancariaReparto::class);
+    }
+
+    public function registroVehiculo()
+    {
+        return $this->hasOne(RegistroVehiculo::class);
+    }
+}

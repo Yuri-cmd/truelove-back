@@ -20,7 +20,10 @@ return new class extends Migration
             $table->string('email');
             $table->boolean('mayor_edad');
             $table->boolean('acepta_politica');
-            $table->text('documento_imagen')->nullable();
+            $table->text('documento_imagen_frente')->nullable();
+            $table->text('documento_imagen_reverso')->nullable();
+            $table->boolean('estado')->default(true);
+            $table->boolean('aprobado')->default(false);
             $table->timestamps();
         });
     }
