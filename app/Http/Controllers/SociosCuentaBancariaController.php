@@ -6,6 +6,8 @@ use App\Models\SociosCuentaBancaria;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class SociosCuentaBancariaController extends Controller
 {
@@ -27,10 +29,37 @@ class SociosCuentaBancariaController extends Controller
         }
 
         try {
+            // Función para almacenar imagen
+            $almacenarImagen = function($archivo) {
+                if (!$archivo) return null;
+                
+                try {
+                    $extension = $archivo->getClientOriginalExtension();
+                    $nombreArchivo = time() . '_' . Str::random(10) . '.' . $extension;
+                    
+                    $ruta = Storage::disk('custom_public')->putFileAs(
+                        'cuentas_bancarias_socios',
+                        $archivo,
+                        $nombreArchivo
+                    );
+                    
+                    return $ruta;
+                } catch (\Exception $e) {
+                    Log::error("Error al guardar archivo en cuentas_bancarias_socios: " . $e->getMessage());
+                    throw $e;
+                }
+            };
+
             $imagenes = [];
             foreach ($request->file('imagenes_cuenta') as $imagen) {
-                $rutaImagen = $imagen->store('cuentas_bancarias_socios', 'public');
-                $imagenes[] = $rutaImagen;
+                $rutaImagen = $almacenarImagen($imagen);
+                if ($rutaImagen) {
+                    $imagenes[] = $rutaImagen;
+                }
+            }
+
+            if (empty($imagenes)) {
+                throw new \Exception('No se pudieron guardar las imágenes');
             }
 
             $cuentaBancaria = SociosCuentaBancaria::create([
@@ -49,10 +78,13 @@ class SociosCuentaBancariaController extends Controller
             ], 201);
         } catch (\Exception $e) {
             // Si algo falla, eliminamos las imágenes si se subieron
-            foreach ($imagenes as $rutaImagen) {
-                Storage::disk('public')->delete($rutaImagen);
+            if (!empty($imagenes)) {
+                foreach ($imagenes as $rutaImagen) {
+                    Storage::disk('custom_public')->delete($rutaImagen);
+                }
             }
 
+            Log::error('Error al guardar cuenta bancaria: ' . $e->getMessage());
             return response()->json([
                 'mensaje' => 'Error al guardar la cuenta bancaria',
                 'error' => $e->getMessage()
