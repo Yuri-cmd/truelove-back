@@ -7,6 +7,7 @@ use App\Models\Negocio;
 use App\Models\Establecimiento;
 use App\Models\DatosClaveNegocio;
 use App\Models\DatosBancarios;
+use App\Models\SociosCuentaBancaria;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -32,7 +33,9 @@ class SocioController extends Controller
                 'negocio',
                 'establecimiento',
                 'datosClaveNegocio',
-                'datosBancarios'
+                'datosBancarios',
+                'cuentaBancaria.banco',
+                'cuentaBancaria.tipoCuenta'
             ])->findOrFail($id);
 
             return response()->json([
@@ -68,6 +71,14 @@ class SocioController extends Controller
                         'numero_cuenta' => $businessRegistration->datosBancarios->numero_cuenta,
                         'nombre_banco' => $businessRegistration->datosBancarios->nombre_banco,
                         'tipo_cuenta' => $businessRegistration->datosBancarios->tipo_cuenta
+                    ] : null,
+                    'cuentaBancaria' => $businessRegistration->cuentaBancaria ? [
+                        'titular_cuenta' => $businessRegistration->cuentaBancaria->titular_cuenta,
+                        'dni' => $businessRegistration->cuentaBancaria->dni,
+                        'banco' => $businessRegistration->cuentaBancaria->banco->nombre,
+                        'tipo_cuenta' => $businessRegistration->cuentaBancaria->tipoCuenta->nombre,
+                        'numero_cuenta' => $businessRegistration->cuentaBancaria->numero_cuenta,
+                        'imagenes_cuenta' => json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta)
                     ] : null
                 ]
             ]);
@@ -79,24 +90,42 @@ class SocioController extends Controller
             ], 500);
         }
     }
+
     public function aprobar($id)
     {
         try {
             $socio = BusinessRegistration::findOrFail($id);
+            
+            // Verificar si ya está aprobado
+            if ($socio->aprobado) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El socio ya está aprobado'
+                ], 400);
+            }
+    
             $socio->aprobado = true;
             $socio->save();
-
+    
             return response()->json([
                 'status' => 'success',
                 'message' => 'Socio aprobado exitosamente'
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Socio no encontrado: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Socio no encontrado'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Error al aprobar socio: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al aprobar el socio'
+                'message' => 'Error al aprobar el socio: ' . $e->getMessage()
             ], 500);
         }
     }
     
+    
 }
+
