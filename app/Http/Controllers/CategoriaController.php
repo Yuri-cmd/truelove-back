@@ -17,13 +17,12 @@ class CategoriaController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'id_empresa' => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
         ]);
 
         $category = Categorias::create([
-            'name' => $request->name,
-            'empresa_id' => $request->id_empresa,
+            'nombre' => $request->name,
+            'empresa_id' => $request->empresa_id,
         ]);
 
         return response()->json($category, 201);
