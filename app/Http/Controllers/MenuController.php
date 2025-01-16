@@ -15,8 +15,7 @@ class MenuController extends Controller
         // Guardar la imagen en el almacenamiento
         if ($request->hasFile('foto')) {
             // Se guarda la imagen en el disco público y se obtiene el path
-            $fotoPath = $request->file('foto')->store('public/menus');  // 'public/menus' es la carpeta donde se guardará
-
+            $fotoPath = $request->file('foto')->store('menus', 'custom_public');  // 'public/menus' es la carpeta donde se guardará
             // Obtiene la ruta relativa para almacenar en la base de datos (quitar "public/" para almacenar solo el nombre del archivo)
             $fotoUrl = Storage::url($fotoPath);  // Esto devuelve la URL pública de la imagen
         }
