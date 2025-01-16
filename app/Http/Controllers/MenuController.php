@@ -56,7 +56,7 @@ class MenuController extends Controller
         }
 
         // Actualizar el estado del platillo
-        $dish->status = $request->tstatus;
+        $dish->status = $request->status;
         $dish->save();
 
         // Retornar respuesta de éxito
