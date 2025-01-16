@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthAdminController;
+use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\MotorizadoController;
@@ -103,3 +104,10 @@ Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostr
 Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
 
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
+
+
+//rutas app socios
+Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
+Route::post('/categories', [CategoriaController::class, 'store']);
+Route::put('/categories/{id}', [CategoriaController::class, 'update']);
+Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
