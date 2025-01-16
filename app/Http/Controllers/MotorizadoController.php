@@ -57,7 +57,8 @@ class MotorizadoController extends Controller
                         'dni' => $motorizado->datosBancarios->dni,
                         'banco' => $motorizado->datosBancarios->banco->nombre,
                         'tipo_cuenta' => $motorizado->datosBancarios->tipoCuenta->nombre,
-                        'numero_cuenta' => $motorizado->datosBancarios->numero_cuenta
+                        'numero_cuenta' => $motorizado->datosBancarios->numero_cuenta,
+                        'imagen_cuenta' => $motorizado->datosBancarios->url_imagen_cuenta
                     ] : null,
                     'registroVehiculo' => $motorizado->registroVehiculo ? [
                         'placa' => $motorizado->registroVehiculo->placa,

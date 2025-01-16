@@ -14,12 +14,14 @@ class BusinessRegistration extends Model
         'email',
         'verification_code',
         'email_verified_at',
-        'estado'
+        'estado', 
+        'aprobado'
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'estado' => 'integer'
+        'estado' => 'integer',
+        'aprobado' => 'boolean'
     ];
 
     public function negocio()
@@ -40,6 +42,10 @@ class BusinessRegistration extends Model
     public function datosBancarios()
     {
         return $this->hasOne(DatosBancarios::class);
+    }
+    public function cuentaBancaria()
+    {
+        return $this->hasOne(SociosCuentaBancaria::class);
     }
 
     public function revisarDatos()

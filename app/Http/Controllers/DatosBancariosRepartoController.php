@@ -34,15 +34,21 @@ class DatosBancariosRepartoController extends Controller
             'numero_cuenta' => 'required|string|max:50',
             'imagen_cuenta' => 'required|file|mimes:jpeg,png,pdf|max:4096',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json(['errores' => $validator->errors()], 422);
         }
-
+    
         try {
-            // Guardar la imagen
-            $rutaImagen = $request->file('imagen_cuenta')->store('cuentas_bancarias', 'public');
-
+            // Generar un nombre único para la imagen
+            $nombreImagen = time() . '_' . $request->file('imagen_cuenta')->getClientOriginalName();
+            
+            // Guardar la imagen directamente en la carpeta public
+            $rutaImagen = $request->file('imagen_cuenta')->move(public_path('storage/cuentas_bancarias'), $nombreImagen);
+    
+            // Generar la URL pública de la imagen
+            $urlImagen = asset('storage/cuentas_bancarias/' . $nombreImagen);
+    
             // Crear y guardar la cuenta bancaria
             $cuentaBancaria = CuentaBancariaReparto::create([
                 'reparto_registro_id' => $request->reparto_registro_id,
@@ -51,19 +57,19 @@ class DatosBancariosRepartoController extends Controller
                 'banco_id' => $request->banco_id,
                 'tipo_cuenta_id' => $request->tipo_cuenta_id,
                 'numero_cuenta' => $request->numero_cuenta,
-                'url_imagen_cuenta' => $rutaImagen
+                'url_imagen_cuenta' => $urlImagen // Guardamos la URL pública
             ]);
-
+    
             return response()->json([
                 'mensaje' => 'Cuenta bancaria guardada con éxito',
                 'cuenta_bancaria' => $cuentaBancaria
             ], 201);
         } catch (\Exception $e) {
             // Si algo falla, eliminamos la imagen si se subió
-            if (isset($rutaImagen)) {
-                Storage::disk('public')->delete($rutaImagen);
+            if (isset($rutaImagen) && file_exists($rutaImagen)) {
+                unlink($rutaImagen);
             }
-
+    
             return response()->json([
                 'mensaje' => 'Error al guardar la cuenta bancaria',
                 'error' => $e->getMessage()
