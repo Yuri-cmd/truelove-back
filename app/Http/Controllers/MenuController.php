@@ -27,7 +27,6 @@ class MenuController extends Controller
             'menu_id' => $menu->id,
         ]);
 
-        // Redirigir con un mensaje de éxito
-        return response()->json('success', 'Menú creado y asociado correctamente.');
+        return response()->json($menu, 201);
     }
 }
