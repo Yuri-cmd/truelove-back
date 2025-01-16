@@ -11,21 +11,6 @@ class MenuController extends Controller
 {
     public function store(Request $request)
     {
-        // Validación de los campos
-        $validator = Validator::make($request->all(), [
-            'titulo' => 'required|string|max:255',
-            'descripcion' => 'required|string|max:1000',
-            'foto' => 'required|url',
-            'precio' => 'required|numeric|min:0',
-            'status' => 'required|in:active,inactive,out-of-stock',
-            'categoria_id' => 'required|exists:categoria,id', // Verifica que la categoría exista
-        ]);
-
-        // Si la validación falla, retornar errores
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
-
         // Crear el menú
         $menu = Menu::create([
             'titulo' => $request->titulo,
