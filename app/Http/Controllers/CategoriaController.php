@@ -3,60 +3,53 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Categoria;
+use App\Models\Categorias;
 
 class CategoriaController extends Controller
 {
-    public function index()
+    public function index($empresa_id)
     {
-        $categorias = Categoria::all();
-        return view('categorias.index', compact('categorias'));
+        $categorias = Categorias::where('empresa_id', $empresa_id)->get();
+        return response()->json($categorias);
     }
 
-    public function create()
-    {
-        return view('categorias.create');
-    }
-
+    // Crear categoría
     public function store(Request $request)
     {
         $request->validate([
-            'nombre' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
         ]);
 
-        Categoria::create([
-            'empresa_id' => auth()->user()->empresa_id, // O el valor que corresponda
-            'nombre' => $request->nombre,
+        $category = Categorias::create([
+            'name' => $request->name,
+            'id_empresa' => 1, // Estático por ahora
         ]);
 
-        return redirect()->route('categorias.index')->with('success', 'Categoría creada con éxito.');
+        return response()->json($category, 201);
     }
 
-    public function edit($id)
-    {
-        $categoria = Categoria::findOrFail($id);
-        return view('categorias.edit', compact('categoria'));
-    }
-
+    // Actualizar categoría
     public function update(Request $request, $id)
     {
         $request->validate([
-            'nombre' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
         ]);
 
-        $categoria = Categoria::findOrFail($id);
-        $categoria->update([
-            'nombre' => $request->nombre,
+        $category = Categorias::findOrFail($id);
+        $category->update([
+            'name' => $request->name,
+            'id_empresa' => 1, // Estático por ahora
         ]);
 
-        return redirect()->route('categorias.index')->with('success', 'Categoría actualizada con éxito.');
+        return response()->json($category, 200);
     }
 
-    public function destroy($id)
+    // Eliminar categoría
+    public function destroy($id, $id_empresa)
     {
-        $categoria = Categoria::findOrFail($id);
-        $categoria->delete();
+        $category = Categorias::where('id', $id)->where('id_empresa', $id_empresa)->firstOrFail();
+        $category->delete();
 
-        return redirect()->route('categorias.index')->with('success', 'Categoría eliminada con éxito.');
+        return response()->json(['message' => 'Categoría eliminada con éxito'], 200);
     }
 }
