@@ -22,6 +22,7 @@ use App\Http\Controllers\IdsController;
 use App\Http\Middleware\EncryptionHandler;
 
 use App\Http\Controllers\DatosPersonalesRepartoController;
+use App\Http\Controllers\MenuController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -40,15 +41,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/socio/{id}/aprobar', [SocioController::class, 'aprobar']);
 
     Route::get('/admin/motorizado', [MotorizadoController::class, 'all']);
-Route::post('/admin/motorizado/change/state/{id}', [MotorizadoController::class, 'changeState']);
-Route::get('/admin/motorizado/{id}/details', [MotorizadoController::class, 'getDetails']);
-Route::post('/admin/motorizado/{id}/aprobar', [MotorizadoController::class, 'aprobar']);
+    Route::post('/admin/motorizado/change/state/{id}', [MotorizadoController::class, 'changeState']);
+    Route::get('/admin/motorizado/{id}/details', [MotorizadoController::class, 'getDetails']);
+    Route::post('/admin/motorizado/{id}/aprobar', [MotorizadoController::class, 'aprobar']);
 });
 
 
 
-   // Rutas de autenticación y verificación
-   Route::controller(EmailVerificationController::class)->group(function () {
+// Rutas de autenticación y verificación
+Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');
@@ -111,3 +112,5 @@ Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
+
+Route::post('/menus', [MenuController::class, 'store']);
