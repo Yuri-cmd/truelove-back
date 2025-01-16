@@ -113,4 +113,4 @@ Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
 
-Route::post('/menus', [MenuController::class, 'store']);
+Route::post('/crear/menus', [MenuController::class, 'store']);
