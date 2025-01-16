@@ -3,27 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
-use App\Models\Negocio;
-use App\Models\Establecimiento;
-use App\Models\DatosClaveNegocio;
-use App\Models\DatosBancarios;
-use App\Models\SociosCuentaBancaria;
+use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use App\Mail\CredencialesSocio;
+use Illuminate\Support\Facades\DB;
 
 class SocioController extends Controller
 {
     public function all()
     {
-        return response()->json(BusinessRegistration::all());
+        try {
+            $socios = BusinessRegistration::all();
+            return response()->json($socios);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener socios: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al obtener la lista de socios'], 500);
+        }
     }
 
     public function changeState($id)
     {
-        $socio = BusinessRegistration::find($id);
-        $socio->estado =  $socio->estado == 1 ? 0 : 1;
-        $socio->save();
-        return response()->json(201);
+        try {
+            $socio = BusinessRegistration::findOrFail($id);
+            $socio->estado = $socio->estado == 1 ? 0 : 1;
+            $socio->save();
+            return response()->json(['status' => 'success', 'message' => 'Estado del socio actualizado'], 200);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado del socio: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al cambiar el estado del socio'], 500);
+        }
     }
 
     public function getDetails($id)
@@ -93,10 +105,10 @@ class SocioController extends Controller
 
     public function aprobar($id)
     {
+        DB::beginTransaction();
         try {
             $socio = BusinessRegistration::findOrFail($id);
             
-            // Verificar si ya está aprobado
             if ($socio->aprobado) {
                 return response()->json([
                     'status' => 'error',
@@ -105,19 +117,37 @@ class SocioController extends Controller
             }
     
             $socio->aprobado = true;
+            
+            // Generar credenciales
+            $username = strtolower(str_replace(' ', '', $socio->name . $socio->lastName));
+            $password = Str::random(10);
+            
+            // Obtener el rol de negocio
+            $rolNegocio = Role::where('name', 'negocio')->firstOrFail();
+            
+            // Crear un nuevo usuario
+            $user = new User();
+            $user->usuario = $username;
+            $user->name = $socio->name . ' ' . $socio->lastName;
+            $user->email = $socio->email;
+            $user->password = bcrypt($password);
+            $user->role_id = $rolNegocio->id;
+            $user->save();
+
+            // Asociar el usuario al socio
+            $socio->user_id = $user->id;
             $socio->save();
+
+            // Enviar correo con las credenciales
+            Mail::to($socio->email)->send(new CredencialesSocio($username, $password));
     
+            DB::commit();
             return response()->json([
                 'status' => 'success',
-                'message' => 'Socio aprobado exitosamente'
+                'message' => 'Socio aprobado exitosamente y credenciales enviadas'
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::error('Socio no encontrado: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Socio no encontrado'
-            ], 404);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error al aprobar socio: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
@@ -125,7 +155,4 @@ class SocioController extends Controller
             ], 500);
         }
     }
-    
-    
 }
-

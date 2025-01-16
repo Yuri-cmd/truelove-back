@@ -47,4 +47,8 @@ class RepartoRegistro extends Model
     {
         return $this->hasOne(RegistroVehiculo::class);
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
