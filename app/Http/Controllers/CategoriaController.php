@@ -18,11 +18,12 @@ class CategoriaController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'id_empresa' => 'required|string|max:255',
         ]);
 
         $category = Categorias::create([
             'name' => $request->name,
-            'id_empresa' => 1, // Estático por ahora
+            'empresa_id' => $request->id_empresa,
         ]);
 
         return response()->json($category, 201);
@@ -38,7 +39,7 @@ class CategoriaController extends Controller
         $category = Categorias::findOrFail($id);
         $category->update([
             'name' => $request->name,
-            'id_empresa' => 1, // Estático por ahora
+            'empresa_id' => $request->id_empresa,
         ]);
 
         return response()->json($category, 200);
@@ -47,7 +48,7 @@ class CategoriaController extends Controller
     // Eliminar categoría
     public function destroy($id, $id_empresa)
     {
-        $category = Categorias::where('id', $id)->where('id_empresa', $id_empresa)->firstOrFail();
+        $category = Categorias::where('id', $id)->where('empresa_id', $id_empresa)->firstOrFail();
         $category->delete();
 
         return response()->json(['message' => 'Categoría eliminada con éxito'], 200);
