@@ -21,7 +21,7 @@ class CategoriaController extends Controller
         ]);
 
         $category = Categorias::create([
-            'nombre' => $request->name,
+            'nombre' => $request->nombre,
             'empresa_id' => $request->empresa_id,
         ]);
 
@@ -32,13 +32,13 @@ class CategoriaController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
         ]);
 
         $category = Categorias::findOrFail($id);
         $category->update([
-            'name' => $request->name,
-            'empresa_id' => $request->id_empresa,
+            'nombre' => $request->nombre,
+            'empresa_id' => $request->empresa_id,
         ]);
 
         return response()->json($category, 200);
