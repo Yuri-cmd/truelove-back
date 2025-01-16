@@ -31,25 +31,51 @@ Route::post('/admin/login', [AuthAdminController::class, 'login']);
 
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/admin/user', [UserController::class, 'all']);
-    Route::post('/admin/users/change/state/{id}', [UserController::class, 'changeState']);
-    Route::post('/admin/users/create', [UserController::class, 'store']);
+    // Rutas para administradores
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
+        // Gestión de usuarios
+        Route::controller(UserController::class)->group(function () {
+            Route::get('/user', 'all');
+            Route::post('/users/change/state/{id}', 'changeState');
+            Route::post('/users/create', 'store');
+        });
 
-    Route::get('/admin/socio', [SocioController::class, 'all']);
-    Route::post('/admin/socio/change/state/{id}', [SocioController::class, 'changeState']);
-    Route::get('/admin/socio/{id}/details', [SocioController::class, 'getDetails']);
-    Route::post('/admin/socio/{id}/aprobar', [SocioController::class, 'aprobar']);
+        // Gestión de socios
+        Route::controller(SocioController::class)->group(function () {
+            Route::get('/socio', 'all');
+            Route::post('/socio/change/state/{id}', 'changeState');
+            Route::get('/socio/{id}/details', 'getDetails');
+            Route::post('/socio/{id}/aprobar', 'aprobar');
+        });
 
-    Route::get('/admin/motorizado', [MotorizadoController::class, 'all']);
-    Route::post('/admin/motorizado/change/state/{id}', [MotorizadoController::class, 'changeState']);
-    Route::get('/admin/motorizado/{id}/details', [MotorizadoController::class, 'getDetails']);
-    Route::post('/admin/motorizado/{id}/aprobar', [MotorizadoController::class, 'aprobar']);
+        // Gestión de motorizados
+        Route::controller(MotorizadoController::class)->group(function () {
+            Route::get('/motorizado', 'all');
+            Route::post('/motorizado/change/state/{id}', 'changeState');
+            Route::get('/motorizado/{id}/details', 'getDetails');
+            Route::post('/motorizado/{id}/aprobar', 'aprobar');
+        });
+    });
+
+    // Rutas para negocios
+    Route::middleware('role:negocio')->prefix('negocio')->group(function () {
+        Route::controller(NegocioController::class)->group(function () {
+            Route::get('/perfil', 'perfil');
+            Route::put('/actualizar', 'actualizar');
+        });
+    });
+
+    // Rutas para motorizados
+    Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
+        Route::controller(MotorizadoController::class)->group(function () {
+            Route::get('/perfil', 'perfil');
+            Route::put('/actualizar', 'actualizar');
+        });
+    });
 });
 
-
-
-// Rutas de autenticación y verificación
-Route::controller(EmailVerificationController::class)->group(function () {
+   // Rutas de autenticación y verificación
+   Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');

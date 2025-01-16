@@ -16,24 +16,34 @@ class AuthAdminController extends Controller
                 'usuario' => 'required',
                 'password' => 'required',
             ]);
-            ray($credentials);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'error' => 'Credenciales incorrectas.',
             ], 422);
         }
-
+    
         $user = User::where('usuario', $credentials['usuario'])->first();
-        if (!$user || !Hash::check($credentials['password'], $user->password)) return response()->json([
-            'error' => 'Credenciales incorrectas.',
-        ], 401);
-
-        if (!$user->estado) return response()->json([
-            'error' => 'Usuario Inactivo',
-        ], 401);
-
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json([
+                'error' => 'Credenciales incorrectas.',
+            ], 401);
+        }
+    
+        if (!$user->estado) {
+            return response()->json([
+                'error' => 'Usuario Inactivo',
+            ], 401);
+        }
+    
         $token = $user->createToken(env('APP_NAME'))->plainTextToken;
-        return response()->json(['token' => $token, 'user' => $user]);
+    
+        // Obtener el rol del usuario
+        $roleName = $user->role ? $user->role->name : 'user';
+    
+        return response()->json([
+            'token' => $token, 
+            'user' => $user,
+            'role' => $roleName
+        ]);
     }
-
 }

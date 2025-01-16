@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\RepartoRegistro;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use App\Mail\CredencialesMotorizado;
 
 class MotorizadoController extends Controller
 {
@@ -87,17 +92,39 @@ class MotorizadoController extends Controller
         try {
             $motorizado = RepartoRegistro::findOrFail($id);
             $motorizado->aprobado = true;
+            
+            // Generar credenciales
+            $username = strtolower(str_replace(' ', '', $motorizado->nombres . $motorizado->apellidos));
+            $password = Str::random(10);
+            
+            // Obtener el rol de motorizado
+            $rolMotorizado = Role::where('name', 'motorizado')->firstOrFail();
+            
+            // Crear un nuevo usuario
+            $user = new User();
+            $user->usuario = $username;
+            $user->name = $motorizado->nombres . ' ' . $motorizado->apellidos;
+            $user->email = $motorizado->email;
+            $user->password = bcrypt($password);
+            $user->role_id = $rolMotorizado->id;
+            $user->save();
+    
+            // Asociar el usuario al motorizado
+            $motorizado->user_id = $user->id;
             $motorizado->save();
-
+    
+            // Enviar correo con las credenciales
+            Mail::to($motorizado->email)->send(new CredencialesMotorizado($username, $password));
+    
             return response()->json([
                 'status' => 'success',
-                'message' => 'Motorizado aprobado exitosamente'
+                'message' => 'Motorizado aprobado exitosamente y credenciales enviadas'
             ]);
         } catch (\Exception $e) {
             Log::error('Error al aprobar motorizado: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al aprobar el motorizado'
+                'message' => 'Error al aprobar el motorizado: ' . $e->getMessage()
             ], 500);
         }
     }
