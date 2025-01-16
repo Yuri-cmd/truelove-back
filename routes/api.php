@@ -115,3 +115,4 @@ Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'des
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
+Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);

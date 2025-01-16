@@ -45,4 +45,21 @@ class MenuController extends Controller
         $menus = Menu::where('empresa_id', $empresa_id)->get();
         return response()->json($menus);
     }
+
+    public function updateStatus($id, Request $request)
+    {
+        // Buscar el platillo por ID
+        $dish = Menu::find($id);
+
+        if (!$dish) {
+            return response()->json(['message' => 'Platillo no encontrado'], 404);
+        }
+
+        // Actualizar el estado del platillo
+        $dish->status = $request->tstatus;
+        $dish->save();
+
+        // Retornar respuesta de éxito
+        return response()->json(['message' => 'Estado actualizado correctamente', 'dish' => $dish], 200);
+    }
 }
