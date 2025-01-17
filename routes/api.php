@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('/admin/login', [AuthAdminController::class, 'login']);
+Route::post('/admin/reset-password', [AuthAdminController::class, 'resetPassword']);
+Route::post('/admin/verify-email', [AuthAdminController::class, 'verifyEmail']);
+Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);
 
 
 

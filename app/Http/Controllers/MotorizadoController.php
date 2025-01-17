@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Mail\CredencialesMotorizado;
+use Illuminate\Support\Facades\DB;
 
 class MotorizadoController extends Controller
 {
@@ -89,12 +90,21 @@ class MotorizadoController extends Controller
 
     public function aprobar($id)
     {
+        DB::beginTransaction();
         try {
             $motorizado = RepartoRegistro::findOrFail($id);
+            
+            if ($motorizado->aprobado) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El motorizado ya está aprobado'
+                ], 400);
+            }
+
             $motorizado->aprobado = true;
             
-            // Generar credenciales
-            $username = strtolower(str_replace(' ', '', $motorizado->nombres . $motorizado->apellidos));
+            // Generar credenciales únicas
+            $username = $this->generateUniqueUsername($motorizado->nombres, $motorizado->apellidos);
             $password = Str::random(10);
             
             // Obtener el rol de motorizado
@@ -108,24 +118,39 @@ class MotorizadoController extends Controller
             $user->password = bcrypt($password);
             $user->role_id = $rolMotorizado->id;
             $user->save();
-    
+
             // Asociar el usuario al motorizado
             $motorizado->user_id = $user->id;
             $motorizado->save();
-    
+
             // Enviar correo con las credenciales
             Mail::to($motorizado->email)->send(new CredencialesMotorizado($username, $password));
     
+            DB::commit();
             return response()->json([
                 'status' => 'success',
                 'message' => 'Motorizado aprobado exitosamente y credenciales enviadas'
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al aprobar motorizado: ' . $e->getMessage());
+            DB::rollBack();
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al aprobar el motorizado: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function generateUniqueUsername($nombres, $apellidos)
+    {
+        $baseUsername = strtolower(str_replace(' ', '', $nombres . $apellidos));
+        $username = $baseUsername;
+        $counter = 1;
+
+        while (User::where('usuario', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
+        return $username;
     }
 }
