@@ -119,7 +119,7 @@ class SocioController extends Controller
             $socio->aprobado = true;
             
             // Generar credenciales
-            $username = strtolower(str_replace(' ', '', $socio->name . $socio->lastName));
+            $username = $this->generateUniqueUsername($socio->name, $socio->lastName);
             $password = Str::random(10);
             
             // Obtener el rol de negocio
@@ -154,5 +154,19 @@ class SocioController extends Controller
                 'message' => 'Error al aprobar el socio: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function generateUniqueUsername($name, $lastName)
+    {
+        $baseUsername = strtolower(str_replace(' ', '', $name . $lastName));
+        $username = $baseUsername;
+        $counter = 1;
+
+        while (User::where('usuario', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
+        return $username;
     }
 }
