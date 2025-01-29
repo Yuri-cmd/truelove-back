@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\MotorizadoController;
+use App\Http\Controllers\PerfilNegocioController;
 use App\Http\Controllers\RegistroVehiculoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\SociosCuentaBancariaController;
@@ -60,14 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
-    // Rutas para negocios
-    Route::middleware('role:negocio')->prefix('negocio')->group(function () {
-        Route::controller(NegocioController::class)->group(function () {
-            Route::get('/perfil', 'perfil');
-            Route::put('/actualizar', 'actualizar');
-        });
-    });
-
+ 
     // Rutas para motorizados
     Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
         Route::controller(MotorizadoController::class)->group(function () {
@@ -150,3 +144,10 @@ Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'des
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
 Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
+    Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
+    Route::get('/negocio/perfil', [PerfilNegocioController::class, 'obtenerPerfil']);
+});
+

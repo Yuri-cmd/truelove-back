@@ -33,4 +33,9 @@ class User extends Authenticatable
     {
         return $this->role && $this->role->name === $roleName;
     }
-}
+    public function businessRegistration()
+    {
+        return $this->hasOne(BusinessRegistration::class, 'user_id');
+    }
+    
+}    
