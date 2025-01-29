@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class BusinessRegistration extends Model
 {
     protected $fillable = [
+        'documentType',
+        'documentNumber',
         'name',
         'lastName',
         'businessType',

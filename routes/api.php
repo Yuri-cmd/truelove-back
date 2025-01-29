@@ -86,12 +86,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Otras rutas
 Route::post('/negocios', [NegocioController::class, 'store']);
-
+Route::get('/negocios/{businessRegistrationId}', [NegocioController::class, 'show']);
 Route::get('/tipos-negocio', [NegocioController::class, 'getTiposNegocio']);
 Route::get('/categorias/{tipoNegocioId}', [NegocioController::class, 'getCategorias']);
 Route::post('/negocios', [NegocioController::class, 'store']);
 Route::put('/negocios/{negocio}', [NegocioController::class, 'update']);
 Route::post('/negocios/{negocio}/sucursales', [SucursalController::class, 'store']);
+Route::get('/negocios/{businessRegistrationId}/approval-status', [NegocioController::class, 'checkApprovalStatus']);
+
+
+
+
 
 
 Route::post('/establecimientos', [EstablecimientoController::class, 'store']);

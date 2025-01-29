@@ -13,11 +13,13 @@ class CredencialesSocio extends Mailable
 
     public $username;
     public $password;
+    public $registrationId;
 
-    public function __construct($username, $password)
+    public function __construct($username, $password, $registrationId)
     {
         $this->username = $username;
         $this->password = $password;
+        $this->registrationId = $registrationId;
     }
 
     public function build()
