@@ -107,15 +107,17 @@ class SocioController extends Controller
     {
         DB::beginTransaction();
         try {
+            // busca el registro de socio
             $socio = BusinessRegistration::findOrFail($id);
             
+            // virifica si esta aprobado
             if ($socio->aprobado) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'El socio ya está aprobado'
                 ], 400);
             }
-    
+            // marca socio como aprobado
             $socio->aprobado = true;
             
             // Generar credenciales
@@ -139,9 +141,14 @@ class SocioController extends Controller
             $socio->save();
 
             // Enviar correo con las credenciales
-            Mail::to($socio->email)->send(new CredencialesSocio($username, $password));
+            Mail::to($socio->email)->send(new CredencialesSocio(
+                $username,
+                 $password,
+                    $socio->id
+                ));
     
-            DB::commit();
+            DB::commit(); // Commit de la transacción de la base de datos
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Socio aprobado exitosamente y credenciales enviadas'

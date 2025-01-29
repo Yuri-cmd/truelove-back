@@ -76,5 +76,60 @@ class EstablecimientoController extends Controller
             ], 500);
         }
     }
+    public function update(Request $request, Establecimiento $establecimiento)
+{
+    try {
+        $establecimiento->update([
+            'nombre_establecimiento' => $request->businessName,
+            'calle' => $request->street,
+            'numero' => $request->number,
+            'codigo_postal' => $request->postalCode,
+            'provincia' => $request->province,
+            'ciudad' => $request->city,
+            'referencia' => $request->reference,
+            'latitud' => $request->coordinates[1],
+            'longitud' => $request->coordinates[0],
+            'direccion_completa' => $request->fullAddress,
+        ]);
+
+        return response()->json([
+            'message' => 'Establecimiento actualizado correctamente',
+            'establecimiento' => $establecimiento
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al actualizar establecimiento: ' . $e->getMessage());
+        return response()->json(['error' => 'Error al actualizar el establecimiento'], 500);
+    }
+}
+public function show($businessRegistrationId)
+{
+    try {
+        $establecimiento = Establecimiento::where('business_registration_id', $businessRegistrationId)
+            ->first();
+            
+        if (!$establecimiento) {
+            return response()->json(['message' => 'Establecimiento no encontrado'], 404);
+        }
+
+        // Transformamos los datos al formato esperado por el frontend
+        return response()->json([
+            'nombre_establecimiento' => $establecimiento->nombre_establecimiento,
+            'calle' => $establecimiento->calle,
+            'numero' => $establecimiento->numero,
+            'codigo_postal' => $establecimiento->codigo_postal,
+            'provincia' => $establecimiento->provincia,
+            'ciudad' => $establecimiento->ciudad,
+            'referencia' => $establecimiento->referencia,
+            'latitud' => $establecimiento->latitud,
+            'longitud' => $establecimiento->longitud,
+            'direccion_completa' => $establecimiento->direccion_completa,
+            'id' => $establecimiento->id,
+            'business_registration_id' => $establecimiento->business_registration_id
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al obtener establecimiento: ' . $e->getMessage());
+        return response()->json(['error' => 'Error al obtener los datos del establecimiento'], 500);
+    }
+}
 }
 

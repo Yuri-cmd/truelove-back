@@ -136,4 +136,40 @@ class NegocioController extends Controller
             return response()->json(['error' => 'Error al actualizar el negocio'], 500);
         }
     }
+    public function show($businessRegistrationId)
+{
+    try {
+        $negocio = Negocio::where('business_registration_id', $businessRegistrationId)
+            ->first();
+            
+        if (!$negocio) {
+            return response()->json(['message' => 'Negocio no encontrado'], 404);
+        }
+
+        return response()->json($negocio);
+    } catch (\Exception $e) {
+        Log::error('Error al obtener negocio: ' . $e->getMessage());
+        return response()->json(['error' => 'Error al obtener los datos del negocio'], 500);
+    }
+}
+
+public function checkApprovalStatus($businessRegistrationId)
+{
+    try {
+        $businessRegistration = BusinessRegistration::findOrFail($businessRegistrationId);
+        $negocio = $businessRegistration->negocio;
+        
+        return response()->json([
+            'aprobado' => $businessRegistration->aprobado,
+            'nombre_negocio' => $negocio ? $negocio->nombre : null
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al verificar el estado de aprobación: ' . $e->getMessage());
+        return response()->json(['error' => 'Error al verificar el estado de aprobación'], 500);
+    }
+}
+
+
+
+
 }

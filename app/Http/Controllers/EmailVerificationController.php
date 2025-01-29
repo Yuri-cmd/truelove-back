@@ -6,19 +6,35 @@ use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EmailVerificationController extends Controller
 {
+    
     public function register(Request $request)
     {
         try {
-            // Validar los datos de entrada
-            $request->validate([
+            // Validar los datos de entrada incluyendo documento único
+            $validated = $request->validate([
+                'documentType' => 'required|string|max:255',
+                'documentNumber' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    Rule::unique('business_registrations')->where(function ($query) use ($request) {
+                        return $query->where('documentType', $request->documentType)
+                                   ->where('documentNumber', $request->documentNumber);
+                    })
+                ],
                 'name' => 'required|string|max:255',
                 'lastName' => 'required|string|max:255',
                 'businessType' => 'required|string|max:255',
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255|unique:business_registrations,email',
+            ], [
+                'documentNumber.unique' => 'Este documento de identidad ya está registrado o se encuentra en uso.',
+                'email.unique' => 'Este correo electrónico ya está registrado. Por favor, intente con otro.'
             ]);
 
             // Generar el código de verificación
@@ -26,31 +42,58 @@ class EmailVerificationController extends Controller
 
             // Crear el registro de la inscripción
             $registration = BusinessRegistration::create([
-                'name' => $request->name,
-                'lastName' => $request->lastName,
-                'businessType' => $request->businessType,
-                'phone' => $request->phone,
-                'email' => $request->email,
+                'documentType' => $validated['documentType'],
+                'documentNumber' => $validated['documentNumber'],
+                'name' => $validated['name'],
+                'lastName' => $validated['lastName'],
+                'businessType' => $validated['businessType'],
+                'phone' => $validated['phone'],
+                'email' => $validated['email'],
                 'verification_code' => $verificationCode,
             ]);
 
             // Enviar el correo electrónico de verificación
-            Mail::send('emails.verification', ['code' => $verificationCode, 'name' => $request->name], function ($message) use ($request) {
-                $message->to($request->email)
+            Mail::send('emails.verification', ['code' => $verificationCode, 'name' => $validated['name']], function ($message) use ($validated) {
+                $message->to($validated['email'])
                     ->subject('Verificación de correo electrónico - TRUELOVE');
             });
 
-            // Responder con un mensaje de éxito
             return response()->json([
                 'message' => 'Codigo de verificacion enviado al correo electronico',
                 'registration_id' => $registration->id
             ]);
+
+        } catch (ValidationException $e) {
+            $errors = $e->validator->errors();
+            
+            // Verificar si el error es de documento duplicado
+            if ($errors->has('documentNumber')) {
+                return response()->json([
+                    'message' => $errors->first('documentNumber'),
+                    'error' => 'dni_registered'
+                ], 422);
+            }
+            
+            // Verificar si el error es de email duplicado
+            if ($errors->has('email')) {
+                return response()->json([
+                    'message' => $errors->first('email'),
+                    'error' => 'email_taken'
+                ], 422);
+            }
+
+            // Otros errores de validación
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $errors->all()
+            ], 422);
+
         } catch (\Exception $e) {
-            // Capturar el error y devolver una respuesta con el mensaje de error
+            // Otros errores no relacionados con la validación
             return response()->json([
                 'message' => 'Hubo un problema al registrar el negocio. Por favor, intente nuevamente.',
-                'error' => $e->getMessage()  // Puedes opcionalmente incluir el mensaje de error para depuración
-            ], 500);  // Código de error 500 para errores internos del servidor
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
