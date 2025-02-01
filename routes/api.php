@@ -154,7 +154,7 @@ Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
-Route::get('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
+Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 
 
 Route::middleware('auth:sanctum')->group(function () {
