@@ -24,6 +24,7 @@ use App\Http\Middleware\EncryptionHandler;
 
 use App\Http\Controllers\DatosPersonalesRepartoController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\PedidoController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -133,7 +134,7 @@ Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostr
 Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
 
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
-
+Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 
 //rutas app socios
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
