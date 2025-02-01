@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
+use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\Location;
 use App\Models\Pedido;
@@ -141,12 +143,19 @@ class BikerController extends Controller
                     // Si el tiempo estimado es válido, agregarlo al pedido
                     if ($tiempoEstimado !== null) {
                         $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                        $cliente = Cliente::find($pedido->id_cliente);
+                        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                         $names = array_map(function ($item) {
                             return $item['nombre'];
                         }, $pedidoDetalles->toArray());
                         $namesString = implode(', ', $names);
                         $pedido->tiempo_estimado = $tiempoEstimado;
                         $pedido->detalle = $namesString;
+                        $pedido->local = $local->nombre_establecimiento;
+                        $pedido->direccion_local = $local->direccion_completa;
+                        $pedido->direccion_entrega = $clienteDireccion->direccion;
+                        $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
+                        $pedido->celular = $cliente->celular;
                     }
                 }
             }
