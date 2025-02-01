@@ -40,9 +40,23 @@ class PedidoController extends Controller
 
     public function iniciarViaje(Request $request)
     {
+        // Buscar el pedido por su ID
         $pedido = Pedido::find($request->id);
-        $pedido->save(['id_motorizado' => $request->id_motorizado]);
-        $pedido->trackings()->create(['estado' => 3]);
+
+        // Verificar si el pedido existe
+        if (!$pedido) {
+            return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
+        }
+
+        // Asignar el id_motorizado y guardar
+        $pedido->id_motorizado = $request->id_motorizado;
+        $pedido->save();
+
+        // Registrar el tracking del pedido
+        PedidoTracking::create([
+            'pedido_id' => $pedido->id,
+            'estado' => 3
+        ]);
 
         return response()->json(['status' => 'success']);
     }
