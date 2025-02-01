@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('id_local');
             $table->unsignedBigInteger('id_cliente');
+            $table->unsignedBigInteger('id_motorizado');
             $table->decimal('latitud', 10, 7);
             $table->decimal('longitud', 10, 7);
             $table->timestamps();

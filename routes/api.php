@@ -23,6 +23,7 @@ use App\Http\Controllers\IdsController;
 use App\Http\Middleware\EncryptionHandler;
 
 use App\Http\Controllers\DatosPersonalesRepartoController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PedidoTrackingController;
@@ -137,6 +138,7 @@ Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
 Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
+Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
 //rutas app socios
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
