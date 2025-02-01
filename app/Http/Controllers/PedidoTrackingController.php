@@ -16,7 +16,7 @@ class PedidoTrackingController extends Controller
         }
 
         return response()->json([
-            'id' => $pedido->id,
+            'id' => $id,
             'estado' => $pedido->estado, // Suponiendo que tienes un campo `estado`
         ]);
     }
