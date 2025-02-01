@@ -44,6 +44,7 @@ class BikerController extends Controller
             'status' => 'success',
             'message' => 'Inicio de sesión exitoso',
             'user' => $user,
+            'repartidor' => $reparto,
             'token' => $user->createToken('your-app-name')->plainTextToken,
         ]);
     }
