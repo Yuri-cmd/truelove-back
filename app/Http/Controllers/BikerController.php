@@ -156,6 +156,8 @@ class BikerController extends Controller
                         $pedido->direccion_entrega = $clienteDireccion->direccion;
                         $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
                         $pedido->celular = $cliente->celular;
+                        $pedido->lat_local = $local->latitud;
+                        $pedido->lon_local = $local->longitud;
                     }
                 }
             }
