@@ -13,7 +13,7 @@ class LocationController extends Controller
     {
         $idMotorizado = Pedido::where('id', $idPedido)
             ->value('id_motorizado');
-
+        dd($idMotorizado);
         $location = Location::where('motorizado_id', $idMotorizado)
             ->latest()
             ->first();  // Obtener la última ubicación del motorizado
