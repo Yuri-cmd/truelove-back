@@ -17,11 +17,10 @@ class LocationController extends Controller
         $location = Location::where('motorizado_id', $idMotorizado)
             ->latest()
             ->first();  // Obtener la última ubicación del motorizado
-        dd($location);
         if ($location) {
             return response()->json([
-                'lat' => $location->lat,
-                'lon' => $location->lon,
+                'lat' => $location->latitude,
+                'lon' => $location->longitude,
             ]);
         } else {
             return response()->json([
