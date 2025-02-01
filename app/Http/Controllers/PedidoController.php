@@ -37,4 +37,13 @@ class PedidoController extends Controller
 
         return response()->json(['status' => 'success', 'pedido_id' => $pedido->id]);
     }
+
+    public function iniciarViaje(Request $request)
+    {
+        $pedido = Pedido::find($request->id);
+        $pedido->save(['id_motorizado' => $request->id_motorizado]);
+        $pedido->trackings()->create(['estado' => 3]);
+
+        return response()->json(['status' => 'success']);
+    }
 }
