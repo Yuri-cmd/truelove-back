@@ -25,6 +25,7 @@ use App\Http\Middleware\EncryptionHandler;
 use App\Http\Controllers\DatosPersonalesRepartoController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\PedidoTrackingController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -135,6 +136,7 @@ Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']
 
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
 Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
+Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 
 //rutas app socios
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
