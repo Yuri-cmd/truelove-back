@@ -18,7 +18,7 @@ class PedidoController extends Controller
                 'pedido_id' => $pedido->id,
                 'nombre' => $item['name'],
                 'cantidad' => $item['quantity'] ?? 1,
-                'precio' => $item['price'],
+                'precio' => preg_replace('/[^\d.]/', '', $item['price']),
                 'tipo' => 'item',
             ]);
         }
@@ -28,7 +28,7 @@ class PedidoController extends Controller
                 'pedido_id' => $pedido->id,
                 'nombre' => $adicional['name'],
                 'cantidad' => 1,
-                'precio' => $adicional['price'],
+                'precio' => preg_replace('/[^\d.]/', '', $adicional['price']),
                 'tipo' => 'adicional',
             ]);
         }
