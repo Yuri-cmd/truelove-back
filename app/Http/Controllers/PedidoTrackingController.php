@@ -9,8 +9,7 @@ class PedidoTrackingController extends Controller
 {
     public function obtenerEstado($id)
     {
-        $pedido = PedidoTracking::where('pedido_id', $id);
-        dd($pedido);
+        $pedido = PedidoTracking::where('pedido_id', $id)->latest()->first();
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
