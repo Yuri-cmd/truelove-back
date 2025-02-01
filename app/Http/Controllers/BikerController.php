@@ -6,6 +6,7 @@ use App\Models\RepartoRegistro;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use PedidoService;
 
 class BikerController extends Controller
 {
@@ -36,5 +37,12 @@ class BikerController extends Controller
             'user' => $user,
             'token' => $user->createToken('your-app-name')->plainTextToken,
         ]);
+    }
+
+    public function getPedidos($idMotorizado)
+    {
+        $pedidoService = new PedidoService();
+        $pedidos = $pedidoService->obtenerPedidosConTiempoEstimado($idMotorizado);
+        return response()->json($pedidos);
     }
 }

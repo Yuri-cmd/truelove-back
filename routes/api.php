@@ -153,6 +153,7 @@ Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
 
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
+Route::post('biker/pedidos/{id}', [BikerController::class, 'getPedidos']);
 
 
 Route::middleware('auth:sanctum')->group(function () {
