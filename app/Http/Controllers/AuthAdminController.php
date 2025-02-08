@@ -25,6 +25,7 @@ class AuthAdminController extends Controller
                 'usuario' => 'required',
                 'password' => 'required',
             ]);
+            
         } catch (ValidationException $e) {
             return response()->json([
                 'error' => 'Credenciales incorrectas.',
@@ -34,12 +35,19 @@ class AuthAdminController extends Controller
         // Buscar el usuario por nombre de usuario
         $user = User::where('usuario', $credentials['usuario'])->first();
 
-        // Verificar si existe el usuario y si la contraseña es correcta
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
-            return response()->json([
-                'error' => 'Credenciales incorrectas.',
-            ], 401);
-        }
+        // Si el usuario existe pero la contraseña es incorrecta
+    if ($user && !Hash::check($credentials['password'], $user->password)) {
+        return response()->json([
+            'error' => 'Contraseña incorrecta',
+            'type' => 'wrong_password'
+        ], 401);
+    }
+     // Si el usuario no existe
+     if (!$user) {
+        return response()->json([
+            'error' => 'Credenciales incorrectas.',
+        ], 401);
+    }
     
         // Verificar si el usuario está activo
         if (!$user->estado) {

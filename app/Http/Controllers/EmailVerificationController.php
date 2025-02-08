@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
+use App\Models\RepartoRegistro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -22,9 +23,10 @@ class EmailVerificationController extends Controller
                     'required',
                     'string',
                     'max:20',
+                    
                     Rule::unique('business_registrations')->where(function ($query) use ($request) {
-                        return $query->where('documentType', $request->documentType)
-                                   ->where('documentNumber', $request->documentNumber);
+                        return $query->where('documentType', $request->documentType) // Verificar el tipo de documento
+                                   ->where('documentNumber', $request->documentNumber); // Verificar el número de documento
                     })
                 ],
                 'name' => 'required|string|max:255',
@@ -36,6 +38,23 @@ class EmailVerificationController extends Controller
                 'documentNumber.unique' => 'Este documento de identidad ya está registrado o se encuentra en uso.',
                 'email.unique' => 'Este correo electrónico ya está registrado. Por favor, intente con otro.'
             ]);
+            //verifica si hay duplicados en la tabla de RepartoRegistro
+
+            $existingReparto = RepartoRegistro::where('nro_documento', $request->documentNumber)
+            ->orWhere('email', $request->email)
+            ->first();
+
+            // si existe un duplicado en la tabla de RepartoRegistro retorna un mensaje de error
+            if ($existingReparto){
+                $message = $existingReparto->nro_documento === $request->documentNumber
+                ? 'Este número de documento ya está registrado como repartidor'
+                : 'Este correo electrónico ya está registrado como repartidor';
+
+                return response()->json([
+                    'message' => $message,
+                  'error' => 'duplicate_in_reparto' // se usa duplicate_in_reparto para identificar el error
+                ], 422);
+            }
 
             // Generar el código de verificación
             $verificationCode = Str::random(6);

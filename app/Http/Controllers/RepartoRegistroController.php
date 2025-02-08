@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RepartoRegistro;
+use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,30 @@ class RepartoRegistroController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Verificar duplicados en RepartoRegistro
+        $existingReparto = RepartoRegistro::where('nro_documento', $request->nro_documento)
+            ->orWhere('email', $request->email)
+            ->first();
+
+        if ($existingReparto) {
+            $message = $existingReparto->nro_documento === $request->nro_documento 
+                ? 'Este número de documento ya está registrado como repartidor'
+                : 'Este correo electrónico ya está registrado como repartidor';
+            return response()->json(['errors' => ['duplicate' => [$message]]], 422);
+        }
+
+        // Verificar duplicados en BusinessRegistration para evitar que un repartidor se registre como socio comercial
+        $existingBusiness = BusinessRegistration::where('documentNumber', $request->nro_documento)
+            ->orWhere('email', $request->email) // Verificar si el correo ya está registrado
+            ->first(); // Si existe, es un duplicado
+
+        if ($existingBusiness) { 
+            $message = $existingBusiness->documentNumber === $request->nro_documento  // Verificar si el duplicado es por número de documento
+                ? 'Este número de documento ya está registrado como socio comercial'
+                : 'Este correo electrónico ya está registrado como socio comercial';
+            return response()->json(['errors' => ['duplicate' => [$message]]], 422);
+        }
+
         $registro = RepartoRegistro::create($validator->validated());
 
         $imagenes = ['frente', 'reverso'];
@@ -51,3 +76,4 @@ class RepartoRegistroController extends Controller
         return response()->json(['message' => 'Registro creado exitosamente', 'data' => $registro], 201);
     }
 }
+
