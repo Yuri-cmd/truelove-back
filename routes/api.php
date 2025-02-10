@@ -5,6 +5,7 @@ use App\Http\Controllers\BikerController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\EntregaCalendarioController;
 use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\PerfilNegocioController;
 use App\Http\Controllers\RegistroVehiculoController;
@@ -166,3 +167,4 @@ Route::middleware('auth:sanctum')->group(function () {
 
 });
 
+Route::post('/agendar-entrega', [EntregaCalendarioController::class, 'agendarEntrega']);
