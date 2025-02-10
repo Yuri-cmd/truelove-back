@@ -160,6 +160,9 @@ Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
     Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
-    Route::get('/negocio/perfil', [PerfilNegocioController::class, 'obtenerPerfil']);
+    Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
+    Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
+    Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
+
 });
 

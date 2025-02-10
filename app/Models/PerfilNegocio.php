@@ -14,6 +14,7 @@ class PerfilNegocio extends Model
     protected $fillable = [
         'business_registration_id',
         'ruta_logo',
+        'foto_perfil',
     ];
 
     public function horarios()
