@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdicionalController;
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\BikerController;
+use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
@@ -168,3 +170,17 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::post('/agendar-entrega', [EntregaCalendarioController::class, 'agendarEntrega']);
+
+// adicionales
+Route::get('/adicionales', [AdicionalController::class, 'index']);
+Route::post('/adicionales', [AdicionalController::class, 'store']);
+Route::get('/adicionales/{adicional}', [AdicionalController::class, 'show']);
+Route::put('/adicionales/{adicional}', [AdicionalController::class, 'update']);
+Route::delete('/adicionales/{adicional}', [AdicionalController::class, 'destroy']);
+
+// categoria adicionales
+Route::get('/categorias-adicionales', [CategoriaAdicionalController::class, 'index']);
+Route::post('/categorias-adicionales', [CategoriaAdicionalController::class, 'store']);
+Route::get('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'show']);
+Route::put('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'update']);
+Route::delete('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'destroy']);
