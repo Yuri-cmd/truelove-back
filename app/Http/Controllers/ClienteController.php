@@ -178,7 +178,7 @@ class ClienteController extends Controller
             'all' => $request->all(),
             'files' => $request->files->all()
         ]);
-        
+
 
         if (!$request->hasFile('dni_photo') || !$request->hasFile('selfie_photo')) {
             Log::error('Uno o ambos archivos no fueron recibidos');
@@ -188,8 +188,8 @@ class ClienteController extends Controller
         try {
             $cliente = Cliente::findOrFail($request->id_cliente);
 
-            $dniPath = $request->file('dni_photo')->store('clientes/dni', 'public');
-            $selfiePath = $request->file('selfie_photo')->store('clientes/selfies', 'public');
+            $dniPath = $request->file('dni_photo')->store('clientes/dni', 'custom_public');
+            $selfiePath = $request->file('selfie_photo')->store('clientes/selfies', 'custom_public');
 
             Log::info('Archivos almacenados', [
                 'dniPath' => $dniPath,
