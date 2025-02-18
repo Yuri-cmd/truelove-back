@@ -166,14 +166,12 @@ class ClienteController extends Controller
     public function uploadPhotos(Request $request)
     {
         $cliente = Cliente::findOrFail($request->id_cliente);
-
         $dniPath = $request->file('dni_photo')->store('clientes/dni', 'public');
         $selfiePath = $request->file('selfie_photo')->store('clientes/selfies', 'public');
 
-        $cliente->update([
-            'dni_photo' => $dniPath,
-            'selfie_photo' => $selfiePath,
-        ]);
+        $cliente->dni_photo = $dniPath;
+        $cliente->selfie_photo = $selfiePath;
+        $cliente->save();
 
         return response()->json(['message' => 'Fotos subidas correctamente', 'dni_photo' => $dniPath, 'selfie_photo' => $selfiePath]);
     }
