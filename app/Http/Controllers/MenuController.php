@@ -61,4 +61,42 @@ class MenuController extends Controller
         // Retornar respuesta de éxito
         return response()->json(['message' => 'Estado actualizado correctamente', 'dish' => $dish], 200);
     }
+
+    public function getMenuCategoria($empresa_id)
+    {
+        // Obtener todos los menús con sus categorías
+        $menus = Menu::with('categorias')->where('empresa_id', $empresa_id)->where('status', 'active')->get();
+
+        // Agrupar los menús por categoría
+        $groupedMenus = [];
+
+        foreach ($menus as $menu) {
+            foreach ($menu->categorias as $categoria) {
+                // Buscar si ya existe la categoría en el array agrupado
+                $categoriaIndex = array_search($categoria->nombre, array_column($groupedMenus, 'nombre'));
+
+                // Si la categoría no existe, se agrega
+                if ($categoriaIndex === false) {
+                    $groupedMenus[] = [
+                        'nombre' => $categoria->nombre,
+                        'items' => []
+                    ];
+                    $categoriaIndex = array_key_last($groupedMenus); // Obtener el índice recién agregado
+                }
+
+                // Agregar el menú a la categoría correspondiente
+                $groupedMenus[$categoriaIndex]['items'][] = [
+                    'id' => $menu->id,
+                    'empresa_id' => $menu->empresa_id,
+                    'titulo' => $menu->titulo,
+                    'descripcion' => $menu->descripcion,
+                    'foto' => $menu->foto,
+                    'precio' => $menu->precio,
+                    'status' => $menu->status
+                ];
+            }
+        }
+
+        return response()->json($groupedMenus);
+    }
 }

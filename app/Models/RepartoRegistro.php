@@ -23,7 +23,8 @@ class RepartoRegistro extends Model
         'documento_imagen_frente',
         'documento_imagen_reverso',
         'estado',
-        'aprobado'
+        'aprobado',
+        'token_fmc',
     ];
 
     protected $casts = [

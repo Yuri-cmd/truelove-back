@@ -27,10 +27,13 @@ use App\Http\Controllers\IdsController;
 use App\Http\Middleware\EncryptionHandler;
 
 use App\Http\Controllers\DatosPersonalesRepartoController;
+use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PedidoTrackingController;
+use App\Http\Controllers\RatingController;
+use App\Http\Controllers\TipoNegocioController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -68,7 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
- 
+
     // Rutas para motorizados
     Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
         Route::controller(MotorizadoController::class)->group(function () {
@@ -78,8 +81,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-   // Rutas de autenticación y verificación
-   Route::controller(EmailVerificationController::class)->group(function () {
+// Rutas de autenticación y verificación
+Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');
@@ -127,14 +130,6 @@ Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos'])
 Route::get('/tipos-cuenta', [DatosBancariosRepartoController::class, 'obtenerTiposCuenta']);
 Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guardarCuentaBancaria']);
 
-
-//rutas app clientes
-Route::post('/send-code', [ClienteController::class, 'sendCode']);
-Route::post('/profile', [ClienteController::class, 'store']);
-Route::post('/get-dni', [ClienteController::class, 'getDni']);
-Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
-Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
-
 Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
 Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostrar']);
 Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
@@ -144,7 +139,26 @@ Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
+//rutas app clientes
+Route::post('/send-code', [ClienteController::class, 'sendCode']);
+Route::post('/profile', [ClienteController::class, 'store']);
+Route::post('/get-dni', [ClienteController::class, 'getDni']);
+Route::post('/upload-photos', [ClienteController::class, 'uploadPhotos']);
+Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
+Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
+Route::get('/get/tipo/negocio', [TipoNegocioController::class, 'getAll']);
+Route::get('/get/locales/top/{id}', [LocalesController::class, 'getLocalesTop']);
+Route::get('/get/locales/{id}/{category?}', [LocalesController::class, 'getLocales']);
+Route::get('/busqueda/locales/{id}/{term?}', [LocalesController::class, 'searchLocales']);
+Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getMenuCategoria']);
+Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
+
+Route::post('/ratings', [RatingController::class, 'store']); // Guardar calificación
+Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']); 
 //rutas app socios
+Route::post('socio/login', [SocioController::class, 'login']);
+Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
+Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateEstadoPedido']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
@@ -158,7 +172,7 @@ Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
 Route::post('biker/login', [BikerController::class, 'login']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
-
+Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
@@ -166,7 +180,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
-
 });
 
 Route::post('/agendar-entrega', [EntregaCalendarioController::class, 'agendarEntrega']);
