@@ -173,6 +173,13 @@ class ClienteController extends Controller
             'selfie_photo' => $request->hasFile('selfie_photo')
         ]);
 
+        Log::info('Contenido de la petición', [
+            'headers' => $request->headers->all(),
+            'all' => $request->all(),
+            'files' => $request->files->all()
+        ]);
+        
+
         if (!$request->hasFile('dni_photo') || !$request->hasFile('selfie_photo')) {
             Log::error('Uno o ambos archivos no fueron recibidos');
             return response()->json(['error' => 'Faltan archivos'], 400);
