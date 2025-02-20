@@ -10,6 +10,7 @@ use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\EntregaCalendarioController;
 use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\PerfilNegocioController;
+use App\Http\Controllers\RegistrationStatusController;
 use App\Http\Controllers\RegistroVehiculoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\SociosCuentaBancariaController;
@@ -81,8 +82,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// Rutas de autenticación y verificación
+
+   // Rutas de autenticación y verificación del formulario principal y envio del correo
+ 
+
 Route::controller(EmailVerificationController::class)->group(function () {
+
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');
@@ -139,6 +144,8 @@ Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
+
+
 //rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
@@ -168,6 +175,7 @@ Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
 Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
 
+
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
@@ -178,6 +186,9 @@ Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBi
 
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 
+
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
     Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
@@ -185,6 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
 });
+
 
 Route::post('/agendar-entrega', [EntregaCalendarioController::class, 'agendarEntrega']);
 
@@ -201,3 +213,24 @@ Route::post('/categorias-adicionales', [CategoriaAdicionalController::class, 'st
 Route::get('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'show']);
 Route::put('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'update']);
 Route::delete('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'destroy']);
+
+
+Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
+Route::post('/categories', [CategoriaController::class, 'store']);
+Route::put('/categories/{id}', [CategoriaController::class, 'update']);
+Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
+
+Route::post('/crear/menus', [MenuController::class, 'store']);
+Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
+Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
+    Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
+    Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
+    Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
+    Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
+
+});
+
+Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
