@@ -58,8 +58,15 @@ class BusinessRegistration extends Model
     {
         return $this->hasOne(RevisarDatos::class);
     }
+
     public function documentosPdfExtranjero()
     {
         return $this->hasOne(DocPdfExtranjero::class);
+
+
+    public function perfil()
+    {
+        return $this->hasOne(PerfilNegocio::class);
+
     }
 }

@@ -21,6 +21,8 @@ return new class extends Migration
             $table->string('documento')->unique();
             $table->string('nacionalidad');
             $table->string('celular')->nullable();
+            $table->string('dni_photo');
+            $table->string('selfie_photo');
             $table->timestamps();
         });
     }

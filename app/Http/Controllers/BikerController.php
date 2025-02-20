@@ -154,7 +154,7 @@ class BikerController extends Controller
                         $pedido->detalle = $namesString;
                         $pedido->local = $local->nombre_establecimiento;
                         $pedido->direccion_local = $local->direccion_completa;
-                        $pedido->direccion_entrega = $clienteDireccion->direccion;
+                        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
                         $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
                         $pedido->celular = $cliente->celular;
                         $pedido->lat_local = $local->latitud;
@@ -163,7 +163,16 @@ class BikerController extends Controller
                 }
             }
         }
-
         return $pedidos;
+    }
+
+    public function updateLocation(Request $request)
+    {
+        Location::create([
+            'motorizado_id' => $request->motorizado_id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+        ]);
+        return response()->json(['message' => 'Location updated successfully'], 200);
     }
 }
