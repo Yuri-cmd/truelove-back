@@ -109,8 +109,7 @@ class PedidoController extends Controller
     {
         // Verificar si el pedido existe
         $pedido = Pedido::find($idPedido);
-        $perfil = PerfilNegocio::find($pedido->id_local);
-        $local = Establecimiento::where('business_registration_id', $perfil->business_registration_id)->first();
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
         $cliente = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
         $coordenadasCliente = json_decode($cliente->coordenadas);
         $resp = [

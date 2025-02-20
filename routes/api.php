@@ -173,6 +173,10 @@ Route::post('biker/login', [BikerController::class, 'login']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
+Route::post('biker/update-token', [BikerController::class, 'updateToken']);
+Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']); 
+
+Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);

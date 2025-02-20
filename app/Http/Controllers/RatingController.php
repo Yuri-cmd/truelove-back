@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
+use App\Models\Pedido;
 use App\Models\Rating;
 use Illuminate\Http\Request;
 
@@ -27,5 +29,29 @@ class RatingController extends Controller
     {
         $ratings = Rating::where('id_pedido', $id_pedido)->get();
         return response()->json($ratings);
+    }
+
+    public function getRatingsBiker($id)
+    {
+        // Obtener los pedidos del motorizado
+        $pedidos = Pedido::where('id_motorizado', $id)->get();
+        // Obtener los ratings con los datos del cliente
+        $data = $pedidos->map(function ($pedido) {
+            $rating = Rating::where('id_pedido', $pedido->id)->first(); // Obtener el rating del pedido
+            $cliente = Cliente::find($pedido->id_cliente); // Obtener el cliente
+            return [
+                'id_pedido' => $pedido->id,
+                'cliente' => $cliente ? [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombre,
+                    'telefono' => $cliente->telefono,
+                ] : null, // Si no hay cliente, devolver null
+                'rating' => $rating ? [
+                    'motorcycle_rating' => $rating->motorcycle_rating,
+                    'motorcycle_comment' => $rating->motorcycle_comment,
+                ] : null, // Si no hay rating, devolver null
+            ];
+        });
+        return response()->json($data);
     }
 }
