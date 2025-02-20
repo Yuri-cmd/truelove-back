@@ -16,7 +16,7 @@ class BusinessRegistration extends Model
         'email',
         'verification_code',
         'email_verified_at',
-        'estado', 
+        'estado',
         'aprobado'
     ];
 
@@ -57,5 +57,9 @@ class BusinessRegistration extends Model
     public function revisarDatos()
     {
         return $this->hasOne(RevisarDatos::class);
+    }
+    public function documentosPdfExtranjero()
+    {
+        return $this->hasOne(DocPdfExtranjero::class);
     }
 }
