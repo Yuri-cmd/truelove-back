@@ -62,7 +62,7 @@ class BusinessRegistration extends Model
     public function documentosPdfExtranjero()
     {
         return $this->hasOne(DocPdfExtranjero::class);
-
+    }
 
     public function perfil()
     {
