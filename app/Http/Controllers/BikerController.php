@@ -8,6 +8,7 @@ use App\Models\Establecimiento;
 use App\Models\Location;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
+use App\Models\PedidoTracking;
 use App\Models\RepartoRegistro;
 use App\Models\User;
 use Carbon\Carbon;
@@ -123,7 +124,7 @@ class BikerController extends Controller
         foreach ($pedidos as $pedido) {
             // Obtener el establecimiento asociado al pedido
             $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-
+            $estado = PedidoTracking::where('pedido_id',  $pedido->id)->latest()->first();
             if ($motorizadoLocation && $local) {
                 // Calcular la distancia entre el motorizado y el local
                 $distancia = $this->calcularDistanciaHaversine(
@@ -165,6 +166,7 @@ class BikerController extends Controller
                         $pedido->lon_local = (float) $local->longitud;
                         $pedido->latitud = $coordenadasCliente->coordinates[0];
                         $pedido->longitud = $coordenadasCliente->coordinates[1];
+                        $pedido->estado = $estado->estado;
                     }
                 }
             }
