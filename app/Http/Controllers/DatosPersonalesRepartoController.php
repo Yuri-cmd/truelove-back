@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Ciudad;
 use App\Models\DatosPersonalesReparto;
-use App\Models\Distrito;
 use App\Models\RepartoRegistro;
+use App\Models\UbigeoInei;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -15,21 +14,32 @@ use Illuminate\Support\Str;
 
 class DatosPersonalesRepartoController extends Controller
 {
-    public function obtenerCiudades()
+    public function obtenerDepartamentos()
     {
         try {
-            $ciudades = Ciudad::all();
-            return response()->json($ciudades);
+            $departamentos = UbigeoInei::getDepartamentos();
+            return response()->json($departamentos);
         } catch (\Exception $e) {
-            Log::error('Error al obtener ciudades: ' . $e->getMessage());
-            return response()->json(['error' => 'Error al obtener ciudades'], 500);
+            Log::error('Error al obtener departamentos: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al obtener departamentos'], 500);
         }
     }
 
-    public function obtenerDistritos($ciudadId)
+    public function obtenerProvincias($departamentoId)
     {
         try {
-            $distritos = Distrito::where('ciudad_id', $ciudadId)->get();
+            $provincias = UbigeoInei::getProvincias($departamentoId);
+            return response()->json($provincias);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener provincias: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al obtener provincias'], 500);
+        }
+    }
+
+    public function obtenerDistritos($departamentoId, $provinciaId)
+    {
+        try {
+            $distritos = UbigeoInei::getDistritos($departamentoId, $provinciaId);
             return response()->json($distritos);
         } catch (\Exception $e) {
             Log::error('Error al obtener distritos: ' . $e->getMessage());
@@ -46,8 +56,7 @@ class DatosPersonalesRepartoController extends Controller
             'fecha_nacimiento' => 'required|date',
             'genero' => 'required|in:masculino,femenino,otro',
             'selfie' => 'required|image|max:2048', // 2MB Max
-            'ciudad_id' => 'required|exists:ciudades,id',
-            'distrito_id' => 'required|exists:distritos,id',
+            'ubigeo_id' => 'required|exists:ubigeo_inei,id_ubigeo',
         ]);
 
         if ($validator->fails()) {
@@ -90,8 +99,7 @@ class DatosPersonalesRepartoController extends Controller
                 'fecha_nacimiento' => $request->fecha_nacimiento,
                 'genero' => $request->genero,
                 'url_selfie' => $urlSelfie,
-                'ciudad_id' => $request->ciudad_id,
-                'distrito_id' => $request->distrito_id,
+                'ubigeo_id' => $request->ubigeo_id,
             ]);
 
             DB::commit();
@@ -113,3 +121,4 @@ class DatosPersonalesRepartoController extends Controller
         }
     }
 }
+
