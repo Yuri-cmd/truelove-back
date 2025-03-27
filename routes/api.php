@@ -119,9 +119,11 @@ Route::post('/datos-clave-negocio', [DatosClaveNegocioController::class, 'guarda
 
 Route::post('/reparto/registro', [RepartoRegistroController::class, 'store']);
 
-Route::get('/ciudades', [DatosPersonalesRepartoController::class, 'obtenerCiudades']);
-Route::get('/distritos/{ciudadId}', [DatosPersonalesRepartoController::class, 'obtenerDistritos']);
+Route::get('/departamentos', [DatosPersonalesRepartoController::class, 'obtenerDepartamentos']);
+Route::get('/provincias/{departamentoId}', [DatosPersonalesRepartoController::class, 'obtenerProvincias']);
+Route::get('/distritos/{departamentoId}/{provinciaId}', [DatosPersonalesRepartoController::class, 'obtenerDistritos']);
 Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guardar']);
+
 
 
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
