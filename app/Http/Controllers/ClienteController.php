@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Services\TwilioService;
+use Illuminate\Support\Facades\Log;
 
 class ClienteController extends Controller
 {
@@ -160,6 +161,53 @@ class ClienteController extends Controller
                 'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+
+    public function uploadPhotos(Request $request)
+    {
+        Log::info('uploadPhotos - Recibida solicitud', [
+            'id_cliente' => $request->id_cliente,
+            'dni_photo' => $request->hasFile('dni_photo'),
+            'selfie_photo' => $request->hasFile('selfie_photo')
+        ]);
+
+        Log::info('Contenido de la petición', [
+            'headers' => $request->headers->all(),
+            'all' => $request->all(),
+            'files' => $request->files->all()
+        ]);
+
+
+        if (!$request->hasFile('dni_photo') || !$request->hasFile('selfie_photo')) {
+            Log::error('Uno o ambos archivos no fueron recibidos');
+            return response()->json(['error' => 'Faltan archivos'], 400);
+        }
+
+        try {
+            $cliente = Cliente::findOrFail($request->id_cliente);
+
+            $dniPath = $request->file('dni_photo')->store('clientes/dni', 'custom_public');
+            $selfiePath = $request->file('selfie_photo')->store('clientes/selfies', 'custom_public');
+
+            Log::info('Archivos almacenados', [
+                'dniPath' => $dniPath,
+                'selfiePath' => $selfiePath
+            ]);
+
+            $cliente->dni_photo = $dniPath;
+            $cliente->selfie_photo = $selfiePath;
+            $cliente->save();
+
+            return response()->json([
+                'message' => 'Fotos subidas correctamente',
+                'dni_photo' => $dniPath,
+                'selfie_photo' => $selfiePath
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al subir fotos: ' . $e->getMessage());
+            return response()->json(['error' => 'Error interno del servidor'], 500);
         }
     }
 }

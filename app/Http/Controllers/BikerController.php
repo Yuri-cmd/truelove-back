@@ -8,8 +8,10 @@ use App\Models\Establecimiento;
 use App\Models\Location;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
+use App\Models\PedidoTracking;
 use App\Models\RepartoRegistro;
 use App\Models\User;
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -115,12 +117,14 @@ class BikerController extends Controller
             ->first();
 
         // Obtener los pedidos con el id_local correspondiente
-        $pedidos = Pedido::whereNotNull('id_local')->get();
+        $pedidos = Pedido::whereNotNull('id_local')
+            ->whereDate('created_at', Carbon::today())
+            ->get();
 
         foreach ($pedidos as $pedido) {
             // Obtener el establecimiento asociado al pedido
             $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-
+            $estado = PedidoTracking::where('pedido_id',  $pedido->id)->latest()->first();
             if ($motorizadoLocation && $local) {
                 // Calcular la distancia entre el motorizado y el local
                 $distancia = $this->calcularDistanciaHaversine(
@@ -146,6 +150,7 @@ class BikerController extends Controller
                         $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                         $cliente = Cliente::find($pedido->id_cliente);
                         $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                        $coordenadasCliente = json_decode($clienteDireccion->coordenadas);
                         $names = array_map(function ($item) {
                             return $item['nombre'];
                         }, $pedidoDetalles->toArray());
@@ -154,16 +159,41 @@ class BikerController extends Controller
                         $pedido->detalle = $namesString;
                         $pedido->local = $local->nombre_establecimiento;
                         $pedido->direccion_local = $local->direccion_completa;
-                        $pedido->direccion_entrega = $clienteDireccion->direccion;
+                        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
                         $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
                         $pedido->celular = $cliente->celular;
-                        $pedido->lat_local = $local->latitud;
-                        $pedido->lon_local = $local->longitud;
+                        $pedido->lat_local = (float) $local->latitud;
+                        $pedido->lon_local = (float) $local->longitud;
+                        $pedido->latitud = $coordenadasCliente->coordinates[0];
+                        $pedido->longitud = $coordenadasCliente->coordinates[1];
+                        $pedido->estado = $estado->estado;
                     }
                 }
             }
         }
-
         return $pedidos;
+    }
+
+    public function updateLocation(Request $request)
+    {
+        Location::create([
+            'motorizado_id' => $request->motorizado_id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+        ]);
+        return response()->json(['message' => 'Location updated successfully'], 200);
+    }
+
+    public function updateToken(Request $request)
+    {
+        $reparto = RepartoRegistro::findOrFail($request->id_reparto);
+        $reparto->token_fmc = $request->token_fcm;
+        $reparto->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token actualizado correctamente',
+            'data' => $reparto
+        ]);
     }
 }

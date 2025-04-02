@@ -2,13 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessRegistration;
+use App\Models\ClienteDireccion;
+use App\Models\Establecimiento;
 use Illuminate\Http\Request;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
+use App\Models\PerfilNegocio;
+use App\Services\FirebaseService;
+use App\Services\PedidoService;
 
 class PedidoController extends Controller
 {
+
+    private $firebaseService;
+    private $pedidoService;
+
+    public function __construct(FirebaseService $firebaseService, PedidoService $pedidoService)
+    {
+        $this->firebaseService = $firebaseService;
+        $this->pedidoService = $pedidoService;
+    }
+
     public function store(Request $request)
     {
         $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud']));
@@ -35,7 +51,17 @@ class PedidoController extends Controller
 
         PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
 
+        $this->sendMotorizadosCerca();
+
         return response()->json(['status' => 'success', 'pedido_id' => $pedido->id]);
+    }
+
+    public function sendMotorizadosCerca()
+    {
+        $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
+        foreach ($motorizadosToken as $token) {
+            $this->firebaseService->sendNotification($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+        }
     }
 
     public function iniciarViaje(Request $request)
@@ -59,5 +85,40 @@ class PedidoController extends Controller
         ]);
 
         return response()->json(['status' => 'success']);
+    }
+
+    public function updateEstadoPedido(Request $request, $id)
+    {
+        // Verificar si el pedido existe
+        $pedido = Pedido::find($id);
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        // Crear un nuevo tracking para el pedido
+        $tracking = new PedidoTracking();
+        $tracking->pedido_id = $id;
+        $tracking->estado = $request->estado;
+        $tracking->save();
+
+        // Retornar respuesta exitosa
+        return response()->json(['message' => 'Estado actualizado correctamente'], 200);
+    }
+
+    public function getLocalYcustomerPosition($idPedido)
+    {
+        // Verificar si el pedido existe
+        $pedido = Pedido::find($idPedido);
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+        $cliente = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+        $coordenadasCliente = json_decode($cliente->coordenadas);
+        $resp = [
+            'locallat' => $local->latitud,
+            'locallon' => $local->longitud,
+            'custlat' => $coordenadasCliente->coordinates[0],
+            'custlon' => $coordenadasCliente->coordinates[1],
+        ];
+        // Retornar respuesta exitosa
+        return response()->json($resp);
     }
 }

@@ -18,5 +18,7 @@ class Cliente extends Model
         'documento',
         'nacionalidad',
         'celular',
+        'dni_photo',
+        'selfie_photo',
     ];
 }
