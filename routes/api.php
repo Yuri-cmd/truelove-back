@@ -161,9 +161,15 @@ Route::get('/get/locales/{id}/{category?}', [LocalesController::class, 'getLocal
 Route::get('/busqueda/locales/{id}/{term?}', [LocalesController::class, 'searchLocales']);
 Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getMenuCategoria']);
 Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
-
+Route::post('/login/cliente', [ClienteController::class, 'login']);
+Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
 Route::post('/ratings', [RatingController::class, 'store']); // Guardar calificación
 Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']); 
+Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado']);
+Route::get('/getMotorizadoInfo/{idPedido}', [PedidoController::class, 'getMotorizadoInfo']);
+Route::get('/getPerfil/{idCliente}', [ClienteController::class, 'getPerfil']);
+Route::post('/enviar-correo-pedido-entregado', [PedidoController::class, 'enviarCorreoPedidoEntregado']);
+
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
@@ -176,7 +182,10 @@ Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'des
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
 Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
-
+Route::get('/getRestaurante/{idLocal}', [PedidoController::class, 'getRestaurantInfo']);
+Route::get('/heatmap/{idLocal}', [RatingController::class, 'heatmapData']);
+Route::get('/reviews/{idLocal}', [RatingController::class, 'getReviewData']);
+Route::get('/rating-evolution', [RatingController::class, 'getRatingEvolution']);
 
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
@@ -185,11 +194,9 @@ Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
 Route::post('biker/update-token', [BikerController::class, 'updateToken']);
 Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']); 
+Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']); 
 
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
-
-
-
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);

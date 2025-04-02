@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PedidoEntregadoMail;
 use App\Models\BusinessRegistration;
+use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use Illuminate\Http\Request;
@@ -10,8 +12,11 @@ use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
 use App\Models\PerfilNegocio;
+use App\Models\Rating;
+use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use App\Services\PedidoService;
+use Illuminate\Support\Facades\Mail;
 
 class PedidoController extends Controller
 {
@@ -120,5 +125,143 @@ class PedidoController extends Controller
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
+    }
+
+    public function getPedidosCliente($idCliente)
+    {
+        $data = [];
+        $pedidos = Pedido::where('id_cliente', $idCliente)->get();
+        foreach ($pedidos as $pedido) {
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+            $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first()->ruta_logo;
+            $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+            $total = $pedidoDetalles->sum('precio');
+            $data[] = [
+                'id' => $pedido->id,
+                'estado' => estadoPedido($pedidoTracking->estado),
+                'fecha_entrega' => $pedidoTracking->created_at,
+                'local' => $local->nombre_establecimiento,
+                'logo' => env('APP_URL') . '/' . $logo,
+                'total' => $total,
+                'cantidad' => count($pedidoDetalles),
+                'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
+                'created_at' => $pedido->created_at,
+            ];
+        }
+        return response()->json($data);
+    }
+
+    public function getMotorizado($idPedido)
+    {
+        $pedido = Pedido::find($idPedido);
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+        $motorizado = RepartoRegistro::find($pedido->id_motorizado);
+        if (!$motorizado) {
+            return response()->json(['error' => 'Motorizado no encontrado'], 404);
+        }
+
+        $pedidos = Pedido::where('id_motorizado', $motorizado->id)->get();
+        $pedidoCount = $pedidos->count();
+
+        // obtener rating 
+        $rating = [];
+        foreach ($pedidos as $pedido) {
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            if ($pedidoTracking->estado == 7) {
+            $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating;
+            }
+        }
+
+        $promedio = number_format(array_sum($rating) / count($rating), 1, '.', '');
+
+        return response()->json([
+            'id' => $motorizado->id,
+            'nombre' => $motorizado->nombres . ' ' . $motorizado->apellidos,
+            'celular' => $motorizado->celular,
+            'foto' => env('APP_URL') . '/' . $motorizado->ruta_foto,
+            'pedidoCount' => $pedidoCount,
+            'rating' => $promedio,
+        ]);
+    }
+
+    public function getMotorizadoInfo($idMotorizado)
+    {
+        $pedidos = Pedido::where('id_motorizado', $idMotorizado)->get();
+        $coment = [];
+        foreach ($pedidos as $pedido) {
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            // if ($pedidoTracking->estado == 6) {
+            $rating = Rating::where('id_pedido', $pedido->id)->first();
+            $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+            $coment[] = [
+                'id' => $pedido->id,
+                'comentario' => $rating->motorcycle_comment,
+                'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
+                'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+            ];
+            // }
+        }
+        return response()->json($coment);
+    }
+
+    public function getRestaurantInfo($idLocal)
+    {
+        $pedidos = Pedido::where('id_local', $idLocal)->get();
+        $coment = [];
+        $ratings = [];
+        $ratingCounts = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0]; // Inicializamos el contador de ratings
+
+        foreach ($pedidos as $pedido) {
+            $rating = Rating::where('id_pedido', $pedido->id)->first();
+            $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+
+            if ($rating) {
+                $roundedRating = round($rating->restaurant_rating); // Redondeamos el rating a entero
+                if (isset($ratingCounts[$roundedRating])) {
+                    $ratingCounts[$roundedRating]++; // Aumentamos el contador correspondiente
+                }
+
+                $ratings[] = $rating->restaurant_rating;
+                $coment[] = [
+                    'id' => $pedido->id,
+                    'comentario' => $rating->motorcycle_comment,
+                    'rating' => number_format($rating->restaurant_rating, 1, '.', ''),
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                ];
+            }
+        }
+
+        $pedidoCount = $pedidos->count();
+        $promedio = count($ratings) > 0 ? number_format(array_sum($ratings) / count($ratings), 1, '.', '') : "0.0";
+
+        $data = [
+            'id' => $idLocal,
+            'comentarios' => $coment,
+            'pedidoCount' => $pedidoCount,
+            'rating' => $promedio,
+            'ratingCounts' => $ratingCounts // Agregamos la distribución de ratings
+        ];
+
+        return response()->json($data);
+    }
+
+    public function enviarCorreoPedidoEntregado(Request $request)
+    {
+        $pedido = Pedido::find($request->id_pedido);
+
+        if (!$pedido) {
+            return response()->json(['message' => 'Pedido no encontrado'], 404);
+        }
+        $pedido->total = PedidoDetalle::where('pedido_id', $pedido->id)->sum('precio');
+        $pedido->fecha_entrega = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first()->created_at;
+        $pedido->cliente = Cliente::find($pedido->id_cliente)->only(['nombre', 'apellido', 'email']);
+        $pedido->motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
+
+        Mail::to($pedido->cliente['email'])->send(new PedidoEntregadoMail($pedido));
+
+        return response()->json(['message' => 'Correo enviado con éxito']);
     }
 }

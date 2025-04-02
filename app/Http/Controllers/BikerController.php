@@ -196,4 +196,22 @@ class BikerController extends Controller
             'data' => $reparto
         ]);
     }
+
+    public function getPerfl($repartoId)
+    {
+        $reparto = RepartoRegistro::find($repartoId);
+        if (!$reparto) {
+            return response()->json(['error' => 'Repartidor no encontrado'], 404);
+        }
+
+        $user = User::find($reparto->user_id);
+        if (!$user) {
+            return response()->json(['error' => 'Usuario no encontrado'], 404);
+        }
+
+        return response()->json([
+            'repartidor' => $reparto,
+            'usuario' => $user,
+        ]);
+    }
 }
