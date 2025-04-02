@@ -55,8 +55,10 @@ class MotorizadoController extends Controller
                         'fecha_nacimiento' => $motorizado->datosPersonales->fecha_nacimiento,
                         'genero' => $motorizado->datosPersonales->genero,
                         'url_selfie' => $motorizado->datosPersonales->url_selfie,
-                        'ciudad' => $motorizado->datosPersonales->ciudad->nombre,
-                        'distrito' => $motorizado->datosPersonales->distrito->nombre
+                   'departamento' => $motorizado->datosPersonales->getDepartamentoAttribute(),
+                    'distrito' => $motorizado->datosPersonales->getDistritoAttribute(),
+                    // Mantener ciudad para compatibilidad con el frontend existente
+                    'provincia' => $motorizado->datosPersonales->getProvinciaAttribute()
                     ] : null,
                     'datosBancarios' => $motorizado->datosBancarios ? [
                         'titular' => $motorizado->datosBancarios->titular,

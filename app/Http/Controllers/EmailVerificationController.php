@@ -19,34 +19,74 @@ class EmailVerificationController extends Controller
     {
         try {
             Log::info('Datos de registro recibidos:', $request->all());
-
-            // Verificar si existe un registro completo
-            $existingRegistration = BusinessRegistration::where(function ($query) use ($request) {
-                $query->where('documentNumber', $request->documentNumber)
-                    ->orWhere('email', $request->email);
-            })->first();
-
+    
+            // Verificar si existe un registro con el mismo correo y documento
+            $existingRegistration = BusinessRegistration::where('email', $request->email)
+                ->where('documentNumber', $request->documentNumber)
+                ->first();
+    
+            // Si existe un registro con el mismo correo y documento, permitir continuar
             if ($existingRegistration) {
                 // Verificar si el registro está completo
                 $isComplete = $existingRegistration->negocio()->exists() &&
                     $existingRegistration->establecimiento()->exists() &&
                     $existingRegistration->datosClaveNegocio()->exists() &&
                     $existingRegistration->cuentaBancaria()->exists();
-
+    
                 if ($isComplete) {
                     return response()->json([
                         'message' => 'Este documento de identidad ya está registrado o se encuentra en uso.',
                         'error' => 'dni_registered'
                     ], 422);
                 }
-
+    
                 return response()->json([
                     'message' => 'Registro incompleto encontrado',
                     'registration_id' => $existingRegistration->id,
                     'error' => 'incomplete_registration'
                 ], 200);
             }
-
+    
+            // Verificar si existe un registro con el mismo documento pero diferente correo
+            $existingDocument = BusinessRegistration::where('documentNumber', $request->documentNumber)
+                ->where('email', '!=', $request->email)
+                ->first();
+            
+            if ($existingDocument) {
+                // Verificar si el registro está completo
+                $isComplete = $existingDocument->negocio()->exists() &&
+                    $existingDocument->establecimiento()->exists() &&
+                    $existingDocument->datosClaveNegocio()->exists() &&
+                    $existingDocument->cuentaBancaria()->exists();
+    
+                if ($isComplete) {
+                    return response()->json([
+                        'message' => 'Este documento de identidad ya está registrado o se encuentra en uso.',
+                        'error' => 'dni_registered'
+                    ], 422);
+                }
+    
+                // Si el registro no está completo y el correo es diferente, devolver información para mostrar alerta
+                return response()->json([
+                    'message' => 'Ya existe un registro incompleto con este documento pero con otro correo electrónico.',
+                    'registration_id' => $existingDocument->id,
+                    'original_email' => $existingDocument->email,
+                    'error' => 'different_email'
+                ], 200);
+            }
+    
+            // Verificar si existe un registro con el mismo correo pero diferente documento
+            $existingEmail = BusinessRegistration::where('email', $request->email)
+                ->where('documentNumber', '!=', $request->documentNumber)
+                ->first();
+            
+            if ($existingEmail) {
+                return response()->json([
+                    'message' => 'Este correo electrónico ya está registrado.',
+                    'error' => 'email_registered'
+                ], 422);
+            }
+    
             // Validar los datos de entrada
             $validated = $request->validate([
                 'documentType' => 'required|string|max:255',
@@ -59,23 +99,23 @@ class EmailVerificationController extends Controller
                 'antecedentesPenales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
                 'antecedentesPoliciales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
             ]);
-
+    
             // Verificar si existe en RepartoRegistro
             $existingReparto = RepartoRegistro::where('nro_documento', $request->documentNumber)
                 ->orWhere('email', $request->email)
                 ->first();
-
+    
             if ($existingReparto) {
                 $message = $existingReparto->nro_documento === $request->documentNumber
                     ? 'Este número de documento ya está registrado como repartidor'
                     : 'Este correo electrónico ya está registrado como repartidor';
-
+    
                 return response()->json([
                     'message' => $message,
                     'error' => 'duplicate_in_reparto'
                 ], 422);
             }
-
+    
             // Crear nuevo registro
             $verificationCode = Str::random(6);
             $registration = BusinessRegistration::create([
@@ -88,7 +128,7 @@ class EmailVerificationController extends Controller
                 'email' => $validated['email'],
                 'verification_code' => $verificationCode,
             ]);
-
+    
             // Función para almacenar PDF
             $almacenarPdf = function ($archivo, $carpeta) {
                 if (!$archivo) return null;
@@ -109,19 +149,19 @@ class EmailVerificationController extends Controller
                     throw $e;
                 }
             };
-
+    
             // Si es extranjero, guardar los PDFs
             if ($request->documentType === 'CARNET_EXTRANJERIA') {
                 $antecedentesPenalesPath = $almacenarPdf($request->file('antecedentesPenales'), 'penales');
                 $antecedentesPolicialesPath = $almacenarPdf($request->file('antecedentesPoliciales'), 'policiales');
-
+    
                 DocPdfExtranjero::create([
                     'business_registration_id' => $registration->id,
                     'antecedentes_penales_pdf' => $antecedentesPenalesPath,
                     'antecedentes_policiales_pdf' => $antecedentesPolicialesPath,
                 ]);
             }
-
+    
             // Enviar correo de verificación
             Mail::send('emails.verification', [
                 'code' => $verificationCode,
@@ -130,12 +170,12 @@ class EmailVerificationController extends Controller
                 $message->to($validated['email'])
                     ->subject('Verificación de correo electrónico - TRUELOVE');
             });
-
+    
             return response()->json([
                 'message' => 'Código de verificación enviado al correo electrónico',
                 'registration_id' => $registration->id
             ]);
-
+    
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Error de validación: ' . json_encode($e->errors()));
             return response()->json([
@@ -229,4 +269,60 @@ class EmailVerificationController extends Controller
             ], 500);
         }
     }
+    public function updateEmail(Request $request, $id)
+{
+    try {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+        ]);
+
+        // Verificar si el correo ya existe en otro registro
+        $existingEmail = BusinessRegistration::where('email', $validated['email'])
+            ->where('id', '!=', $id)
+            ->first();
+        
+        if ($existingEmail) {
+            return response()->json([
+                'message' => 'Este correo electrónico ya está registrado.',
+                'error' => 'email_registered'
+            ], 422);
+        }
+
+        // Verificar si existe en RepartoRegistro
+        $existingReparto = RepartoRegistro::where('email', $validated['email'])->first();
+        if ($existingReparto) {
+            return response()->json([
+                'message' => 'Este correo electrónico ya está registrado como repartidor',
+                'error' => 'duplicate_in_reparto'
+            ], 422);
+        }
+
+        // Actualizar el correo
+        $registration = BusinessRegistration::findOrFail($id);
+        $registration->email = $validated['email'];
+        $registration->verification_code = Str::random(6); // Generar nuevo código
+        $registration->email_verified_at = null; // Resetear verificación
+        $registration->save();
+
+        // Enviar nuevo correo de verificación
+        Mail::send('emails.verification', [
+            'code' => $registration->verification_code,
+            'name' => $registration->name
+        ], function ($message) use ($validated) {
+            $message->to($validated['email'])
+                ->subject('Verificación de correo electrónico - TRUELOVE');
+        });
+
+        return response()->json([
+            'message' => 'Correo electrónico actualizado correctamente',
+            'registration_id' => $registration->id
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al actualizar correo: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'Hubo un problema al actualizar el correo electrónico. Por favor, intente nuevamente.',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 }

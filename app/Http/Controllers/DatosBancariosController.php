@@ -74,6 +74,69 @@ class DatosBancariosController extends Controller
             ], 500);
         }
     }
+    public function update(Request $request, $id)
+{
+    Log::info('Datos recibidos para actualizar en DatosBancariosController:', $request->all());
+    $validator = Validator::make($request->all(), [
+        'titular_cuenta' => 'required|string|max:255',
+        'numero_cuenta' => 'required|string|max:255',
+        'nombre_banco' => 'required|string|max:255',
+        'tipo_cuenta' => 'required|string|max:255',
+        'documento_titular' => 'required|string|max:255',
+        'codigo_cci' => 'required|string|max:255',
+        'usar_direccion_negocio' => 'required|boolean',
+        'establecimiento_id' => 'required|exists:establecimientos,id',
+        'business_registration_id' => 'required|exists:business_registrations,id'
+    ]);
+
+    if ($validator->fails()) {
+        Log::error('Validación fallida:', $validator->errors()->toArray());
+        return response()->json([
+            'mensaje' => 'Error de validación',
+            'errores' => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        // Verificar que el registro existe y está verificado
+        $businessRegistration = BusinessRegistration::where('id', $request->business_registration_id)
+            ->whereNotNull('email_verified_at')
+            ->first();
+
+        if (!$businessRegistration) {
+            throw new \Exception('Registro de negocio no encontrado o email no verificado');
+        }
+
+        $datosBancarios = DatosBancarios::findOrFail($id);
+        $datosBancarios->update([
+            'titular_cuenta' => $request->titular_cuenta,
+            'numero_cuenta' => $request->numero_cuenta,
+            'nombre_banco' => $request->nombre_banco,
+            'tipo_cuenta' => $request->tipo_cuenta,
+            'documento_titular' => $request->documento_titular,
+            'codigo_cci' => $request->codigo_cci,
+            'usar_direccion_negocio' => $request->usar_direccion_negocio,
+            'establecimiento_id' => $request->establecimiento_id,
+            'business_registration_id' => $request->business_registration_id
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'mensaje' => 'Datos bancarios actualizados exitosamente',
+            'datos' => $datosBancarios
+        ], 200);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Error al actualizar datos bancarios: ' . $e->getMessage());
+        return response()->json([
+            'mensaje' => 'Error al actualizar los datos bancarios',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function getEstablecimientoDireccion($id)
 {
@@ -100,5 +163,15 @@ class DatosBancariosController extends Controller
         ], 404);
     }
 }
+    public function show($businessRegistrationId)
+    {
+        $datosBancarios = DatosBancarios::where('business_registration_id', $businessRegistrationId)->first();
+
+        if (!$datosBancarios) {
+            return response()->json(['mensaje' => 'No se encontraron datos bancarios'], 404);
+        }
+
+        return response()->json($datosBancarios);
+    }
 }
 
