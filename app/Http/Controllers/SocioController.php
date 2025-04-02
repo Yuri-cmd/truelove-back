@@ -54,7 +54,8 @@ class SocioController extends Controller
                 'datosClaveNegocio',
                 'datosBancarios',
                 'cuentaBancaria.banco',
-                'cuentaBancaria.tipoCuenta'
+                'cuentaBancaria.tipoCuenta',
+                'documentosPdfExtranjero'
             ])->findOrFail($id);
 
             return response()->json([
@@ -98,7 +99,13 @@ class SocioController extends Controller
                         'tipo_cuenta' => $businessRegistration->cuentaBancaria->tipoCuenta->nombre,
                         'numero_cuenta' => $businessRegistration->cuentaBancaria->numero_cuenta,
                         'imagenes_cuenta' => json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta)
+                    ] : null,
+                    'documentosPdfExtranjero' => $businessRegistration->documentosPdfExtranjero ? [
+                        'antecedentes_penales_pdf' => $businessRegistration->documentosPdfExtranjero->antecedentes_penales_pdf,
+                        'antecedentes_policiales_pdf' => $businessRegistration->documentosPdfExtranjero->antecedentes_policiales_pdf
                     ] : null
+
+
                 ]
             ]);
         } catch (\Exception $e) {

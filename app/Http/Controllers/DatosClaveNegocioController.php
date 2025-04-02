@@ -69,5 +69,59 @@ class DatosClaveNegocioController extends Controller
             ], 500);
         }
     }
+    public function show ($businessRegistrationId)
+    {
+        $datosClaveNegocio = DatosClaveNegocio::where('business_registration_id', $businessRegistrationId)->first();
+
+        if (!$datosClaveNegocio) {
+            return response()->json(['mensaje' => 'No se encontraron datos clave de negocio'], 404);
+        }
+
+        return response()->json($datosClaveNegocio);
+    }
+    public function update(Request $request, $id)
+    {
+        Log::info('Actualizando datos clave:', $request->all());
+    
+        $validador = Validator::make($request->all(), [
+            'ruc' => 'required|string|size:11',
+            'razon_social' => 'required|string|max:255',
+            'business_registration_id' => 'required|exists:business_registrations,id'
+        ]);
+    
+        if ($validador->fails()) {
+            Log::error('Validación fallida:', $validador->errors()->toArray());
+            return response()->json([
+                'mensaje' => 'Error de validación',
+                'errores' => $validador->errors()
+            ], 422);
+        }
+    
+        try {
+            $datosClaveNegocio = DatosClaveNegocio::findOrFail($id);
+            
+            $datosClaveNegocio->update([
+                'ruc' => $request->ruc,
+                'razon_social' => $request->razon_social
+            ]);
+    
+            return response()->json([
+                'mensaje' => 'Datos actualizados exitosamente',
+                'datos' => $datosClaveNegocio
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar datos:', [
+                'mensaje' => $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile()
+            ]);
+    
+            return response()->json([
+                'mensaje' => 'Error al actualizar los datos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
 

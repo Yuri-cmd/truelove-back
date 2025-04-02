@@ -25,7 +25,7 @@ class AuthAdminController extends Controller
                 'usuario' => 'required',
                 'password' => 'required',
             ]);
-            
+                
         } catch (ValidationException $e) {
             return response()->json([
                 'error' => 'Credenciales incorrectas.',
@@ -34,20 +34,21 @@ class AuthAdminController extends Controller
     
         // Buscar el usuario por nombre de usuario
         $user = User::where('usuario', $credentials['usuario'])->first();
-
+    
         // Si el usuario existe pero la contraseña es incorrecta
-    if ($user && !Hash::check($credentials['password'], $user->password)) {
-        return response()->json([
-            'error' => 'Contraseña incorrecta',
-            'type' => 'wrong_password'
-        ], 401);
-    }
-     // Si el usuario no existe
-     if (!$user) {
-        return response()->json([
-            'error' => 'Credenciales incorrectas.',
-        ], 401);
-    }
+        if ($user && !Hash::check($credentials['password'], $user->password)) {
+            return response()->json([
+                'error' => 'Contraseña incorrecta',
+                'type' => 'wrong_password'
+            ], 401);
+        }
+    
+        // Si el usuario no existe
+        if (!$user) {
+            return response()->json([
+                'error' => 'Credenciales incorrectas.',
+            ], 401);
+        }
     
         // Verificar si el usuario está activo
         if (!$user->estado) {
@@ -56,18 +57,39 @@ class AuthAdminController extends Controller
             ], 401);
         }
     
-        // Crear token de autenticación
-        $token = $user->createToken(env('APP_NAME'))->plainTextToken;
+        try {
+            // Obtener el business_registration si existe
+            $businessRegistration = $user->businessRegistration;
+            
+            // Crear token de autenticación
+            $token = $user->createToken(env('APP_NAME'))->plainTextToken;
+        
+            // Obtener el rol del usuario
+            $roleName = $user->role ? $user->role->name : 'user';
+        
+            // Retornar respuesta exitosa con businessRegistration incluido
+            return response()->json([
+                'token' => $token, 
+                'user' => [
+                    'id' => $user->id,
+                    'usuario' => $user->usuario,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'businessRegistration' => $businessRegistration ? [
+                        'id' => $businessRegistration->id,
+                        'name' => $businessRegistration->name,
+                        'businessType' => $businessRegistration->businessType,
+                    ] : null
+                ],
+                'role' => $roleName
+            ]);
     
-        // Obtener el rol del usuario
-        $roleName = $user->role ? $user->role->name : 'user';
-    
-        // Retornar respuesta exitosa
-        return response()->json([
-            'token' => $token, 
-            'user' => $user,
-            'role' => $roleName
-        ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error en el servidor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
