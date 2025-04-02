@@ -91,7 +91,8 @@ Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');
-    Route::post('/register/{id}/update-email');
+    Route::post('/register/{id}/update-email','updateEmail');
+    Route::get('/register/{id}','getRegistration');
 });
 
 // Otras rutas

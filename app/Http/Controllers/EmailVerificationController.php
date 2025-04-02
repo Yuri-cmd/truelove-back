@@ -190,6 +190,7 @@ class EmailVerificationController extends Controller
             ], 500);
         }
     }
+    
     public function verify(Request $request)
     {
         try {
@@ -269,60 +270,84 @@ class EmailVerificationController extends Controller
             ], 500);
         }
     }
+    
     public function updateEmail(Request $request, $id)
-{
-    try {
-        $validated = $request->validate([
-            'email' => 'required|email|max:255',
-        ]);
+    {
+        try {
+            $validated = $request->validate([
+                'email' => 'required|email|max:255',
+            ]);
 
-        // Verificar si el correo ya existe en otro registro
-        $existingEmail = BusinessRegistration::where('email', $validated['email'])
-            ->where('id', '!=', $id)
-            ->first();
-        
-        if ($existingEmail) {
+            // Verificar si el correo ya existe en otro registro
+            $existingEmail = BusinessRegistration::where('email', $validated['email'])
+                ->where('id', '!=', $id)
+                ->first();
+            
+            if ($existingEmail) {
+                return response()->json([
+                    'message' => 'Este correo electrónico ya está registrado.',
+                    'error' => 'email_registered'
+                ], 422);
+            }
+
+            // Verificar si existe en RepartoRegistro
+            $existingReparto = RepartoRegistro::where('email', $validated['email'])->first();
+            if ($existingReparto) {
+                return response()->json([
+                    'message' => 'Este correo electrónico ya está registrado como repartidor',
+                    'error' => 'duplicate_in_reparto'
+                ], 422);
+            }
+
+            // Actualizar el correo
+            $registration = BusinessRegistration::findOrFail($id);
+            $registration->email = $validated['email'];
+            $registration->verification_code = Str::random(6); // Generar nuevo código
+            $registration->email_verified_at = null; // Resetear verificación
+            $registration->save();
+
+            // Enviar nuevo correo de verificación
+            Mail::send('emails.verification', [
+                'code' => $registration->verification_code,
+                'name' => $registration->name
+            ], function ($message) use ($validated) {
+                $message->to($validated['email'])
+                    ->subject('Verificación de correo electrónico - TRUELOVE');
+            });
+
             return response()->json([
-                'message' => 'Este correo electrónico ya está registrado.',
-                'error' => 'email_registered'
-            ], 422);
-        }
-
-        // Verificar si existe en RepartoRegistro
-        $existingReparto = RepartoRegistro::where('email', $validated['email'])->first();
-        if ($existingReparto) {
+                'message' => 'Correo electrónico actualizado correctamente',
+                'registration_id' => $registration->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar correo: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Este correo electrónico ya está registrado como repartidor',
-                'error' => 'duplicate_in_reparto'
-            ], 422);
+                'message' => 'Hubo un problema al actualizar el correo electrónico. Por favor, intente nuevamente.',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Actualizar el correo
-        $registration = BusinessRegistration::findOrFail($id);
-        $registration->email = $validated['email'];
-        $registration->verification_code = Str::random(6); // Generar nuevo código
-        $registration->email_verified_at = null; // Resetear verificación
-        $registration->save();
-
-        // Enviar nuevo correo de verificación
-        Mail::send('emails.verification', [
-            'code' => $registration->verification_code,
-            'name' => $registration->name
-        ], function ($message) use ($validated) {
-            $message->to($validated['email'])
-                ->subject('Verificación de correo electrónico - TRUELOVE');
-        });
-
-        return response()->json([
-            'message' => 'Correo electrónico actualizado correctamente',
-            'registration_id' => $registration->id
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error al actualizar correo: ' . $e->getMessage());
-        return response()->json([
-            'message' => 'Hubo un problema al actualizar el correo electrónico. Por favor, intente nuevamente.',
-            'error' => $e->getMessage()
-        ], 500);
+    }
+    
+    public function getRegistration($id)
+    {
+        try {
+            $registration = BusinessRegistration::findOrFail($id);
+            
+            return response()->json([
+                'id' => $registration->id,
+                'email' => $registration->email,
+                'name' => $registration->name,
+                'lastName' => $registration->lastName,
+                'documentType' => $registration->documentType,
+                'documentNumber' => $registration->documentNumber,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener registro: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un problema al obtener la información del registro.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
-}
+
