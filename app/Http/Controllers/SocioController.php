@@ -47,7 +47,8 @@ class SocioController extends Controller
                 'datosClaveNegocio',
                 'datosBancarios',
                 'cuentaBancaria.banco',
-                'cuentaBancaria.tipoCuenta'
+                'cuentaBancaria.tipoCuenta',
+                'documentosPdfExtranjero'
             ])->findOrFail($id);
 
             return response()->json([
@@ -91,7 +92,13 @@ class SocioController extends Controller
                         'tipo_cuenta' => $businessRegistration->cuentaBancaria->tipoCuenta->nombre,
                         'numero_cuenta' => $businessRegistration->cuentaBancaria->numero_cuenta,
                         'imagenes_cuenta' => json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta)
+                    ] : null,
+                    'documentosPdfExtranjero' => $businessRegistration->documentosPdfExtranjero ? [
+                        'antecedentes_penales_pdf' => $businessRegistration->documentosPdfExtranjero->antecedentes_penales_pdf,
+                        'antecedentes_policiales_pdf' => $businessRegistration->documentosPdfExtranjero->antecedentes_policiales_pdf
                     ] : null
+
+
                 ]
             ]);
         } catch (\Exception $e) {
@@ -109,7 +116,7 @@ class SocioController extends Controller
         try {
             // busca el registro de socio
             $socio = BusinessRegistration::findOrFail($id);
-            
+
             // virifica si esta aprobado
             if ($socio->aprobado) {
                 return response()->json([
@@ -119,14 +126,14 @@ class SocioController extends Controller
             }
             // marca socio como aprobado
             $socio->aprobado = true;
-            
+
             // Generar credenciales
             $username = $this->generateUniqueUsername($socio->name, $socio->lastName);
             $password = Str::random(10);
-            
+
             // Obtener el rol de negocio
             $rolNegocio = Role::where('name', 'negocio')->firstOrFail();
-            
+
             // Crear un nuevo usuario
             $user = new User();
             $user->usuario = $username;
@@ -143,10 +150,10 @@ class SocioController extends Controller
             // Enviar correo con las credenciales
             Mail::to($socio->email)->send(new CredencialesSocio(
                 $username,
-                 $password,
-                    $socio->id
-                ));
-    
+                $password,
+                $socio->id
+            ));
+
             DB::commit(); // Commit de la transacción de la base de datos
 
             return response()->json([

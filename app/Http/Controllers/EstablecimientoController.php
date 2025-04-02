@@ -131,5 +131,6 @@ public function show($businessRegistrationId)
         return response()->json(['error' => 'Error al obtener los datos del establecimiento'], 500);
     }
 }
+
 }
 

@@ -84,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/register', 'register');
     Route::post('/verify', 'verify');
     Route::post('/resend-code', 'resendCode');
+    Route::post('/register/{id}/update-email');
 });
 
 // Otras rutas
@@ -97,15 +98,12 @@ Route::post('/negocios/{negocio}/sucursales', [SucursalController::class, 'store
 Route::get('/negocios/{businessRegistrationId}/approval-status', [NegocioController::class, 'checkApprovalStatus']);
 
 
-
-
-
+// Route::get('/obtener-ultimos-ids', [IdsController::class, 'obtenerUltimosIds']);
 
 Route::post('/establecimientos', [EstablecimientoController::class, 'store']);
 Route::put('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'update']);
-Route::get('/obtener-ultimos-ids', [IdsController::class, 'obtenerUltimosIds']);
 Route::get('/establecimientos', [EstablecimientoController::class, 'index']);
-Route::get('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'show']);
+Route::get('/establecimientos/{businessRegistrationId}', [EstablecimientoController::class, 'show']);
 Route::delete('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'destroy']);
 
 
@@ -113,22 +111,35 @@ Route::get('/revisarDatos', [RevisarDatosController::class, 'obtenerDatosRevisio
 Route::get('/revisarDatos/{negocioId}', [RevisarDatosController::class, 'obtenerDatosRevision']);
 
 Route::post('/datos-bancarios', [DatosBancariosController::class, 'store']);
+Route::get('/datos-bancarios/{businessRegistrationId}', [DatosBancariosController::class, 'show']);
 Route::get('/establecimiento/{id}/direccion', [DatosBancariosController::class, 'getEstablecimientoDireccion']);
+Route::put('/datos-bancarios/{id}', [DatosBancariosController::class, 'update']);
 
 Route::post('/datos-clave-negocio', [DatosClaveNegocioController::class, 'guardar']);
+Route::get('/datos-clave-negocio/{businessRegistrationId}', [DatosClaveNegocioController::class, 'show']);
+Route::put('/datos-clave-negocio/{id}', [DatosClaveNegocioController::class, 'update']);
 
 Route::post('/reparto/registro', [RepartoRegistroController::class, 'store']);
 
+Route::post('/reparto/check-status', [RepartoRegistroController::class, 'checkStatus']);
+Route::get('/reparto/{id}/status', [RepartoRegistroController::class, 'getRegistrationStatus']);
+Route::post('/reparto/{id}/abandon', [RepartoRegistroController::class, 'abandonRegistration']);
+
+// Rutas para datos personales
 Route::get('/departamentos', [DatosPersonalesRepartoController::class, 'obtenerDepartamentos']);
 Route::get('/provincias/{departamentoId}', [DatosPersonalesRepartoController::class, 'obtenerProvincias']);
 Route::get('/distritos/{departamentoId}/{provinciaId}', [DatosPersonalesRepartoController::class, 'obtenerDistritos']);
 Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guardar']);
+Route::get('/datos-personales/{repartoRegistroId}', [DatosPersonalesRepartoController::class, 'show']);
+Route::post('/datos-personales/{id}', [DatosPersonalesRepartoController::class, 'update']);
 
 
-
+// Rutas para datos bancarios
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
 Route::get('/tipos-cuenta', [DatosBancariosRepartoController::class, 'obtenerTiposCuenta']);
 Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guardarCuentaBancaria']);
+Route::get('/cuenta-bancaria/{repartoRegistroId}', [DatosBancariosRepartoController::class, 'show']);
+Route::post('/cuenta-bancaria/{id}', [DatosBancariosRepartoController::class, 'update']);
 
 
 //rutas app clientes
@@ -138,9 +149,10 @@ Route::post('/get-dni', [ClienteController::class, 'getDni']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
 
+// Rutas para registro de vehículo
 Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
-Route::get('/registro-vehiculo/{id}', [RegistroVehiculoController::class, 'mostrar']);
-Route::get('/registros-vehiculos', [RegistroVehiculoController::class, 'listar']);
+
+Route::get('/registro-vehiculo/{repartoRegistroId}', [RegistroVehiculoController::class, 'mostrar']);
 
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
 Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
@@ -192,3 +204,4 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
+Route::get('/register/{id}/status', [RegistrationStatusController::class, 'getRegistrationStatus']);
