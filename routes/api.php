@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/user', 'all');
             Route::post('/users/change/state/{id}', 'changeState');
             Route::post('/users/create', 'store');
+            Route::delete('/users/delete/{id}', 'delete');
         });
 
         // Gestión de socios
@@ -257,3 +258,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
 Route::get('/register/{id}/status', [RegistrationStatusController::class, 'getRegistrationStatus']);
+// En routes/api.php
+Route::post('/register/{id}/reset', [RegistrationStatusController::class, 'resetRegistration']);
