@@ -6,6 +6,9 @@ use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+
 
 class RegistrationStatusController extends Controller
 {
@@ -141,6 +144,85 @@ class RegistrationStatusController extends Controller
             return response()->json([
                 'error' => 'Error al obtener el estado del registro',
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function resetRegistration(Request $request, $id)
+    {
+        try {
+            Log::info('Solicitud de reinicio de registro recibida', [
+                'id' => $id,
+                'email' => $request->email,
+                'documentNumber' => $request->documentNumber
+            ]);
+
+            // Buscar el registro existente
+            $registration = BusinessRegistration::findOrFail($id);
+
+            // Verificar que el correo y documento coincidan
+            if ($registration->email !== $request->email || $registration->documentNumber !== $request->documentNumber) {
+                return response()->json([
+                    'message' => 'Los datos proporcionados no coinciden con el registro',
+                    'error' => 'data_mismatch'
+                ], 422);
+            }
+
+            // Eliminar todas las relaciones
+            if ($registration->negocio()->exists()) {
+                $registration->negocio()->delete();
+            }
+            
+            if ($registration->establecimiento()->exists()) {
+                $registration->establecimiento()->delete();
+            }
+            
+            if ($registration->datosClaveNegocio()->exists()) {
+                $registration->datosClaveNegocio()->delete();
+            }
+            
+            if ($registration->datosBancarios()->exists()) {
+                $registration->datosBancarios()->delete();
+            }
+            
+            if ($registration->cuentaBancaria()->exists()) {
+                $registration->cuentaBancaria()->delete();
+            }
+            
+            if ($registration->revisarDatos()->exists()) {
+                $registration->revisarDatos()->delete();
+            }
+            
+            if ($registration->documentosPdfExtranjero()->exists()) {
+                $registration->documentosPdfExtranjero()->delete();
+            }
+
+            // Generar nuevo código de verificación
+            $verificationCode = Str::random(6);
+            
+            // Actualizar el registro principal
+            $registration->verification_code = $verificationCode;
+            $registration->email_verified_at = null; // Resetear verificación de email
+            $registration->save();
+
+            // Enviar nuevo correo de verificación
+            Mail::send('emails.verification', [
+                'code' => $verificationCode,
+                'name' => $registration->name
+            ], function ($message) use ($registration) {
+                $message->to($registration->email)
+                    ->subject('Verificación de correo electrónico - TRUELOVE');
+            });
+
+            return response()->json([
+                'message' => 'Registro reiniciado correctamente',
+                'registration_id' => $registration->id
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al reiniciar registro: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Hubo un problema al reiniciar el registro. Por favor, intente nuevamente.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
