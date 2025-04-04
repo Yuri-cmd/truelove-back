@@ -1,4 +1,3 @@
-<!-- resources\views\emails\verification.blade.php -->
 <!DOCTYPE html>
 <html>
 
@@ -19,14 +18,13 @@
                         <td style="padding: 20px;">
                             <!-- Header Image -->
                             <img src="https://res.cloudinary.com/dqpjzyd6p/image/upload/v1731790090/emailheader_go2uxc.jpg"
-                                alt="Imagen negocio"
+                                alt="True Love Portal"
                                 style="width: 100%; height: auto; display: block; margin-bottom: 20px;">
 
                             <!-- Greeting -->
                             <h3 style="text-align: start; margin-top: 0;">Hola, {{ $name }}</h3>
 
-                            <p style="margin: 0 0 20px;">Gracias por registrar tu negocio con nosotros. Para completar
-                                tu registro, por favor utiliza el siguiente código de verificación:</p>
+                            <p style="margin: 0 0 20px;">Has solicitado restablecer tu contraseña. Para continuar con el proceso, por favor utiliza el siguiente código de verificación:</p>
 
                             <!-- Verification Code Box -->
                             <div
@@ -35,6 +33,10 @@
                             </div>
 
                             <p style="margin: 20px 0 0;">Si no has solicitado este código, puedes ignorar este correo.
+                            </p>
+                            
+                            <p style="margin: 20px 0 0; font-size: 12px; color: #999;">
+                                Este código expirará en 15 minutos por razones de seguridad.
                             </p>
                         </td>
                     </tr>

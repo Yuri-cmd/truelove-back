@@ -22,5 +22,11 @@ class Menu extends Model
     public function categorias()
     {
         return $this->belongsToMany(Categorias::class, 'categoria_menu', 'menu_id', 'categoria_id');
+
+    }
+    public function businessRegistration()
+    {
+        return $this->belongsTo(BusinessRegistration::class);
+
     }
 }

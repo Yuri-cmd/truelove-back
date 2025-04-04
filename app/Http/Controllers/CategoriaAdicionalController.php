@@ -78,4 +78,74 @@ class CategoriaAdicionalController extends Controller
             return response()->json(['message' => 'Error al eliminar la categoría adicional', 'error' => $e->getMessage()], 500);
         }
     }
+    public function obtenerCategoriasAdicionales($empresa_id)
+    {
+        try {
+            $categorias = CategoriaAdicional::where('empresa_id', $empresa_id)->get();
+            if ($categorias->isEmpty()) {
+                return response()->json(['message' => 'No se encontraron categorías adicionales para esta empresa'], 404);
+            }
+            return response()->json(['success' => true, 'data' => $categorias]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al obtener las categorías adicionales', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function crearCategoriaAdicional(Request $request)
+    {
+        try {
+            $request->validate([
+                'empresa_id' => 'required|exists:business_registrations,id',
+                'nombre' => 'required|string|max:255',
+            ]);
+
+            $categoria = CategoriaAdicional::create($request->all());
+            return response()->json(['success' => true, 'data' => $categoria, 'message' => 'Categoría adicional creada con éxito'], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al crear la categoría adicional', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function obtenerCategoriaAdicional($id)
+    {
+        try {
+            $categoria = CategoriaAdicional::findOrFail($id);
+            return response()->json($categoria);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Categoría adicional no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al obtener la categoría adicional', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function actualizarCategoriaAdicional(Request $request, $id)
+    {
+        try {
+            $categoria = CategoriaAdicional::findOrFail($id);
+            $request->validate([
+                'empresa_id' => 'required|exists:business_registrations,id',
+                'nombre' => 'required|string|max:255',
+            ]);
+
+            $categoria->update($request->all());
+            return response()->json(['success' => true, 'data' => $categoria, 'message' => 'Categoría adicional actualizada con éxito']);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Categoría adicional no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al actualizar la categoría adicional', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function eliminarCategoriaAdicional($id)
+    {
+        try {
+            $categoria = CategoriaAdicional::findOrFail($id);
+            $categoria->delete();
+            return response()->json(['success' => true, 'message' => 'Categoría adicional eliminada con éxito']);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Categoría adicional no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al eliminar la categoría adicional', 'error' => $e->getMessage()], 500);
+        }
+    }
 }
