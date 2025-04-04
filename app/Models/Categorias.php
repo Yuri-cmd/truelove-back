@@ -22,7 +22,7 @@ class Categorias extends Model
     {
         return $this->belongsTo(BusinessRegistration::class);
 
-
+    }
     // Relación inversa con Menu
 
 }
