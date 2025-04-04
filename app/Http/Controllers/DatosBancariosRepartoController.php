@@ -93,7 +93,7 @@ class DatosBancariosRepartoController extends Controller
         
         $validator = Validator::make($request->all(), [
             'titular' => 'required|string|max:255',
-            'dni' => 'required|digits:8',
+            'dni' => 'required|numeric|digits_between:5,20',
             'banco_id' => 'required|exists:bancos,id',
             'tipo_cuenta_id' => 'required|exists:tipos_cuenta_bancaria,id',
             'numero_cuenta' => 'required|string|max:50',
@@ -176,7 +176,7 @@ class DatosBancariosRepartoController extends Controller
         $validator = Validator::make($request->all(), [
             'reparto_registro_id' => 'required|exists:reparto_registros,id',
             'titular' => 'required|string|max:255',
-            'dni' => 'required|digits:8',
+            'dni' => 'required|numeric|digits_between:5,20',
             'banco_id' => 'required|exists:bancos,id',
             'tipo_cuenta_id' => 'required|exists:tipos_cuenta_bancaria,id',
             'numero_cuenta' => 'required|string|max:50',
