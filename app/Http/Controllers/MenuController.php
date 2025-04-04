@@ -99,6 +99,7 @@ class MenuController extends Controller
 
         return response()->json($groupedMenus);
     }
+
     public function destroy($id)
 {
     try {
@@ -125,6 +126,7 @@ class MenuController extends Controller
     } catch (\Exception $e) {
         return response()->json(['message' => 'Error al eliminar platillo', 'error' => $e->getMessage()], 500);
     }
+
 }
 public function update(Request $request, $id)
 {

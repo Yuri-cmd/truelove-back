@@ -24,6 +24,7 @@ return new class extends Migration
             $table->text('documento_imagen_reverso')->nullable();
             $table->boolean('estado')->default(true);
             $table->boolean('aprobado')->default(false);
+            $table->string('token_fmc')->nullable();
             $table->timestamps();
         });
     }

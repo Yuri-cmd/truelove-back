@@ -11,6 +11,7 @@ class Categorias extends Model
         'empresa_id',
         'nombre',
     ];
+
       // Relación inversa con Menu
       public function menus()
       {
@@ -20,5 +21,8 @@ class Categorias extends Model
     public function businessRegistration()
     {
         return $this->belongsTo(BusinessRegistration::class);
-    }
+
+
+    // Relación inversa con Menu
+
 }
