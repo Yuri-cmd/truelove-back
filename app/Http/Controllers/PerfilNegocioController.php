@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use App\Models\PerfilNegocio;
-use App\Models\Establecimiento;
-use App\Models\HorarioNegocio;
 use Illuminate\Support\Facades\File;
 
 class PerfilNegocioController extends Controller

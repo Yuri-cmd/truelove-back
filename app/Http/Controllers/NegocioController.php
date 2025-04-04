@@ -103,7 +103,7 @@ class NegocioController extends Controller
             ], 500);
         }
     }
-
+    //actualizar negocio
     public function update(Request $request, Negocio $negocio)
     {
         $validator = Validator::make($request->all(), [
