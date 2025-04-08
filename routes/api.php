@@ -235,6 +235,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/menu/web/{id}/status', [MenuController::class, 'updateStatus']);
     Route::put('/menus/web/{id}', [MenuController::class, 'update']);
     Route::delete('/menus/web/{id}', [MenuController::class, 'destroy']);
+    Route::get('/menus/categoria/{categoria_id}', [MenuController::class, 'getMenusByCategory']);
 
        // Rutas para adicionales
        Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);

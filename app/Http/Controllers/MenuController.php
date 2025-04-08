@@ -183,5 +183,20 @@ public function update(Request $request, $id)
         ], 500);
     }
 }
+// En MenuController.php
+public function getMenusByCategory($categoria_id)
+{
+    // Obtener los IDs de los menús que pertenecen a esta categoría
+    $menuIds = CategoriaMenu::where('categoria_id', $categoria_id)
+                           ->pluck('menu_id')
+                           ->toArray();
+    
+    // Obtener los menús con esos IDs
+    $menus = Menu::whereIn('id', $menuIds)->get();
+    
+    return response()->json($menus);
+}
+
+// En routes/api.php
 
 }
