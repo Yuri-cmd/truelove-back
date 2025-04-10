@@ -131,10 +131,10 @@ Route::get('/datos-clave-negocio/{businessRegistrationId}', [DatosClaveNegocioCo
 Route::put('/datos-clave-negocio/{id}', [DatosClaveNegocioController::class, 'update']);
 
 Route::post('/reparto/registro', [RepartoRegistroController::class, 'store']);
-
 Route::post('/reparto/check-status', [RepartoRegistroController::class, 'checkStatus']);
 Route::get('/reparto/{id}/status', [RepartoRegistroController::class, 'getRegistrationStatus']);
-Route::post('/reparto/{id}/abandon', [RepartoRegistroController::class, 'abandonRegistration']);
+Route::post('/reparto/{id}/update-email', [RepartoRegistroController::class, 'updateEmail']);
+Route::get('/reparto/{id}', [RepartoRegistroController::class, 'getRegistration']);
 
 // Rutas para datos personales
 Route::get('/departamentos', [DatosPersonalesRepartoController::class, 'obtenerDepartamentos']);
