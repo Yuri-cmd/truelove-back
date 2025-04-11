@@ -42,9 +42,10 @@ class RevisarDatosController extends Controller
                 $datosBancarios = DatosBancarios::where('business_registration_id', $registrationId)
                     ->first();
 
-                if (!$negocio || !$establecimiento || !$datosClaveNegocio || !$datosBancarios) {
+                // Verificar que al menos los datos básicos estén completos
+                if (!$negocio || !$establecimiento) {
                     return response()->json([
-                        'error' => 'Datos incompletos',
+                        'error' => 'Datos básicos incompletos',
                         'detalles' => [
                             'negocio' => $negocio ? 'encontrado' : 'no encontrado',
                             'establecimiento' => $establecimiento ? 'encontrado' : 'no encontrado',
@@ -54,7 +55,8 @@ class RevisarDatosController extends Controller
                     ], 404);
                 }
 
-                return response()->json([
+                // Preparar la respuesta con los datos disponibles
+                $response = [
                     'datos_negocio' => [
                         'nombre' => $negocio->nombre,
                         'tipo' => $negocio->tipoNegocio->nombre,
@@ -75,12 +77,25 @@ class RevisarDatosController extends Controller
                         'direccion_completa' => $establecimiento->direccion_completa,
                         'latitud' => $establecimiento->latitud,
                         'longitud' => $establecimiento->longitud
-                    ],
-                    'datos_legales' => [
+                    ]
+                ];
+
+                // Añadir datos clave si existen
+                if ($datosClaveNegocio) {
+                    $response['datos_legales'] = [
                         'razon_social' => $datosClaveNegocio->razon_social,
                         'ruc' => $datosClaveNegocio->ruc
-                    ],
-                    'datos_bancarios' => [
+                    ];
+                } else {
+                    $response['datos_legales'] = [
+                        'razon_social' => 'No especificado (omitido)',
+                        'ruc' => 'No especificado (omitido)'
+                    ];
+                }
+
+                // Añadir datos bancarios si existen
+                if ($datosBancarios) {
+                    $response['datos_bancarios'] = [
                         'titular_cuenta' => $datosBancarios->titular_cuenta,
                         'numero_cuenta' => $datosBancarios->numero_cuenta,
                         'nombre_banco' => $datosBancarios->nombre_banco,
@@ -88,8 +103,20 @@ class RevisarDatosController extends Controller
                         'documento_titular' => $datosBancarios->documento_titular,
                         'codigo_cci' => $datosBancarios->codigo_cci,
                         'usar_direccion_negocio' => $datosBancarios->usar_direccion_negocio
-                    ]
-                ]);
+                    ];
+                } else {
+                    $response['datos_bancarios'] = [
+                        'titular_cuenta' => 'No especificado (omitido)',
+                        'numero_cuenta' => 'No especificado (omitido)',
+                        'nombre_banco' => 'No especificado (omitido)',
+                        'tipo_cuenta' => 'No especificado (omitido)',
+                        'documento_titular' => 'No especificado (omitido)',
+                        'codigo_cci' => 'No especificado (omitido)',
+                        'usar_direccion_negocio' => false
+                    ];
+                }
+
+                return response()->json($response);
             }
 
             return response()->json([
@@ -105,4 +132,3 @@ class RevisarDatosController extends Controller
         }
     }
 }
-
