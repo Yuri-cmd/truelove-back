@@ -197,7 +197,7 @@ class RepartoRegistroController extends Controller
             'zonas',
             'documentos',
             'documento-motorizado',
-            'confirmacion-entrega'
+            'entrega-material'
         ];
         
         // Verificar cada paso del registro
@@ -206,7 +206,7 @@ class RepartoRegistroController extends Controller
             'zonas' => $registro->datosPersonales()->exists(),
             'documentos' => $registro->datosBancarios()->exists(),
             'documento-motorizado' => $registro->registroVehiculo()->exists(),
-            'confirmacion-entrega' => $registro->aprobado
+            'entrega-material' => $registro->entregaCalendario()->exists()
         ];
     
         $lastCompletedStep = '/reparto';
@@ -245,6 +245,7 @@ class RepartoRegistroController extends Controller
                 'zonas' => $registro->datosPersonales()->exists(),
                 'documentos' => $registro->datosBancarios()->exists(),
                 'documento-motorizado' => $registro->registroVehiculo()->exists(),
+                'entrega-material' => $registro->entregaCalendario()->exists(),
                 'confirmacion-entrega' => $registro->aprobado
             ];
 
