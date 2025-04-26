@@ -15,6 +15,7 @@ use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
+use App\Models\RepartoRegistro;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -234,6 +235,10 @@ class SocioController extends Controller
             $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            
+            $motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
+            $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
+            $pedido->celular_motorizado = $motorizado['celular'] ?? '';
 
             $names = array_map(function ($item) {
                 return $item['nombre'];
@@ -247,6 +252,7 @@ class SocioController extends Controller
 
             // Agregar información adicional
             $pedido->detalle = $namesString;
+            $pedido->detalleArray = $pedidoDetalles;
             $pedido->local = $local->nombre_establecimiento;
             $pedido->direccion_local = $local->direccion_completa;
             $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
@@ -254,6 +260,7 @@ class SocioController extends Controller
             $pedido->celular = $cliente->celular;
             $pedido->lat_local = $local->latitud;
             $pedido->lon_local = $local->longitud;
+            $pedido->tiempo = $pedido->tiempo ?? 0;
         }
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente

@@ -16,6 +16,7 @@ use App\Models\Rating;
 use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use App\Services\PedidoService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
 class PedidoController extends Controller
@@ -86,7 +87,7 @@ class PedidoController extends Controller
         // Registrar el tracking del pedido
         PedidoTracking::create([
             'pedido_id' => $pedido->id,
-            'estado' => 3
+            'estado' => 4
         ]);
 
         return response()->json(['status' => 'success']);
@@ -99,7 +100,10 @@ class PedidoController extends Controller
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
-
+        if ($request->tiempo) {
+            $pedido->tiempo = $request->tiempo;
+            $pedido->save();
+        }
         // Crear un nuevo tracking para el pedido
         $tracking = new PedidoTracking();
         $tracking->pedido_id = $id;
@@ -122,6 +126,7 @@ class PedidoController extends Controller
             'locallon' => $local->longitud,
             'custlat' => $coordenadasCliente->coordinates[0],
             'custlon' => $coordenadasCliente->coordinates[1],
+            'tiempo' => $pedido->tiempo ?? 0,
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
@@ -171,7 +176,7 @@ class PedidoController extends Controller
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             if ($pedidoTracking->estado == 7) {
-            $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating;
+                $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating;
             }
         }
 
@@ -263,5 +268,68 @@ class PedidoController extends Controller
         Mail::to($pedido->cliente['email'])->send(new PedidoEntregadoMail($pedido));
 
         return response()->json(['message' => 'Correo enviado con éxito']);
+    }
+
+    public function getPedido($id)
+    {
+        $pedido = Pedido::with(['trackings' => function ($query) {
+            $query->orderBy('created_at', 'desc');
+        }])->find($id);
+
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+        $cliente = Cliente::find($pedido->id_cliente);
+        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+        $motorizado = RepartoRegistro::find($pedido->id_motorizado);
+
+        $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+        $detalleNombres = $pedidoDetalles->pluck('nombre')->implode(', ');
+
+        $ultimoTracking = $pedido->trackings->first();
+        $estadoTracking = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
+
+        $pedido->motorizado = $motorizado ? trim(($motorizado->nombres ?? '') . ' ' . ($motorizado->apellidos ?? '')) : '';
+        $pedido->celular_motorizado = $motorizado->celular ?? '';
+
+        $pedido->detalle = $detalleNombres;
+        $pedido->detalleArray = $pedidoDetalles;
+        $pedido->ultimo_estado_tracking = $ultimoTracking->estado ?? 'Sin seguimiento';
+        $pedido->estado = $estadoTracking;
+
+        $pedido->local = $local->nombre_establecimiento ?? '';
+        $pedido->direccion_local = $local->direccion_completa ?? '';
+        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+        $pedido->cliente = $cliente ? "{$cliente->nombre} {$cliente->apellido}" : '';
+        $pedido->celular = $cliente->celular ?? '';
+        $pedido->lat_local = $local->latitud ?? '';
+        $pedido->lon_local = $local->longitud ?? '';
+        $pedido->tiempo = $pedido->tiempo ?? 0;
+
+        return response()->json($pedido);
+    }
+
+    public function mandarAlertaDeAuxilio(Request $request)
+    {
+        $pedido = Pedido::find($request->id_pedido);
+
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        $motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
+        $nombre = $motorizado['nombres'] . ' ' . $motorizado['apellidos'];
+        $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->get();
+        $motorizadosToken = [];
+        foreach ($motorizados as $motorizado) {
+            $motorizadosToken[] = $motorizado->token_fmc;
+        }
+
+        foreach ($motorizadosToken as $token) {
+            $this->firebaseService->sendNotification($token, '🛵 Alerta!', "📍 El motorizado {$nombre} todavia no finaliza su viaje");
+        }
+        return response()->json(['status' => 'success']);
     }
 }

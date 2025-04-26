@@ -9,7 +9,7 @@ class Pedido extends Model
 {
     use HasFactory;
     protected $table = 'pedidos';
-    protected $fillable = ['id_local', 'id_cliente', 'id_motorizado', 'latitud', 'longitud'];
+    protected $fillable = ['id_local', 'id_cliente', 'id_motorizado', 'latitud', 'longitud', 'tiempo'];
 
     public function detalles()
     {

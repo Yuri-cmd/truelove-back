@@ -185,6 +185,7 @@ Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado
 Route::get('/getMotorizadoInfo/{idPedido}', [PedidoController::class, 'getMotorizadoInfo']);
 Route::get('/getPerfil/{idCliente}', [ClienteController::class, 'getPerfil']);
 Route::post('/enviar-correo-pedido-entregado', [PedidoController::class, 'enviarCorreoPedidoEntregado']);
+Route::get('/get/pedidos/{id}', [PedidoController::class, 'getPedido']);
 
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
@@ -211,8 +212,8 @@ Route::post('biker/location/update', [BikerController::class, 'updateLocation'])
 Route::post('biker/update-token', [BikerController::class, 'updateToken']);
 Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']); 
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']); 
-
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
+Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
