@@ -228,17 +228,21 @@ class SocioController extends Controller
             ->where('id_local', $id)
             ->whereDate('created_at', Carbon::today())
             ->get();
-
         $local = Establecimiento::where('business_registration_id', $id)->first();
 
         foreach ($pedidos as $pedido) {
             $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-            
-            $motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
-            $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
-            $pedido->celular_motorizado = $motorizado['celular'] ?? '';
+
+            $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
+            if ($motorizado) {
+                $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
+                $pedido->celular_motorizado = $motorizado['celular'] ?? '';
+            } else {
+                $pedido->motorizado = '';
+                $pedido->celular_motorizado =  '';
+            }
 
             $names = array_map(function ($item) {
                 return $item['nombre'];
