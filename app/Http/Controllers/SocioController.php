@@ -117,7 +117,7 @@ class SocioController extends Controller
             ], 500);
         }
     }
-
+  
     public function aprobar($id)
     {
         DB::beginTransaction();
@@ -132,6 +132,16 @@ class SocioController extends Controller
                     'message' => 'El socio ya está aprobado'
                 ], 400);
             }
+            
+            // Verificar si ya existe un usuario con el mismo correo
+            $existingUser = User::where('email', $socio->email)->first();
+            if ($existingUser) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El correo electrónico ya está registrado en el sistema'
+                ], 400);
+            }
+            
             // marca socio como aprobado
             $socio->aprobado = true;
 
@@ -171,6 +181,15 @@ class SocioController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al aprobar socio: ' . $e->getMessage());
+            
+            // Verificar si es un error de duplicación de correo
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'email_unique') !== false) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El correo electrónico ya está registrado en el sistema'
+                ], 400);
+            }
+            
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al aprobar el socio: ' . $e->getMessage()
@@ -180,17 +199,37 @@ class SocioController extends Controller
 
     private function generateUniqueUsername($name, $lastName)
     {
-        $baseUsername = strtolower(str_replace(' ', '', $name . $lastName));
+        // Dividir nombres y apellidos
+        $nombresArray = explode(' ', trim($name));
+        $apellidosArray = explode(' ', trim($lastName));
+        
+        // Obtener la primera letra del primer nombre en mayúscula
+        $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
+        
+        // Obtener el segundo nombre si existe, si no, usar el primer nombre
+        $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
+        
+        // Obtener la primera letra del primer apellido en mayúscula
+        $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
+        
+        // Obtener el segundo apellido si existe, si no, usar el primer apellido
+        $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
+                           (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
+        
+        // Construir el nombre de usuario base
+        $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
         $username = $baseUsername;
         $counter = 1;
-
+    
+        // Verificar si el usuario ya existe y agregar número si es necesario
         while (User::where('usuario', $username)->exists()) {
             $username = $baseUsername . $counter;
             $counter++;
         }
-
+    
         return $username;
     }
+    
 
     public function login(Request $request)
     {
@@ -272,4 +311,104 @@ class SocioController extends Controller
 
         return response()->json($pedidos);
     }
+    public function delete($id)
+    {
+        DB::beginTransaction();
+        try {
+            // primero Buscar el socio
+            $socio = BusinessRegistration::findOrFail($id);
+            
+            // Si el socio tiene un usuario asociado, eliminarlo también
+            if ($socio->user_id) {
+                $user = User::find($socio->user_id);
+                if ($user) {
+                    $user->delete();
+                }
+            }
+            
+            // Eliminar registros relacionados 
+            if ($socio->negocio) {
+                $socio->negocio->delete();
+            }
+            
+            if ($socio->establecimiento) {
+                $socio->establecimiento->delete();
+            }
+            
+            if ($socio->datosClaveNegocio) {
+                $socio->datosClaveNegocio->delete();
+            }
+            
+            if ($socio->datosBancarios) {
+                $socio->datosBancarios->delete();
+            }
+            
+            if ($socio->cuentaBancaria) {
+                $socio->cuentaBancaria->delete();
+            }
+            
+            if ($socio->revisarDatos) {
+                $socio->revisarDatos->delete();
+            }
+            
+            if ($socio->documentosPdfExtranjero) {
+                $socio->documentosPdfExtranjero->delete();
+            }
+            
+            if ($socio->perfil) {
+                $socio->perfil->delete();
+            }
+            
+            // Finalmente eliminar el socio
+            $socio->delete();
+            
+            DB::commit();
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Socio eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar socio: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al eliminar el socio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function updateEstadoPedido(Request $request, $id)
+{
+    try {
+        $pedido = Pedido::findOrFail($id);
+        $estado = $request->estado;
+        
+        // Validar que el estado sea válido
+        if (!in_array($estado, [1, 2, 3, 4, 5, 6, 7])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Estado no válido'
+            ], 400);
+        }
+        
+        // Crear un nuevo tracking
+        $tracking = new PedidoTracking();
+        $tracking->pedido_id = $id;
+        $tracking->estado = $estado;
+        $tracking->save();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Estado del pedido actualizado correctamente'
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error al actualizar estado del pedido: ' . $e->getMessage());
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al actualizar el estado del pedido: ' . $e->getMessage()
+        ], 500);
+    }
+}
+    
+
 }
