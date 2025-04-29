@@ -101,102 +101,102 @@ class MenuController extends Controller
     }
 
     public function destroy($id)
-{
-    try {
-        // Buscar el platillo por ID
-        $dish = Menu::find($id);
+    {
+        try {
+            // Buscar el platillo por ID
+            $dish = Menu::find($id);
 
-        if (!$dish) {
-            return response()->json(['message' => 'Platillo no encontrado'], 404);
-        }
+            if (!$dish) {
+                return response()->json(['message' => 'Platillo no encontrado'], 404);
+            }
 
-        // Eliminar la relación con categorías
-        CategoriaMenu::where('menu_id', $id)->delete();
+            // Eliminar la relación con categorías
+            CategoriaMenu::where('menu_id', $id)->delete();
 
-        // Eliminar la imagen si existe
-        if ($dish->foto && Storage::exists($dish->foto)) {
-            Storage::delete($dish->foto);
-        }
-
-        // Eliminar el platillo
-        $dish->delete();
-
-        // Retornar respuesta de éxito
-        return response()->json(['message' => 'Platillo eliminado correctamente'], 200);
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Error al eliminar platillo', 'error' => $e->getMessage()], 500);
-    }
-
-}
-public function update(Request $request, $id)
-{
-    try {
-        // Buscar el platillo por ID
-        $dish = Menu::find($id);
-
-        if (!$dish) {
-            return response()->json(['message' => 'Platillo no encontrado'], 404);
-        }
-
-        // Actualizar los datos del platillo
-        $dish->titulo = $request->titulo;
-        $dish->descripcion = $request->descripcion;
-        $dish->precio = $request->precio;
-        $dish->status = $request->status;
-
-        // Si se envía una nueva imagen
-        if ($request->hasFile('foto')) {
-            // Eliminar la imagen anterior si existe
+            // Eliminar la imagen si existe
             if ($dish->foto && Storage::exists($dish->foto)) {
                 Storage::delete($dish->foto);
             }
 
-            // Guardar la nueva imagen
-            $fotoPath = $request->file('foto')->store('menus', 'custom_public');
-            $dish->foto = Storage::url($fotoPath);
+            // Eliminar el platillo
+            $dish->delete();
+
+            // Retornar respuesta de éxito
+            return response()->json(['message' => 'Platillo eliminado correctamente'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al eliminar platillo', 'error' => $e->getMessage()], 500);
         }
 
-        // Guardar los cambios
-        $dish->save();
-
-        // Actualizar la categoría si es necesario
-        if ($request->has('categoria_id')) {
-            // Eliminar la relación anterior
-            CategoriaMenu::where('menu_id', $id)->delete();
-            
-            // Crear la nueva relación
-            CategoriaMenu::create([
-                'categoria_id' => $request->categoria_id,
-                'menu_id' => $dish->id,
-            ]);
-        }
-
-        // Retornar respuesta de éxito
-        return response()->json([
-            'message' => 'Platillo actualizado correctamente',
-            'dish' => $dish
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Error al actualizar platillo',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
-// En MenuController.php
-public function getMenusByCategory($categoria_id)
-{
-    // Obtener los IDs de los menús que pertenecen a esta categoría
-    $menuIds = CategoriaMenu::where('categoria_id', $categoria_id)
-                           ->pluck('menu_id')
-                           ->toArray();
-    
-    // Obtener los menús con esos IDs
-    $menus = Menu::whereIn('id', $menuIds)->get();
-    
-    return response()->json($menus);
-}
+    public function update(Request $request, $id)
+    {
+        try {
+            // Buscar el platillo por ID
+            $dish = Menu::find($id);
 
-// En routes/api.php
+            if (!$dish) {
+                return response()->json(['message' => 'Platillo no encontrado'], 404);
+            }
+
+            // Actualizar los datos del platillo
+            $dish->titulo = $request->titulo;
+            $dish->descripcion = $request->descripcion;
+            $dish->precio = $request->precio;
+            $dish->status = $request->status;
+
+            // Si se envía una nueva imagen
+            if ($request->hasFile('foto')) {
+                // Eliminar la imagen anterior si existe
+                if ($dish->foto && Storage::exists($dish->foto)) {
+                    Storage::delete($dish->foto);
+                }
+
+                // Guardar la nueva imagen
+                $fotoPath = $request->file('foto')->store('menus', 'custom_public');
+                $dish->foto = Storage::url($fotoPath);
+            }
+
+            // Guardar los cambios
+            $dish->save();
+
+            // Actualizar la categoría si es necesario
+            if ($request->has('categoria_id')) {
+                // Eliminar la relación anterior
+                CategoriaMenu::where('menu_id', $id)->delete();
+
+                // Crear la nueva relación
+                CategoriaMenu::create([
+                    'categoria_id' => $request->categoria_id,
+                    'menu_id' => $dish->id,
+                ]);
+            }
+
+            // Retornar respuesta de éxito
+            return response()->json([
+                'message' => 'Platillo actualizado correctamente',
+                'dish' => $dish
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al actualizar platillo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getMenusByCategory($categoria_id)
+    {
+        // Obtener los IDs de los menús que pertenecen a esta categoría
+        $menuIds = CategoriaMenu::where('categoria_id', $categoria_id)
+            ->pluck('menu_id')
+            ->toArray();
+
+        // Obtener los menús con esos IDs
+        $menus = Menu::whereIn('id', $menuIds)->get();
+
+        return response()->json($menus);
+    }
+
+
 
 }

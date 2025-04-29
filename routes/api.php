@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/socio/change/state/{id}', 'changeState');
             Route::get('/socio/{id}/details', 'getDetails');
             Route::post('/socio/{id}/aprobar', 'aprobar');
+            Route::delete('/socio/{id}/delete', 'delete');
         });
 
         // Gestión de motorizados
@@ -72,10 +73,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/motorizado/change/state/{id}', 'changeState');
             Route::get('/motorizado/{id}/details', 'getDetails');
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
+            Route::delete('/motorizado/{id}/delete', 'delete');
         });
     });
 
-
+    // Rutas para socios (accesibles por usuarios con rol 'negocio')
+    Route::middleware('role:negocio')->group(function () {
+        Route::controller(SocioController::class)->group(function () {
+            Route::get('/socio/pedidos/{id}', 'getPedidos');
+            Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
+        });
+    });
     // Rutas para motorizados
     Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
         Route::controller(MotorizadoController::class)->group(function () {

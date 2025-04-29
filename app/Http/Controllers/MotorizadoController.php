@@ -102,6 +102,15 @@ class MotorizadoController extends Controller
                     'message' => 'El motorizado ya está aprobado'
                 ], 400);
             }
+            
+            // Verificar si ya existe un usuario con el mismo correo
+            $existingUser = User::where('email', $motorizado->email)->first();
+            if ($existingUser) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El correo electrónico ya está registrado en el sistema'
+                ], 400);
+            }
 
             $motorizado->aprobado = true;
             
@@ -135,24 +144,105 @@ class MotorizadoController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error al aprobar motorizado: ' . $e->getMessage());
+            
+            // Verificar si es un error de duplicación de correo
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'email_unique') !== false) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El correo electrónico ya está registrado en el sistema'
+                ], 400);
+            }
+            
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al aprobar el motorizado: ' . $e->getMessage()
             ], 500);
         }
     }
-
     private function generateUniqueUsername($nombres, $apellidos)
-    {
-        $baseUsername = strtolower(str_replace(' ', '', $nombres . $apellidos));
-        $username = $baseUsername;
-        $counter = 1;
+{
+    // Dividir nombres y apellidos
+    $nombresArray = explode(' ', trim($nombres));
+    $apellidosArray = explode(' ', trim($apellidos));
+    
+    // Obtener la primera letra del primer nombre en mayúscula
+    $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
+    
+    // Obtener el segundo nombre si existe, si no, usar el primer nombre
+    $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
+    
+    // Obtener la primera letra del primer apellido en mayúscula
+    $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
+    
+    // Obtener el segundo apellido si existe, si no, usar el primer apellido
+    $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
+                       (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
+    
+    // Construir el nombre de usuario base
+    $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
+    $username = $baseUsername;
+    $counter = 1;
 
-        while (User::where('usuario', $username)->exists()) {
-            $username = $baseUsername . $counter;
-            $counter++;
-        }
-
-        return $username;
+    // Verificar si el usuario ya existe y agregar número si es necesario
+    while (User::where('usuario', $username)->exists()) {
+        $username = $baseUsername . $counter;
+        $counter++;
     }
+
+    return $username;
+}
+    public function delete($id)
+    {
+        DB::beginTransaction();
+        try {
+            // Buscar el motorizado
+            $motorizado = RepartoRegistro::findOrFail($id);
+            
+            // Si el motorizado tiene un usuario asociado, eliminarlo también
+            if ($motorizado->user_id) {
+                $user = User::find($motorizado->user_id);
+                if ($user) {
+                    $user->delete();
+                }
+            }
+            
+            // Eliminar registros relacionados
+            if ($motorizado->datosPersonales) {
+                $motorizado->datosPersonales->delete();
+            }
+            
+            if ($motorizado->datosBancarios) {
+                $motorizado->datosBancarios->delete();
+            }
+            
+            if ($motorizado->registroVehiculo) {
+                $motorizado->registroVehiculo->delete();
+            }
+            
+            if ($motorizado->entregaCalendario) {
+                foreach ($motorizado->entregaCalendario as $entrega) {
+                    $entrega->delete();
+                }
+            }
+            
+            // Finalmente eliminar el motorizado
+            $motorizado->delete();
+            
+            DB::commit();
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Motorizado eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar motorizado: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al eliminar el motorizado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
