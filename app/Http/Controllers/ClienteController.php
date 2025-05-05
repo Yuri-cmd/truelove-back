@@ -253,8 +253,8 @@ class ClienteController extends Controller
                 $profile->direccion = null;
             }
 
-            $profile->foto_perfil = $profile->foto_perfil ? 'https://magusemail.com/truelove-back/public/storage/clientes/foto_perfil/pipLPc5FOtTfU895qzRdSeSC0sCwzJh2LXLXvk4r.jpg' : '';
-            
+            $profile->foto_perfil = $profile->foto_perfil ? "https://magusemail.com/truelove-back/public/{$profile->foto_perfil}" : '';
+
             return response()->json([
                 'message' => 'Perfil encontrado',
                 'data' => $profile,
