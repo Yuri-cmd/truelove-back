@@ -20,5 +20,6 @@ class Cliente extends Model
         'celular',
         'dni_photo',
         'selfie_photo',
+        'foto_perfil',
     ];
 }

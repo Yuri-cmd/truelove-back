@@ -252,6 +252,9 @@ class ClienteController extends Controller
                 $profile->longitud = null;
                 $profile->direccion = null;
             }
+
+            $profile->foto_perfil = $profile->foto_perfil ? 'https://magusemail.com/truelove-back/public/storage/clientes/foto_perfil/pipLPc5FOtTfU895qzRdSeSC0sCwzJh2LXLXvk4r.jpg' : '';
+            
             return response()->json([
                 'message' => 'Perfil encontrado',
                 'data' => $profile,
@@ -261,5 +264,76 @@ class ClienteController extends Controller
                 'message' => 'Perfil no encontrado',
             ], 404);
         }
+    }
+
+    // En el controlador
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'id_cliente' => 'required|integer',
+            'tipo' => 'required|string',
+            'valor' => 'required|string',
+        ]);
+
+        $cliente = Cliente::find($request->id_cliente);
+
+        if (!$cliente) {
+            return response()->json(['success' => false, 'message' => 'Cliente no encontrado']);
+        }
+
+        switch ($request->tipo) {
+            case 'genero':
+                $cliente->genero = $request->valor;
+                break;
+            case 'email':
+                $cliente->email = $request->valor;
+                break;
+            case 'celular':
+                $cliente->celular = $request->valor;
+                break;
+            default:
+                return response()->json(['success' => false, 'message' => 'Tipo no válido'],);
+        }
+
+        $cliente->save();
+
+        return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
+    }
+
+
+    public function actualizarDireccion(Request $request)
+    {
+        $direccion = ClienteDireccion::where('id_cliente', $request->idCliente)->first();
+        $direccion->direccion = $request->direccion;
+        $direccion->coordenadas = json_encode($request->selectedPosition);
+        $direccion->save();
+
+        return response()->json([
+            'message' => 'Perfil creado exitosamente',
+            'dirreccion' => $direccion,
+        ], 200);
+    }
+
+    public function actualizarFotoPerfil(Request $request)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $user = Cliente::find($request->id_cliente);
+
+        if ($request->hasFile('foto')) {
+            $filename = $request->file('foto')->store('clientes/foto_perfil', 'custom_public');
+            $user->foto_perfil = $filename;
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto actualizada',
+                'path' => asset('storage/perfiles/' . $filename)
+            ]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Archivo no recibido'], 400);
     }
 }
