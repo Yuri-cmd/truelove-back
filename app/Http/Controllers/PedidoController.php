@@ -175,7 +175,7 @@ class PedidoController extends Controller
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             if ($pedidoTracking->estado == 8) {
-                $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating;
+                $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating ?? 0;
             }
         }
 
