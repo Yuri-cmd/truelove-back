@@ -160,6 +160,7 @@ class MotorizadoController extends Controller
             ], 500);
         }
     }
+    // este es para motorizado
     private function generateUniqueUsername($nombres, $apellidos)
 {
     // Dividir nombres y apellidos
@@ -169,18 +170,19 @@ class MotorizadoController extends Controller
     // Obtener la primera letra del primer nombre en mayúscula
     $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
     
-    // Obtener el segundo nombre si existe, si no, usar el primer nombre
-    $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
+    // // Obtener el segundo nombre si existe, si no, usar el primer nombre
+    // $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
     
     // Obtener la primera letra del primer apellido en mayúscula
-    $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
-    
-    // Obtener el segundo apellido si existe, si no, usar el primer apellido
-    $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
-                       (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
+    // $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
+    $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '';
+    // // Obtener el segundo apellido si existe, si no, usar el primer apellido
+    // $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
+    //                    (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
     
     // Construir el nombre de usuario base
-    $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
+    // $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
+    $baseUsername = $primeraNombre . $primeraApellido;
     $username = $baseUsername;
     $counter = 1;
 
