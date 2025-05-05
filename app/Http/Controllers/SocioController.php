@@ -16,7 +16,6 @@ use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
-use App\Models\PedidoTracking;
 use App\Models\RepartoRegistro;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
