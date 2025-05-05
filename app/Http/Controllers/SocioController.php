@@ -15,6 +15,7 @@ use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
+use App\Models\PedidoTracking;
 use App\Models\RepartoRegistro;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -304,6 +305,7 @@ class SocioController extends Controller
             $pedido->lat_local = $local->latitud;
             $pedido->lon_local = $local->longitud;
             $pedido->tiempo = $pedido->tiempo ?? 0;
+            $pedido->nota = $pedido->nota ?? 'Sin nota';
         }
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente

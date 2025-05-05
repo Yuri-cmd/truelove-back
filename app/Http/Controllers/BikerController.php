@@ -164,9 +164,11 @@ class BikerController extends Controller
                         $pedido->celular = $cliente->celular;
                         $pedido->lat_local = (float) $local->latitud;
                         $pedido->lon_local = (float) $local->longitud;
-                        $pedido->latitud = $coordenadasCliente->coordinates[0];
-                        $pedido->longitud = $coordenadasCliente->coordinates[1];
+                        $pedido->latitud = $coordenadasCliente->coordinates[1];
+                        $pedido->longitud = $coordenadasCliente->coordinates[0];
                         $pedido->estado = $estado->estado;
+                        $pedido->nota = $pedido->nota ?? 'Sin nota';
+                        $pedido->tiempo = $pedido->tiempo ?? 0;
                     }
                 }
             }

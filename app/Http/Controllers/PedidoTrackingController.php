@@ -14,10 +14,12 @@ class PedidoTrackingController extends Controller
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
+        $tiempo = Pedido::find($id)->tiempo;
 
         return response()->json([
             'id' => $id,
-            'estado' => $pedido->estado, // Suponiendo que tienes un campo `estado`
+            'estado' => $pedido->estado,
+            'tiempo' => $tiempo ?? 0,
         ]);
     }
 

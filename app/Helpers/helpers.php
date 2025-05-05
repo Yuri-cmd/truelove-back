@@ -20,7 +20,7 @@ if (!function_exists('estadoPedido')) {
                 return 'Motorizado acepto pedido';
                 break;
             case '5':
-                return 'Motorizado llego al restaurant';
+                return 'Motorizado llego al restaurante';
                 break;
             case '6':
                 return 'Motorizado en camino';

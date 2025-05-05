@@ -33,7 +33,7 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
-        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud']));
+        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota']));
 
         foreach ($request->items as $item) {
             PedidoDetalle::create([
@@ -126,7 +126,6 @@ class PedidoController extends Controller
             'locallon' => $local->longitud,
             'custlat' => $coordenadasCliente->coordinates[0],
             'custlon' => $coordenadasCliente->coordinates[1],
-            'tiempo' => $pedido->tiempo ?? 0,
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
@@ -175,12 +174,12 @@ class PedidoController extends Controller
         $rating = [];
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if ($pedidoTracking->estado == 7) {
+            if ($pedidoTracking->estado == 8) {
                 $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating;
             }
         }
 
-        $promedio = number_format(array_sum($rating) / count($rating), 1, '.', '');
+        $promedio = count($rating) ? number_format(array_sum($rating) / count($rating), 1, '.', '') : '0.0';
 
         return response()->json([
             'id' => $motorizado->id,
