@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
+use App\Models\LocalPrioridad;
 use App\Models\PedidoTracking;
 use App\Models\User;
 use App\Models\Role;
@@ -118,7 +119,7 @@ class SocioController extends Controller
             ], 500);
         }
     }
-  
+
     public function aprobar($id)
     {
         DB::beginTransaction();
@@ -133,7 +134,7 @@ class SocioController extends Controller
                     'message' => 'El socio ya está aprobado'
                 ], 400);
             }
-            
+
             // Verificar si ya existe un usuario con el mismo correo
             $existingUser = User::where('email', $socio->email)->first();
             if ($existingUser) {
@@ -142,7 +143,7 @@ class SocioController extends Controller
                     'message' => 'El correo electrónico ya está registrado en el sistema'
                 ], 400);
             }
-            
+
             // marca socio como aprobado
             $socio->aprobado = true;
 
@@ -182,7 +183,7 @@ class SocioController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al aprobar socio: ' . $e->getMessage());
-            
+
             // Verificar si es un error de duplicación de correo
             if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'email_unique') !== false) {
                 return response()->json([
@@ -190,7 +191,7 @@ class SocioController extends Controller
                     'message' => 'El correo electrónico ya está registrado en el sistema'
                 ], 400);
             }
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al aprobar el socio: ' . $e->getMessage()
@@ -203,38 +204,38 @@ class SocioController extends Controller
         // Dividir nombres y apellidos
         $nombresArray = explode(' ', trim($name));
         $apellidosArray = explode(' ', trim($lastName));
-        
+
         // Obtener la primera letra del primer nombre en mayúscula
         $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
-        
+
         // // Obtener el segundo nombre si existe, si no, usar el primer nombre
         // $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
-        
+
         // // Obtener la primera letra del primer apellido en mayúscula
         // $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
-        
+
         // cambiar a obtener el primer apellido completo en minusculas
-        $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0] ) : '';
+        $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '';
 
         // // Obtener el segundo apellido si existe, si no, usar el primer apellido
         // $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
         //                    (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
-        
+
         // Construir el nombre de usuario base (primera letra del nombre + primer apellido)
         // $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
         $baseUsername = $primeraNombre . $primeraApellido;
         $username = $baseUsername;
         $counter = 1;
-    
+
         // Verificar si el usuario ya existe y agregar número si es necesario
         while (User::where('usuario', $username)->exists()) {
             $username = $baseUsername . $counter;
             $counter++;
         }
-    
+
         return $username;
     }
-    
+
 
     public function login(Request $request)
     {
@@ -266,9 +267,11 @@ class SocioController extends Controller
 
     public function getPedidos($id)
     {
-        $pedidos = Pedido::with(['trackings' => function ($query) {
-            $query->orderBy('created_at', 'desc');
-        }])
+        $pedidos = Pedido::with([
+            'trackings' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ])
             ->where('id_local', $id)
             ->whereDate('created_at', Carbon::today())
             ->get();
@@ -285,7 +288,7 @@ class SocioController extends Controller
                 $pedido->celular_motorizado = $motorizado['celular'] ?? '';
             } else {
                 $pedido->motorizado = '';
-                $pedido->celular_motorizado =  '';
+                $pedido->celular_motorizado = '';
             }
 
             $names = array_map(function ($item) {
@@ -322,7 +325,7 @@ class SocioController extends Controller
         try {
             // primero Buscar el socio
             $socio = BusinessRegistration::findOrFail($id);
-            
+
             // Si el socio tiene un usuario asociado, eliminarlo también
             if ($socio->user_id) {
                 $user = User::find($socio->user_id);
@@ -330,45 +333,45 @@ class SocioController extends Controller
                     $user->delete();
                 }
             }
-            
+
             // Eliminar registros relacionados 
             if ($socio->negocio) {
                 $socio->negocio->delete();
             }
-            
+
             if ($socio->establecimiento) {
                 $socio->establecimiento->delete();
             }
-            
+
             if ($socio->datosClaveNegocio) {
                 $socio->datosClaveNegocio->delete();
             }
-            
+
             if ($socio->datosBancarios) {
                 $socio->datosBancarios->delete();
             }
-            
+
             if ($socio->cuentaBancaria) {
                 $socio->cuentaBancaria->delete();
             }
-            
+
             if ($socio->revisarDatos) {
                 $socio->revisarDatos->delete();
             }
-            
+
             if ($socio->documentosPdfExtranjero) {
                 $socio->documentosPdfExtranjero->delete();
             }
-            
+
             // if ($socio->perfil) {
             //     $socio->perfil->delete();
             // }
-            
+
             // Finalmente eliminar el socio
             $socio->delete();
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Socio eliminado correctamente'
@@ -383,37 +386,305 @@ class SocioController extends Controller
         }
     }
     public function updateEstadoPedido(Request $request, $id)
-{
-    try {
-        $pedido = Pedido::findOrFail($id);
-        $estado = $request->estado;
-        
-        // Validar que el estado sea válido
-        if (!in_array($estado, [1, 2, 3, 4, 5, 6, 7])) {
+    {
+        try {
+            $pedido = Pedido::findOrFail($id);
+            $estado = $request->estado;
+
+            // Validar que el estado sea válido
+            if (!in_array($estado, [1, 2, 3, 4, 5, 6, 7])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Estado no válido'
+                ], 400);
+            }
+
+            // Crear un nuevo tracking
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $id;
+            $tracking->estado = $estado;
+            $tracking->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Estado del pedido actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar estado del pedido: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Estado no válido'
-            ], 400);
+                'message' => 'Error al actualizar el estado del pedido: ' . $e->getMessage()
+            ], 500);
         }
-        
-        // Crear un nuevo tracking
-        $tracking = new PedidoTracking();
-        $tracking->pedido_id = $id;
-        $tracking->estado = $estado;
-        $tracking->save();
-        
+    }
+
+
+
+/**
+ * Actualiza la prioridad de un local específico
+ */
+public function actualizarPrioridadLocal(Request $request, $id)
+{
+    try {
+        // Validamos que la prioridad sea un número positivo (sin límite superior)
+        $request->validate([
+            'prioridad' => 'required|numeric|min:0',
+        ]);
+
+        // Verificamos que el local exista en la base de datos
+        $local = Establecimiento::findOrFail($id);
+
+        // Actualizamos o creamos el registro de prioridad
+        LocalPrioridad::updateOrCreate(
+            // Condición para buscar: establecimiento_id debe coincidir
+            ['establecimiento_id' => $id],
+            // Datos a actualizar o insertar
+            [
+                'prioridad' => $request->prioridad,
+                'fecha_actualizacion' => now()
+            ]
+        );
+
+        // Retornamos una respuesta JSON exitosa
         return response()->json([
             'status' => 'success',
-            'message' => 'Estado del pedido actualizado correctamente'
+            'message' => 'Prioridad actualizada correctamente'
         ]);
     } catch (\Exception $e) {
-        Log::error('Error al actualizar estado del pedido: ' . $e->getMessage());
+        // Registramos el error en el log para debugging
+        Log::error('Error al actualizar prioridad: ' . $e->getMessage());
+
+        // Retornamos una respuesta de error con código 500
         return response()->json([
             'status' => 'error',
-            'message' => 'Error al actualizar el estado del pedido: ' . $e->getMessage()
+            'message' => 'Error al actualizar la prioridad: ' . $e->getMessage()
         ], 500);
     }
 }
-    
+
+/**
+ * Obtiene los locales ordenados por prioridad
+ */
+public function getLocalesPorPrioridad()
+{
+    try {
+        // Obtener todos los establecimientos con sus datos de negocio, perfil y prioridad
+        $locales = Establecimiento::with([
+            'businessRegistration',
+            'businessRegistration.perfil'
+            // 'rating'
+        ])
+        ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+        // Hacemos un left join con la tabla de prioridades para incluir todos los locales
+        ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id')
+        ->where('business_registrations.estado', 1)
+        ->where('business_registrations.aprobado', 1)
+        // Ordenamos por prioridad (de mayor a menor) y luego por nombre
+        // Mayor número = mayor prioridad
+        ->orderBy('local_priorities.prioridad', 'desc')
+        ->orderBy('establecimientos.nombre_establecimiento', 'asc')
+        // Seleccionamos todas las columnas de la tabla establecimientos y la prioridad
+        ->select('establecimientos.*', 'local_priorities.prioridad')
+        ->get();
+
+        // Transformamos la colección de locales para incluir la puntuación y prioridad
+        $localesFormateados = $locales->map(function ($local) {
+            // Obtenemos la puntuación del local usando la relación
+            // $puntuacion = $local->rating ? $local->rating->puntuacion : 0;
+            
+            // Verificamos si businessRegistration y perfil existen
+            $logo = null;
+            if ($local->businessRegistration && 
+                $local->businessRegistration->perfil &&
+                $local->businessRegistration->perfil->ruta_logo
+            ) {
+                $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo,'/');
+            }
+            
+            // Retornamos un array con los datos formateados del local
+            return [
+                'id' => $local->id,
+                'nombre' => $local->nombre_establecimiento,
+                'direccion' => $local->direccion_completa,
+                'ciudad' => $local->ciudad,
+                'business_id' => $local->business_registration_id,
+                'empresa' => $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName,
+                'logo' => $logo,
+                // 'puntuacion' => $puntuacion,
+                'prioridad' => $local->prioridad ?? 0, // Si no tiene prioridad, asignamos 0
+                'latitud' => $local->latitud,
+                'longitud' => $local->longitud
+            ];
+        });
+
+        // Retornamos una respuesta JSON exitosa con los datos
+        return response()->json([
+            'status' => 'success',
+            'data' => $localesFormateados
+        ]);
+    } catch (\Exception $e) {
+        // Registramos el error en el log para debugging
+        Log::error('Error al obtener locales por prioridad: ' . $e->getMessage());
+
+        // Retornamos una respuesta de error con código 500
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener la lista de locales por prioridad: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Obtiene estadísticas sobre las prioridades de los locales
+ */
+public function getEstadisticasPrioridad()
+{
+    try {
+        // Obtener el total de locales
+        $totalLocales = Establecimiento::join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+            ->where('business_registrations.estado', 1)
+            ->where('business_registrations.aprobado', 1)
+            ->count();
+        
+        // Si no hay locales, devolver estadísticas en cero
+        if ($totalLocales === 0) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'totalLocales' => 0,
+                    'highPriorityLocales' => 0,
+                    'mediumPriorityLocales' => 0,
+                    'lowPriorityLocales' => 0
+                ]
+            ]);
+        }
+        
+        // Obtener todos los locales con prioridad
+        $localesConPrioridad = LocalPrioridad::all();
+        
+        // Calcular los umbrales para las categorías basados en el total de locales
+        $lowThreshold = ceil($totalLocales * 0.33); // Primer tercio
+        $mediumThreshold = ceil($totalLocales * 0.67); // Segundo tercio
+        
+        // Ordenar las prioridades de menor a mayor
+        $prioridades = $localesConPrioridad->pluck('prioridad')->sort()->values();
+        
+        // Contar locales por categoría de prioridad
+        $bajaPrioridad = 0;
+        $mediaPrioridad = 0;
+        $altaPrioridad = 0;
+        
+        foreach ($localesConPrioridad as $local) {
+            // Encontrar la posición de la prioridad en la lista ordenada
+            $posicion = $prioridades->search($local->prioridad) + 1;
+            
+            if ($posicion <= $lowThreshold) {
+                $bajaPrioridad++;
+            } elseif ($posicion <= $mediumThreshold) {
+                $mediaPrioridad++;
+            } else {
+                $altaPrioridad++;
+            }
+        }
+        
+        // Retornamos una respuesta JSON exitosa con los datos
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'totalLocales' => $totalLocales,
+                'highPriorityLocales' => $altaPrioridad,
+                'mediumPriorityLocales' => $mediaPrioridad,
+                'lowPriorityLocales' => $bajaPrioridad
+            ]
+        ]);
+    } catch (\Exception $e) {
+        // Registramos el error en el log para debugging
+        Log::error('Error al obtener estadísticas de prioridad: ' . $e->getMessage());
+
+        // Retornamos una respuesta de error con código 500
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener las estadísticas de prioridad: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+/**
+ * Obtiene todos los locales disponibles con su información básica y logo
+ */
+public function getAllLocales()
+{
+    try {
+        // Obtener todos los establecimientos con sus datos de negocio y perfil
+        $locales = Establecimiento::with([
+            'businessRegistration',
+            'businessRegistration.perfil',
+        ])
+        ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+        ->where('business_registrations.estado', 1)
+        ->where('business_registrations.aprobado', 1)
+        ->orderBy('establecimientos.nombre_establecimiento', 'asc')
+        ->select('establecimientos.*')
+        ->get();
+
+        // Transformamos la colección de locales para incluir la información necesaria
+        $localesFormateados = $locales->map(function ($local) {
+            // Verificamos si businessRegistration y perfil existen
+            $logo = null;
+            $empresa = '';
+            
+            if ($local->businessRegistration) {
+                $empresa = $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName;
+                
+                if ($local->businessRegistration->perfil && 
+                    $local->businessRegistration->perfil->ruta_logo) {
+                    $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+                }
+            }
+            
+            // Obtener la puntuación del local calculando el promedio de las calificaciones
+            // Usamos una subconsulta para obtener el promedio de restaurant_rating
+            $puntuacion = DB::table('ratings')
+                ->join('pedidos', 'ratings.id_pedido', '=', 'pedidos.id')
+                ->where('pedidos.id_local', $local->business_registration_id)
+                ->whereNotNull('ratings.restaurant_rating')
+                ->avg('ratings.restaurant_rating') ?? 0;
+            
+            // Obtener el conteo de pedidos
+            $pedidoCount = Pedido::where('id_local', $local->business_registration_id)->count();
+            
+            // Retornamos un array con los datos formateados del local
+            return [
+                'id' => $local->id,
+                'nombre' => $local->nombre_establecimiento,
+                'direccion' => $local->direccion_completa,
+                'ciudad' => $local->ciudad,
+                'business_id' => $local->business_registration_id,
+                'empresa' => $empresa,
+                'logo' => $logo,
+                'puntuacion' => $puntuacion,
+                'pedidoCount' => $pedidoCount,
+                'latitud' => $local->latitud,
+                'longitud' => $local->longitud
+            ];
+        });
+
+        // Retornamos una respuesta JSON exitosa con los datos
+        return response()->json([
+            'status' => 'success',
+            'data' => $localesFormateados
+        ]);
+    } catch (\Exception $e) {
+        // Registramos el error en el log para debugging
+        Log::error('Error al obtener locales: ' . $e->getMessage());
+
+        // Retornamos una respuesta de error con código 500
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener la lista de locales: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 }
