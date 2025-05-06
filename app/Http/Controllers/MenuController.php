@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CategoriaMenu;
 use App\Models\Menu;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -197,6 +198,17 @@ class MenuController extends Controller
         return response()->json($menus);
     }
 
+    public function getAdicionales($id)
+    {
+        $adicionales = DB::select("SELECT
+                    titulo,
+                    precio 
+                FROM
+                    `adicionales` 
+                WHERE
+                    adicionales.empresa_id = ? 
+                    AND adicionales.`status` = 'active'", [$id]);
 
-
+        return response()->json($adicionales);
+    }
 }

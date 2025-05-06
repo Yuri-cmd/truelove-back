@@ -203,7 +203,7 @@ Route::get('/get/pedidos/{id}', [PedidoController::class, 'getPedido']);
 Route::post('/update-info-cliente', [ClienteController::class, 'updateProfile']);
 Route::post('/update-direccion', [ClienteController::class, 'actualizarDireccion']);
 Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
-
+Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);

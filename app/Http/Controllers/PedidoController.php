@@ -137,21 +137,23 @@ class PedidoController extends Controller
         $pedidos = Pedido::where('id_cliente', $idCliente)->get();
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-            $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first()->ruta_logo;
-            $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-            $total = $pedidoDetalles->sum('precio');
-            $data[] = [
-                'id' => $pedido->id,
-                'estado' => estadoPedido($pedidoTracking->estado),
-                'fecha_entrega' => $pedidoTracking->created_at,
-                'local' => $local->nombre_establecimiento,
-                'logo' => env('APP_URL') . '/' . $logo,
-                'total' => $total,
-                'cantidad' => count($pedidoDetalles),
-                'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
-                'created_at' => $pedido->created_at,
-            ];
+            if($pedidoTracking['estado'] == 8 ){ 
+                $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+                $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
+                $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $total = $pedidoDetalles->sum('precio');
+                $data[] = [
+                    'id' => $pedido->id,
+                    'estado' => estadoPedido($pedidoTracking->estado),
+                    'fecha_entrega' => $pedidoTracking->created_at,
+                    'local' => $local->nombre_establecimiento,
+                    'logo' => $logo->ruta_logo ? env('APP_URL') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
+                    'total' => $total,
+                    'cantidad' => count($pedidoDetalles),
+                    'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
+                    'created_at' => $pedido->created_at,
+                ];
+            }
         }
         return response()->json($data);
     }

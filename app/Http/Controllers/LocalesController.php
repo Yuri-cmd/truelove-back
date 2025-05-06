@@ -38,7 +38,7 @@ class LocalesController extends Controller
         $lat = $coordenadas->coordinates[0];
         $lng = $coordenadas->coordinates[1];
 
-        $locales = $this->getLocalesCercanos($lat, $lng, $category);
+        $locales = $this->getLocalesCercanos($lng, $lat, $category);
 
         return response()->json($locales);
     }
@@ -71,7 +71,9 @@ class LocalesController extends Controller
                 cos(radians(establecimientos.longitud) - radians(?)) + 
                 sin(radians(?)) * sin(radians(establecimientos.latitud)))) AS distancia", [$lat, $lng, $lat])
             ->join('establecimientos', 'business_registrations.id', '=', 'establecimientos.business_registration_id')
-            ->join('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id');
+            ->join('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
+            ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id');
+
         if ($category) {
             $query->where('business_registrations.businessType', $category);
         }
@@ -81,6 +83,7 @@ class LocalesController extends Controller
         }
 
         $query->having('distancia', '<=', $radio)
+            ->orderBy('local_priorities.prioridad', 'asc')
             ->orderBy('distancia', 'asc');
         if ($category) {
             $query->take(10);
