@@ -65,6 +65,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/socio/{id}/details', 'getDetails');
             Route::post('/socio/{id}/aprobar', 'aprobar');
             Route::delete('/socio/{id}/delete', 'delete');
+            // Route::get('/locales/empresas', 'getLocalesEmpresas');
+            // Route::post('/locales/puntuacion/{id}', 'actualizarPuntuacionLocal');
+            Route::get('/locales/prioridad', 'getLocalesPorPrioridad');
+            Route::post('/locales/prioridad/{id}', 'actualizarPrioridadLocal');
+            Route::get('/locales/prioridad/estadisticas', 'getEstadisticasPrioridad');
+            Route::get('/locales/all', 'getAllLocales');
         });
 
         // Gestión de motorizados
@@ -95,8 +101,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 
-   // Rutas de autenticación y verificación del formulario principal y envio del correo
- 
+// Rutas de autenticación y verificación del formulario principal y envio del correo
+
 
 Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
@@ -188,7 +194,7 @@ Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'get
 Route::post('/login/cliente', [ClienteController::class, 'login']);
 Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
 Route::post('/ratings', [RatingController::class, 'store']); // Guardar calificación
-Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']); 
+Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']);
 Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado']);
 Route::get('/getMotorizadoInfo/{idPedido}', [PedidoController::class, 'getMotorizadoInfo']);
 Route::get('/getPerfil/{idCliente}', [ClienteController::class, 'getPerfil']);
@@ -221,8 +227,8 @@ Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
 Route::post('biker/update-token', [BikerController::class, 'updateToken']);
-Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']); 
-Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']); 
+Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']);
+Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
 
@@ -249,19 +255,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/menus/web/{id}', [MenuController::class, 'destroy']);
     Route::get('/menus/categoria/{categoria_id}', [MenuController::class, 'getMenusByCategory']);
 
-       // Rutas para adicionales
-       Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);
-       Route::post('/adicionales/web', [AdicionalController::class, 'crearAdicional']);
-       Route::get('/adicionales/web/detalle/{adicional}', [AdicionalController::class, 'obtenerAdicional']);
-       Route::put('/adicionales/web/{adicional}', [AdicionalController::class, 'actualizarAdicional']);
-       Route::delete('/adicionales/web/{adicional}', [AdicionalController::class, 'eliminarAdicional']);
-   
-       // Rutas para categorías de adicionales
-       Route::get('/categorias-adicionales/web/{empresa_id}', [CategoriaAdicionalController::class, 'obtenerCategoriasAdicionales']);
-       Route::post('/categorias-adicionales/web', [CategoriaAdicionalController::class, 'crearCategoriaAdicional']);
-       Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
-       Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
-       Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
+    // Rutas para adicionales
+    Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);
+    Route::post('/adicionales/web', [AdicionalController::class, 'crearAdicional']);
+    Route::get('/adicionales/web/detalle/{adicional}', [AdicionalController::class, 'obtenerAdicional']);
+    Route::put('/adicionales/web/{adicional}', [AdicionalController::class, 'actualizarAdicional']);
+    Route::delete('/adicionales/web/{adicional}', [AdicionalController::class, 'eliminarAdicional']);
+
+    // Rutas para categorías de adicionales
+    Route::get('/categorias-adicionales/web/{empresa_id}', [CategoriaAdicionalController::class, 'obtenerCategoriasAdicionales']);
+    Route::post('/categorias-adicionales/web', [CategoriaAdicionalController::class, 'crearCategoriaAdicional']);
+    Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
+    Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
+    Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
 });
 
 
@@ -282,20 +288,20 @@ Route::get('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalCo
 Route::put('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'update']);
 Route::delete('/categorias-adicionales/{categoriaAdicional}', [CategoriaAdicionalController::class, 'destroy']);
 
-  // categorias
+// categorias
 
-  Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
-  Route::post('/categories', [CategoriaController::class, 'store']);
-  Route::put('/categories/{id}', [CategoriaController::class, 'update']);
-  Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
+Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
+Route::post('/categories', [CategoriaController::class, 'store']);
+Route::put('/categories/{id}', [CategoriaController::class, 'update']);
+Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
 
-  //Crear menus
+//Crear menus
 
-  Route::post('/crear/menus', [MenuController::class, 'store']);
-  Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
-  Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
-  Route::put('/menus/{id}', [MenuController::class, 'update']);
-  Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
+Route::post('/crear/menus', [MenuController::class, 'store']);
+Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
+Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
+Route::put('/menus/{id}', [MenuController::class, 'update']);
+Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
 
 
 // rutas para la web
@@ -322,19 +328,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/menus/web/{id}', [MenuController::class, 'update']);
     Route::delete('/menus/web/{id}', [MenuController::class, 'destroy']);
 
-       // Rutas para adicionales
-       Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);
-       Route::post('/adicionales/web', [AdicionalController::class, 'crearAdicional']);
-       Route::get('/adicionales/web/detalle/{adicional}', [AdicionalController::class, 'obtenerAdicional']);
-       Route::put('/adicionales/web/{adicional}', [AdicionalController::class, 'actualizarAdicional']);
-       Route::delete('/adicionales/web/{adicional}', [AdicionalController::class, 'eliminarAdicional']);
-   
-       // Rutas para categorías de adicionales
-       Route::get('/categorias-adicionales/web/{empresa_id}', [CategoriaAdicionalController::class, 'obtenerCategoriasAdicionales']);
-       Route::post('/categorias-adicionales/web', [CategoriaAdicionalController::class, 'crearCategoriaAdicional']);
-       Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
-       Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
-       Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
+    // Rutas para adicionales
+    Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);
+    Route::post('/adicionales/web', [AdicionalController::class, 'crearAdicional']);
+    Route::get('/adicionales/web/detalle/{adicional}', [AdicionalController::class, 'obtenerAdicional']);
+    Route::put('/adicionales/web/{adicional}', [AdicionalController::class, 'actualizarAdicional']);
+    Route::delete('/adicionales/web/{adicional}', [AdicionalController::class, 'eliminarAdicional']);
+
+    // Rutas para categorías de adicionales
+    Route::get('/categorias-adicionales/web/{empresa_id}', [CategoriaAdicionalController::class, 'obtenerCategoriasAdicionales']);
+    Route::post('/categorias-adicionales/web', [CategoriaAdicionalController::class, 'crearCategoriaAdicional']);
+    Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
+    Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
+    Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
 });
 
 Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
