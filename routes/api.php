@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdicionalController;
 use App\Http\Controllers\AuthAdminController;
+use App\Http\Controllers\BannerController;
 use App\Http\Controllers\BikerController;
 use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
@@ -30,9 +31,11 @@ use App\Http\Middleware\EncryptionHandler;
 use App\Http\Controllers\DatosPersonalesRepartoController;
 use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MedioPagoController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PedidoTrackingController;
+use App\Http\Controllers\PromocionController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\TipoNegocioController;
 use Illuminate\Support\Facades\Route;
@@ -204,6 +207,10 @@ Route::post('/update-info-cliente', [ClienteController::class, 'updateProfile'])
 Route::post('/update-direccion', [ClienteController::class, 'actualizarDireccion']);
 Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
 Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
+Route::get('get/medios/pago', [MedioPagoController::class, 'index']);
+Route::get('/promociones', [PromocionController::class, 'index']);
+Route::get('/banners', [BannerController::class, 'index']);
+
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);

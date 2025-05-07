@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\Location;
+use App\Models\MedioPago;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
@@ -169,6 +170,7 @@ class BikerController extends Controller
                         $pedido->estado = $estado->estado;
                         $pedido->nota = $pedido->nota ?? 'Sin nota';
                         $pedido->tiempo = $pedido->tiempo ?? 0;
+                        $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
                     }
                 }
             }

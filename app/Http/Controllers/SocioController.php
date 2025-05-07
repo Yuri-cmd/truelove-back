@@ -15,6 +15,7 @@ use App\Mail\CredencialesSocio;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
+use App\Models\MedioPago;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\RepartoRegistro;
@@ -313,6 +314,7 @@ class SocioController extends Controller
             $pedido->lon_local = $local->longitud;
             $pedido->tiempo = $pedido->tiempo ?? 0;
             $pedido->nota = $pedido->nota ?? 'Sin nota';
+            $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
         }
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente
