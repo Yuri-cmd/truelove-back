@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Storage;
 
 class BannerController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->showAll === 'true') {
+            return response()->json(Banner::all());
+        }
         return response()->json(Banner::where('estado', 1)->get());
     }
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\EntregaCalendarioController;
+use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\PerfilNegocioController;
 use App\Http\Controllers\RegistrationStatusController;
@@ -83,6 +84,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/motorizado/{id}/details', 'getDetails');
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
             Route::delete('/motorizado/{id}/delete', 'delete');
+        });
+        Route::controller(HorarioController::class)->group(function () {
+            Route::get('/horarios', 'getAllGrupos');
+            Route::get('/horarios/{id}', 'getGrupo');
+            Route::post('/horarios', 'createGrupo');
+            Route::put('/horarios/{id}', 'updateGrupo');
+            Route::delete('/horarios/{id}', 'deleteGrupo');
+            Route::post('/horarios/{id}/asignar', 'asignarMotorizados');
+            Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
         });
     });
 
@@ -211,6 +221,17 @@ Route::get('get/medios/pago', [MedioPagoController::class, 'index']);
 Route::get('/promociones', [PromocionController::class, 'index']);
 Route::get('/banners', [BannerController::class, 'index']);
 
+// CRUD PAGOS
+Route::post('medios/pago', [MedioPagoController::class, 'store']);
+Route::get('medios/pago/{id}', [MedioPagoController::class, 'show']);
+Route::put('medios/pago/{id}', [MedioPagoController::class, 'update']);
+Route::delete('medios/pago/{id}', [MedioPagoController::class, 'destroy']);
+
+// CRUD banner
+Route::get('/banners/{id}', [BannerController::class, 'show']);
+Route::post('/banners', [BannerController::class, 'store']);
+Route::put('/banners/{id}', [BannerController::class, 'update']);
+Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
@@ -277,8 +298,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
 });
 
+// En tu archivo de rutas
+Route::get('/rankings/clients', [RatingController::class, 'getTopClients']);
+Route::get('/rankings/stores', [RatingController::class, 'getTopStores']);
 
-
+Route::get('/locales/ranking', [PedidoController::class, 'getLocalesPorPedidos']);
 Route::post('/agendar-entrega', [EntregaCalendarioController::class, 'agendarEntrega']);
 
 // adicionales

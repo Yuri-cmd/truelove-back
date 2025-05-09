@@ -335,4 +335,5 @@ class PedidoController extends Controller
         }
         return response()->json(['status' => 'success']);
     }
+    
 }

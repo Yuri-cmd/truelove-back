@@ -17,13 +17,15 @@ class BusinessRegistration extends Model
         'verification_code',
         'email_verified_at',
         'estado',
-        'aprobado'
+        'aprobado',
+        'posToDriver'
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
         'estado' => 'integer',
-        'aprobado' => 'boolean'
+        'aprobado' => 'boolean',
+        'posToDriver' =>'boolean'
     ];
     public function user()
     {
