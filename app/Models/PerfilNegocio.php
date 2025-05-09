@@ -15,7 +15,7 @@ class PerfilNegocio extends Model
         'business_registration_id',
         'ruta_logo',
         'foto_perfil',
-        'banner'
+        'banner',
     ];
 
     public function horarios()

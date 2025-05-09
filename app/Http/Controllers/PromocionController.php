@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Promocion;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Storage;
 class PromocionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->showAll === 'true') {
+            return response()->json(Promocion::all());
+        }
         return response()->json(Promocion::where('estado', 1)->get());
     }
 
@@ -20,6 +23,10 @@ class PromocionController extends Controller
             'imagen' => 'nullable|string',
             'estado' => 'boolean'
         ]);
+        if ($request->hasFile('imagen')) {
+            $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+            $data['imagen'] = $imagePath;
+        }
 
         $promocion = Promocion::create($data);
         return response()->json($promocion, 201);
@@ -39,6 +46,14 @@ class PromocionController extends Controller
             'imagen' => 'nullable|string',
             'estado' => 'boolean'
         ]);
+        if ($request->hasFile('imagen')) {
+            if ($promocion->imagen) {
+                Storage::disk('custom_public')->delete($promocion->imagen);
+            }
+
+            $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+            $data['imagen'] = $imagePath;
+        }
 
         $promocion->update($data);
         return response()->json($promocion);
@@ -47,6 +62,10 @@ class PromocionController extends Controller
     public function destroy($id)
     {
         $promocion = Promocion::findOrFail($id);
+        // Eliminar la imagen si existe
+        if ($promocion->imagen) {
+            Storage::disk('custom_public')->delete($promocion->imagen);
+        }
         $promocion->delete();
         return response()->json(['message' => 'Eliminado correctamente']);
     }

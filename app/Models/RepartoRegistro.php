@@ -25,13 +25,15 @@ class RepartoRegistro extends Model
         'estado',
         'aprobado',
         'token_fmc',
+        'documentos_adicionales',
     ];
 
     protected $casts = [
         'mayor_edad' => 'boolean',
         'acepta_politica' => 'boolean',
         'estado' => 'boolean',
-        'aprobado' => 'boolean'
+        'aprobado' => 'boolean',
+        'documentos_adicionales' => 'array',
     ];
 
     public function datosPersonales()

@@ -15,8 +15,8 @@ class RepartoRegistroController extends Controller
     public function store(Request $request)
     {
         Log::info('Datos recibidos en store:', $request->all());
-        
-        $validator = Validator::make($request->except(['documento_imagen_frente', 'documento_imagen_reverso']), [
+
+        $validator = Validator::make($request->except(['documento_imagen_frente', 'documento_imagen_reverso', 'documentos_adicionales']), [
             'departamento' => 'required|string',
             'vehiculo' => 'required|string',
             'tipo_documento' => 'required|string',
@@ -28,26 +28,26 @@ class RepartoRegistroController extends Controller
             'mayor_edad' => 'required|boolean',
             'acepta_politica' => 'required|boolean',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-    
+
         // PASO 1: Verificar si existe un registro con el mismo documento pero diferente correo
         $existingDocument = RepartoRegistro::where('nro_documento', $request->nro_documento)
             ->where('email', '!=', $request->email)
             ->first();
-        
+
         if ($existingDocument) {
             Log::info('Documento duplicado con correo diferente encontrado:', [
                 'nro_documento' => $request->nro_documento,
                 'existing_email' => $existingDocument->email,
                 'new_email' => $request->email
             ]);
-            
+
             // Verificar si el registro está incompleto
             $completionStatus = $this->checkCompletionStatus($existingDocument);
-            
+
             if (!$completionStatus['isComplete']) {
                 // Si el registro está incompleto y el correo es diferente, devolver información para mostrar alerta
                 return response()->json([
@@ -64,33 +64,33 @@ class RepartoRegistroController extends Controller
                 ], 422);
             }
         }
-    
+
         // PASO 2: Verificar si existe un registro con el mismo correo pero diferente documento
         $existingEmail = RepartoRegistro::where('email', $request->email)
             ->where('nro_documento', '!=', $request->nro_documento)
             ->first();
-        
+
         if ($existingEmail) {
             Log::info('Correo duplicado con documento diferente encontrado:', [
                 'email' => $request->email,
                 'existing_id' => $existingEmail->id
             ]);
-            
+
             return response()->json([
                 'errors' => ['duplicate' => ['Este correo electrónico ya está registrado con otro documento.']],
                 'error' => 'email_registered'
             ], 422);
         }
-    
+
         // PASO 3: Verificar si existe un registro incompleto con el mismo documento o correo
         $existingReparto = RepartoRegistro::where('nro_documento', $request->nro_documento)
             ->orWhere('email', $request->email)
             ->first();
-    
+
         if ($existingReparto) {
             // Verificar si el registro está incompleto
             $completionStatus = $this->checkCompletionStatus($existingReparto);
-        
+
             if (!$completionStatus['isComplete']) {
                 // Si el registro está incompleto, devolver información para continuar
                 return response()->json([
@@ -100,50 +100,106 @@ class RepartoRegistroController extends Controller
                     'message' => 'Ya tienes un registro en proceso. Puedes continuar desde donde lo dejaste.'
                 ], 200);
             }
-        
+
             // Si el registro está completo, devolver error de duplicado
-            $message = $existingReparto->nro_documento === $request->nro_documento 
+            $message = $existingReparto->nro_documento === $request->nro_documento
                 ? 'Este número de documento ya está registrado como repartidor'
                 : 'Este correo electrónico ya está registrado como repartidor';
             return response()->json(['errors' => ['duplicate' => [$message]]], 422);
         }
-    
+
         // PASO 4: Verificar duplicados en BusinessRegistration para evitar que un repartidor se registre como socio comercial
         $existingBusiness = BusinessRegistration::where('documentNumber', $request->nro_documento)
             ->orWhere('email', $request->email)
             ->first();
-    
-        if ($existingBusiness) { 
-            $message = $existingBusiness->documentNumber === $request->nro_documento  
+
+        if ($existingBusiness) {
+            $message = $existingBusiness->documentNumber === $request->nro_documento
                 ? 'Este número de documento ya está registrado como socio comercial'
                 : 'Este correo electrónico ya está registrado como socio comercial';
             return response()->json(['errors' => ['duplicate' => [$message]]], 422);
         }
-    
+
         // PASO 5: Si no hay problemas, crear el nuevo registro
         $registro = RepartoRegistro::create($validator->validated());
-    
+
         $imagenes = ['frente', 'reverso'];
         foreach ($imagenes as $lado) {
             if ($request->has("documento_imagen_$lado")) {
                 $imagen = base64_decode($request->{"documento_imagen_$lado"});
                 $fileName = "documento_motorizado_{$lado}_" . uniqid() . '.jpg';
-    
+
                 $tempFile = tempnam(sys_get_temp_dir(), 'doc');
                 file_put_contents($tempFile, $imagen);
-    
+
                 $uploadedFile = new UploadedFile($tempFile, $fileName);
-    
+
                 $imgPath = Storage::disk('custom_public')->putFileAs('documento-motorizado', $uploadedFile, $fileName);
                 $registro->update(["documento_imagen_$lado" => $imgPath]);
                 unlink($tempFile);
             }
         }
-    
+        // Procesar documentos adicionales (solo PDF)
+        if ($request->has('documentos_adicionales') && is_array($request->documentos_adicionales)) {
+            $documentosGuardados = [];
+
+            foreach ($request->documentos_adicionales as $documento) {
+                // Verificar que sea un archivo y tenga nombre
+                if (isset($documento['archivo']) && isset($documento['nombre'])) {
+                    // Verificar que sea un PDF por la extensión
+                    $extension = pathinfo($documento['nombre'], PATHINFO_EXTENSION);
+                    if (strtolower($extension) !== 'pdf') {
+                        Log::info('Documento rechazado: no es PDF', ['nombre' => $documento['nombre']]);
+                        continue; // Saltar si no es PDF
+                    }
+
+                    // Verificar que sea un PDF por el tipo MIME (si está disponible)
+                    if (isset($documento['tipo']) && $documento['tipo'] !== 'application/pdf') {
+                        Log::info('Documento rechazado: tipo MIME incorrecto', ['tipo' => $documento['tipo']]);
+                        continue; // Saltar si el tipo no es PDF
+                    }
+
+                    // Decodificar el archivo
+                    $archivo = base64_decode($documento['archivo']);
+
+                    // Verificar tamaño (2MB = 2 * 1024 * 1024 bytes)
+                    $maxSize = 2 * 1024 * 1024; // 2MB
+                    if (strlen($archivo) > $maxSize) {
+                        Log::info('Documento rechazado: excede el tamaño máximo de 2MB', [
+                            'nombre' => $documento['nombre'],
+                            'tamaño' => strlen($archivo)
+                        ]);
+                        continue; // Saltar archivos demasiado grandes
+                    }
+                    $fileName = "documento_adicional_" . uniqid() . '.pdf'; // Siempre guardamos como PDF
+
+                    $tempFile = tempnam(sys_get_temp_dir(), 'doc_add');
+                    file_put_contents($tempFile, $archivo);
+
+                    $uploadedFile = new UploadedFile($tempFile, $fileName);
+
+                    $filePath = Storage::disk('custom_public')->putFileAs('documentos-adicionales', $uploadedFile, $fileName);
+
+                    $documentosGuardados[] = [
+                        'nombre' => $documento['nombre'],
+                        'ruta' => $filePath,
+                        'tipo' => 'application/pdf', // Forzamos el tipo a PDF
+                        'fecha_carga' => now()->toDateTimeString()
+                    ];
+
+                    unlink($tempFile);
+                }
+            }
+
+            if (!empty($documentosGuardados)) {
+                $registro->update(['documentos_adicionales' => $documentosGuardados]);
+            }
+        }
+
         // Modificación para indicar que es un registro nuevo
         // Usamos un campo 'status' con valor 'new_registration' en lugar de una ruta específica
         return response()->json([
-            'message' => 'Registro creado exitosamente', 
+            'message' => 'Registro creado exitosamente',
             'data' => $registro,
             'status' => 'new_registration'  // Indicador genérico de registro nuevo
         ], 201);
@@ -199,7 +255,7 @@ class RepartoRegistroController extends Controller
             'documento-motorizado',
             'entrega-material'
         ];
-        
+
         // Verificar cada paso del registro
         $steps = [
             'registro' => true, // Si existe el registro, este paso está completo
@@ -208,10 +264,10 @@ class RepartoRegistroController extends Controller
             'documento-motorizado' => $registro->registroVehiculo()->exists(),
             'entrega-material' => $registro->entregaCalendario()->exists()
         ];
-    
+
         $lastCompletedStep = '/reparto';
         $nextStep = '/reparto/zonas'; // Comenzamos con el primer paso por defecto
-    
+
         // Encontrar el último paso completado y el siguiente paso
         foreach ($stepsOrder as $step) {
             if (isset($steps[$step]) && $steps[$step]) {
@@ -221,9 +277,9 @@ class RepartoRegistroController extends Controller
                 break;
             }
         }
-    
+
         $isComplete = $lastCompletedStep === '/reparto/' . end($stepsOrder);
-    
+
         return [
             'isComplete' => $isComplete,
             'nextStep' => $nextStep,
@@ -236,9 +292,9 @@ class RepartoRegistroController extends Controller
         try {
             // Registrar la solicitud para depuración
             Log::info('Solicitud de estado de registro de repartidor por ID', ['id' => $id]);
-            
+
             $registro = RepartoRegistro::findOrFail($id);
-            
+
             // Verificar cada paso del registro
             $steps = [
                 'registro' => true, // Si existe el registro, este paso está completo
@@ -273,14 +329,14 @@ class RepartoRegistroController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Error al obtener el estado del registro',
                 'message' => $e->getMessage()
             ], 500);
         }
     }
-    
+
     public function updateEmail(Request $request, $id)
     {
         try {
@@ -292,7 +348,7 @@ class RepartoRegistroController extends Controller
             $existingEmail = RepartoRegistro::where('email', $validated['email'])
                 ->where('id', '!=', $id)
                 ->first();
-            
+
             if ($existingEmail) {
                 return response()->json([
                     'message' => 'Este correo electrónico ya está registrado como repartidor.',
@@ -327,37 +383,37 @@ class RepartoRegistroController extends Controller
         }
     }
     public function getRegistration($id)
-{
-    try {
-        Log::info('Solicitud de datos de registro de repartidor por ID', ['id' => $id]);
-        
-        $registro = RepartoRegistro::findOrFail($id);
-        
-        return response()->json([
-            'id' => $registro->id,
-            'email' => $registro->email,
-            'nombres' => $registro->nombres,
-            'apellidos' => $registro->apellidos,
-            'tipo_documento' => $registro->tipo_documento,
-            'nro_documento' => $registro->nro_documento,
-            'celular' => $registro->celular,
-            'departamento' => $registro->departamento,
-            'vehiculo' => $registro->vehiculo,
-            'mayor_edad' => $registro->mayor_edad,
-            'created_at' => $registro->created_at,
-            'updated_at' => $registro->updated_at
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error al obtener datos del registro de repartidor', [
-            'id' => $id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'message' => 'Hubo un problema al obtener la información del registro.',
-            'error' => $e->getMessage()
-        ], 500);
+    {
+        try {
+            Log::info('Solicitud de datos de registro de repartidor por ID', ['id' => $id]);
+
+            $registro = RepartoRegistro::findOrFail($id);
+
+            return response()->json([
+                'id' => $registro->id,
+                'email' => $registro->email,
+                'nombres' => $registro->nombres,
+                'apellidos' => $registro->apellidos,
+                'tipo_documento' => $registro->tipo_documento,
+                'nro_documento' => $registro->nro_documento,
+                'celular' => $registro->celular,
+                'departamento' => $registro->departamento,
+                'vehiculo' => $registro->vehiculo,
+                'mayor_edad' => $registro->mayor_edad,
+                'created_at' => $registro->created_at,
+                'updated_at' => $registro->updated_at
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener datos del registro de repartidor', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Hubo un problema al obtener la información del registro.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
-}
 }
