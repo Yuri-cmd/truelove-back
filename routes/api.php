@@ -266,6 +266,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
+ 
+    Route::post('/negocio/banner', [PerfilNegocioController::class, 'actualizarBanner']);
 
     // categorias
 
