@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessRegistration;
 use App\Models\Cliente;
 use App\Models\Pedido;
 use App\Models\Rating;
@@ -159,4 +160,79 @@ class RatingController extends Controller
             'data' => $data
         ]);
     }
+
+   // Añadir al RatingController
+public function getTopClients()
+{
+    try {
+        // Obtener los clientes con más pedidos
+        $topClients = DB::table('pedidos')
+            ->join('clientes', 'pedidos.id_cliente', '=', 'clientes.id')
+            ->select(
+                'clientes.id',
+                DB::raw('CONCAT(clientes.nombre, " ", clientes.apellido) as nombre'),
+                DB::raw('COUNT(pedidos.id) as total_pedidos')
+            )
+            ->groupBy('clientes.id', 'clientes.nombre', 'clientes.apellido')
+            ->orderBy('total_pedidos', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $topClients
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener los clientes top: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+public function getTopStores()
+{
+    try {
+        // Obtener los locales con más pedidos
+        $topStores = DB::table('pedidos')
+            ->join('establecimientos', 'pedidos.id_local', '=', 'establecimientos.business_registration_id')
+            ->select(
+                'establecimientos.id',
+                'establecimientos.nombre_establecimiento as nombre',
+                DB::raw('COUNT(pedidos.id) as total_pedidos'),
+                DB::raw('AVG(ratings.restaurant_rating) as puntuacion')
+            )
+            ->leftJoin('ratings', function ($join) {
+                $join->on('ratings.id_pedido', '=', 'pedidos.id');
+            })
+            ->groupBy('establecimientos.id', 'establecimientos.nombre_establecimiento')
+            ->orderBy('total_pedidos', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Ahora añadimos el logo a cada local
+        foreach ($topStores as $store) {
+            // Buscar el perfil del negocio para obtener el logo
+            $business = BusinessRegistration::with('perfil')
+                ->find($store->id);
+            
+            $logo = null;
+            if ($business && isset($business->perfil) && $business->perfil->ruta_logo) {
+                $logo = '/' . ltrim($business->perfil->ruta_logo, '/');
+            }
+            
+            $store->logo = $logo;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $topStores
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener los locales top: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

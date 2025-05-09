@@ -98,6 +98,7 @@ class EmailVerificationController extends Controller
                 'email' => 'required|email|max:255',
                 'antecedentesPenales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
                 'antecedentesPoliciales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
+                'posToDriver' => 'nullable|boolean',
             ]);
     
             // Verificar si existe en RepartoRegistro
@@ -127,6 +128,7 @@ class EmailVerificationController extends Controller
                 'phone' => $validated['phone'],
                 'email' => $validated['email'],
                 'verification_code' => $verificationCode,
+                'posToDriver' => $request->has('posToDriver') ? (bool)$request->posToDriver : false,
             ]);
     
             // Función para almacenar PDF

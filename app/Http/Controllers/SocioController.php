@@ -423,271 +423,274 @@ class SocioController extends Controller
 
 
 
-/**
- * Actualiza la prioridad de un local específico
- */
-public function actualizarPrioridadLocal(Request $request, $id)
-{
-    try {
-        // Validamos que la prioridad sea un número positivo (sin límite superior)
-        $request->validate([
-            'prioridad' => 'required|numeric|min:0',
-        ]);
+    /**
+     * Actualiza la prioridad de un local específico
+     */
+    public function actualizarPrioridadLocal(Request $request, $id)
+    {
+        try {
+            // Validamos que la prioridad sea un número positivo (sin límite superior)
+            $request->validate([
+                'prioridad' => 'required|numeric|min:0',
+            ]);
 
-        // Verificamos que el local exista en la base de datos
-        $local = Establecimiento::findOrFail($id);
+            // Verificamos que el local exista en la base de datos
+            $local = Establecimiento::findOrFail($id);
 
-        // Actualizamos o creamos el registro de prioridad
-        LocalPrioridad::updateOrCreate(
-            // Condición para buscar: establecimiento_id debe coincidir
-            ['establecimiento_id' => $id],
-            // Datos a actualizar o insertar
-            [
-                'prioridad' => $request->prioridad,
-                'fecha_actualizacion' => now()
-            ]
-        );
+            // Actualizamos o creamos el registro de prioridad
+            LocalPrioridad::updateOrCreate(
+                // Condición para buscar: establecimiento_id debe coincidir
+                ['establecimiento_id' => $id],
+                // Datos a actualizar o insertar
+                [
+                    'prioridad' => $request->prioridad,
+                    'fecha_actualizacion' => now()
+                ]
+            );
 
-        // Retornamos una respuesta JSON exitosa
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Prioridad actualizada correctamente'
-        ]);
-    } catch (\Exception $e) {
-        // Registramos el error en el log para debugging
-        Log::error('Error al actualizar prioridad: ' . $e->getMessage());
+            // Retornamos una respuesta JSON exitosa
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Prioridad actualizada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            // Registramos el error en el log para debugging
+            Log::error('Error al actualizar prioridad: ' . $e->getMessage());
 
-        // Retornamos una respuesta de error con código 500
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Error al actualizar la prioridad: ' . $e->getMessage()
-        ], 500);
+            // Retornamos una respuesta de error con código 500
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar la prioridad: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
-/**
- * Obtiene los locales ordenados por prioridad
- */
-public function getLocalesPorPrioridad()
-{
-    try {
-        // Obtener todos los establecimientos con sus datos de negocio, perfil y prioridad
-        $locales = Establecimiento::with([
-            'businessRegistration',
-            'businessRegistration.perfil'
-            // 'rating'
-        ])
-        ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
-        // Hacemos un left join con la tabla de prioridades para incluir todos los locales
-        ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id')
-        ->where('business_registrations.estado', 1)
-        ->where('business_registrations.aprobado', 1)
-        // Ordenamos por prioridad (de mayor a menor) y luego por nombre
-        // Mayor número = mayor prioridad
-        ->orderBy('local_priorities.prioridad', 'desc')
-        ->orderBy('establecimientos.nombre_establecimiento', 'asc')
-        // Seleccionamos todas las columnas de la tabla establecimientos y la prioridad
-        ->select('establecimientos.*', 'local_priorities.prioridad')
-        ->get();
+    /**
+     * Obtiene los locales ordenados por prioridad
+     */
+    public function getLocalesPorPrioridad()
+    {
+        try {
+            // Obtener todos los establecimientos con sus datos de negocio, perfil y prioridad
+            $locales = Establecimiento::with([
+                'businessRegistration',
+                'businessRegistration.perfil'
+                // 'rating'
+            ])
+                ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+                // Hacemos un left join con la tabla de prioridades para incluir todos los locales
+                ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id')
+                ->where('business_registrations.estado', 1)
+                ->where('business_registrations.aprobado', 1)
+                // Ordenamos por prioridad (de mayor a menor) y luego por nombre
+                // Mayor número = mayor prioridad
+                ->orderBy('local_priorities.prioridad', 'desc')
+                ->orderBy('establecimientos.nombre_establecimiento', 'asc')
+                // Seleccionamos todas las columnas de la tabla establecimientos y la prioridad
+                ->select('establecimientos.*', 'local_priorities.prioridad')
+                ->get();
 
-        // Transformamos la colección de locales para incluir la puntuación y prioridad
-        $localesFormateados = $locales->map(function ($local) {
-            // Obtenemos la puntuación del local usando la relación
-            // $puntuacion = $local->rating ? $local->rating->puntuacion : 0;
-            
-            // Verificamos si businessRegistration y perfil existen
-            $logo = null;
-            if ($local->businessRegistration && 
-                $local->businessRegistration->perfil &&
-                $local->businessRegistration->perfil->ruta_logo
-            ) {
-                $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo,'/');
+            // Transformamos la colección de locales para incluir la puntuación y prioridad
+            $localesFormateados = $locales->map(function ($local) {
+                // Obtenemos la puntuación del local usando la relación
+                // $puntuacion = $local->rating ? $local->rating->puntuacion : 0;
+
+                // Verificamos si businessRegistration y perfil existen
+                $logo = null;
+                if (
+                    $local->businessRegistration &&
+                    $local->businessRegistration->perfil &&
+                    $local->businessRegistration->perfil->ruta_logo
+                ) {
+                    $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+                }
+
+                // Retornamos un array con los datos formateados del local
+                return [
+                    'id' => $local->id,
+                    'nombre' => $local->nombre_establecimiento,
+                    'direccion' => $local->direccion_completa,
+                    'ciudad' => $local->ciudad,
+                    'business_id' => $local->business_registration_id,
+                    'empresa' => $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName,
+                    'logo' => $logo,
+                    // 'puntuacion' => $puntuacion,
+                    'prioridad' => $local->prioridad ?? 0, // Si no tiene prioridad, asignamos 0
+                    'latitud' => $local->latitud,
+                    'longitud' => $local->longitud
+                ];
+            });
+
+            // Retornamos una respuesta JSON exitosa con los datos
+            return response()->json([
+                'status' => 'success',
+                'data' => $localesFormateados
+            ]);
+        } catch (\Exception $e) {
+            // Registramos el error en el log para debugging
+            Log::error('Error al obtener locales por prioridad: ' . $e->getMessage());
+
+            // Retornamos una respuesta de error con código 500
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener la lista de locales por prioridad: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtiene estadísticas sobre las prioridades de los locales
+     */
+    public function getEstadisticasPrioridad()
+    {
+        try {
+            // Obtener el total de locales
+            $totalLocales = Establecimiento::join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+                ->where('business_registrations.estado', 1)
+                ->where('business_registrations.aprobado', 1)
+                ->count();
+
+            // Si no hay locales, devolver estadísticas en cero
+            if ($totalLocales === 0) {
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'totalLocales' => 0,
+                        'highPriorityLocales' => 0,
+                        'mediumPriorityLocales' => 0,
+                        'lowPriorityLocales' => 0
+                    ]
+                ]);
             }
-            
-            // Retornamos un array con los datos formateados del local
-            return [
-                'id' => $local->id,
-                'nombre' => $local->nombre_establecimiento,
-                'direccion' => $local->direccion_completa,
-                'ciudad' => $local->ciudad,
-                'business_id' => $local->business_registration_id,
-                'empresa' => $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName,
-                'logo' => $logo,
-                // 'puntuacion' => $puntuacion,
-                'prioridad' => $local->prioridad ?? 0, // Si no tiene prioridad, asignamos 0
-                'latitud' => $local->latitud,
-                'longitud' => $local->longitud
-            ];
-        });
 
-        // Retornamos una respuesta JSON exitosa con los datos
-        return response()->json([
-            'status' => 'success',
-            'data' => $localesFormateados
-        ]);
-    } catch (\Exception $e) {
-        // Registramos el error en el log para debugging
-        Log::error('Error al obtener locales por prioridad: ' . $e->getMessage());
+            // Obtener todos los locales con prioridad
+            $localesConPrioridad = LocalPrioridad::all();
 
-        // Retornamos una respuesta de error con código 500
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Error al obtener la lista de locales por prioridad: ' . $e->getMessage()
-        ], 500);
-    }
-}
+            // Calcular los umbrales para las categorías basados en el total de locales
+            $lowThreshold = ceil($totalLocales * 0.33); // Primer tercio
+            $mediumThreshold = ceil($totalLocales * 0.67); // Segundo tercio
 
-/**
- * Obtiene estadísticas sobre las prioridades de los locales
- */
-public function getEstadisticasPrioridad()
-{
-    try {
-        // Obtener el total de locales
-        $totalLocales = Establecimiento::join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
-            ->where('business_registrations.estado', 1)
-            ->where('business_registrations.aprobado', 1)
-            ->count();
-        
-        // Si no hay locales, devolver estadísticas en cero
-        if ($totalLocales === 0) {
+            // Ordenar las prioridades de menor a mayor
+            $prioridades = $localesConPrioridad->pluck('prioridad')->sort()->values();
+
+            // Contar locales por categoría de prioridad
+            $bajaPrioridad = 0;
+            $mediaPrioridad = 0;
+            $altaPrioridad = 0;
+
+            foreach ($localesConPrioridad as $local) {
+                // Encontrar la posición de la prioridad en la lista ordenada
+                $posicion = $prioridades->search($local->prioridad) + 1;
+
+                if ($posicion <= $lowThreshold) {
+                    $bajaPrioridad++;
+                } elseif ($posicion <= $mediumThreshold) {
+                    $mediaPrioridad++;
+                } else {
+                    $altaPrioridad++;
+                }
+            }
+
+            // Retornamos una respuesta JSON exitosa con los datos
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'totalLocales' => 0,
-                    'highPriorityLocales' => 0,
-                    'mediumPriorityLocales' => 0,
-                    'lowPriorityLocales' => 0
+                    'totalLocales' => $totalLocales,
+                    'highPriorityLocales' => $altaPrioridad,
+                    'mediumPriorityLocales' => $mediaPrioridad,
+                    'lowPriorityLocales' => $bajaPrioridad
                 ]
             ]);
-        }
-        
-        // Obtener todos los locales con prioridad
-        $localesConPrioridad = LocalPrioridad::all();
-        
-        // Calcular los umbrales para las categorías basados en el total de locales
-        $lowThreshold = ceil($totalLocales * 0.33); // Primer tercio
-        $mediumThreshold = ceil($totalLocales * 0.67); // Segundo tercio
-        
-        // Ordenar las prioridades de menor a mayor
-        $prioridades = $localesConPrioridad->pluck('prioridad')->sort()->values();
-        
-        // Contar locales por categoría de prioridad
-        $bajaPrioridad = 0;
-        $mediaPrioridad = 0;
-        $altaPrioridad = 0;
-        
-        foreach ($localesConPrioridad as $local) {
-            // Encontrar la posición de la prioridad en la lista ordenada
-            $posicion = $prioridades->search($local->prioridad) + 1;
-            
-            if ($posicion <= $lowThreshold) {
-                $bajaPrioridad++;
-            } elseif ($posicion <= $mediumThreshold) {
-                $mediaPrioridad++;
-            } else {
-                $altaPrioridad++;
-            }
-        }
-        
-        // Retornamos una respuesta JSON exitosa con los datos
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'totalLocales' => $totalLocales,
-                'highPriorityLocales' => $altaPrioridad,
-                'mediumPriorityLocales' => $mediaPrioridad,
-                'lowPriorityLocales' => $bajaPrioridad
-            ]
-        ]);
-    } catch (\Exception $e) {
-        // Registramos el error en el log para debugging
-        Log::error('Error al obtener estadísticas de prioridad: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            // Registramos el error en el log para debugging
+            Log::error('Error al obtener estadísticas de prioridad: ' . $e->getMessage());
 
-        // Retornamos una respuesta de error con código 500
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Error al obtener las estadísticas de prioridad: ' . $e->getMessage()
-        ], 500);
+            // Retornamos una respuesta de error con código 500
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener las estadísticas de prioridad: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
 
-/**
- * Obtiene todos los locales disponibles con su información básica y logo
- */
-public function getAllLocales()
-{
-    try {
-        // Obtener todos los establecimientos con sus datos de negocio y perfil
-        $locales = Establecimiento::with([
-            'businessRegistration',
-            'businessRegistration.perfil',
-        ])
-        ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
-        ->where('business_registrations.estado', 1)
-        ->where('business_registrations.aprobado', 1)
-        ->orderBy('establecimientos.nombre_establecimiento', 'asc')
-        ->select('establecimientos.*')
-        ->get();
+    /**
+     * Obtiene todos los locales disponibles con su información básica y logo
+     */
+    public function getAllLocales()
+    {
+        try {
+            // Obtener todos los establecimientos con sus datos de negocio y perfil
+            $locales = Establecimiento::with([
+                'businessRegistration',
+                'businessRegistration.perfil',
+            ])
+                ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+                ->where('business_registrations.estado', 1)
+                ->where('business_registrations.aprobado', 1)
+                ->orderBy('establecimientos.nombre_establecimiento', 'asc')
+                ->select('establecimientos.*')
+                ->get();
 
-        // Transformamos la colección de locales para incluir la información necesaria
-        $localesFormateados = $locales->map(function ($local) {
-            // Verificamos si businessRegistration y perfil existen
-            $logo = null;
-            $empresa = '';
-            
-            if ($local->businessRegistration) {
-                $empresa = $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName;
-                
-                if ($local->businessRegistration->perfil && 
-                    $local->businessRegistration->perfil->ruta_logo) {
-                    $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+            // Transformamos la colección de locales para incluir la información necesaria
+            $localesFormateados = $locales->map(function ($local) {
+                // Verificamos si businessRegistration y perfil existen
+                $logo = null;
+                $empresa = '';
+
+                if ($local->businessRegistration) {
+                    $empresa = $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName;
+
+                    if (
+                        $local->businessRegistration->perfil &&
+                        $local->businessRegistration->perfil->ruta_logo
+                    ) {
+                        $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+                    }
                 }
-            }
-            
-            // Obtener la puntuación del local calculando el promedio de las calificaciones
-            // Usamos una subconsulta para obtener el promedio de restaurant_rating
-            $puntuacion = DB::table('ratings')
-                ->join('pedidos', 'ratings.id_pedido', '=', 'pedidos.id')
-                ->where('pedidos.id_local', $local->business_registration_id)
-                ->whereNotNull('ratings.restaurant_rating')
-                ->avg('ratings.restaurant_rating') ?? 0;
-            
-            // Obtener el conteo de pedidos
-            $pedidoCount = Pedido::where('id_local', $local->business_registration_id)->count();
-            
-            // Retornamos un array con los datos formateados del local
-            return [
-                'id' => $local->id,
-                'nombre' => $local->nombre_establecimiento,
-                'direccion' => $local->direccion_completa,
-                'ciudad' => $local->ciudad,
-                'business_id' => $local->business_registration_id,
-                'empresa' => $empresa,
-                'logo' => $logo,
-                'puntuacion' => $puntuacion,
-                'pedidoCount' => $pedidoCount,
-                'latitud' => $local->latitud,
-                'longitud' => $local->longitud
-            ];
-        });
 
-        // Retornamos una respuesta JSON exitosa con los datos
-        return response()->json([
-            'status' => 'success',
-            'data' => $localesFormateados
-        ]);
-    } catch (\Exception $e) {
-        // Registramos el error en el log para debugging
-        Log::error('Error al obtener locales: ' . $e->getMessage());
+                // Obtener la puntuación del local calculando el promedio de las calificaciones
+                // Usamos una subconsulta para obtener el promedio de restaurant_rating
+                $puntuacion = DB::table('ratings')
+                    ->join('pedidos', 'ratings.id_pedido', '=', 'pedidos.id')
+                    ->where('pedidos.id_local', $local->business_registration_id)
+                    ->whereNotNull('ratings.restaurant_rating')
+                    ->avg('ratings.restaurant_rating') ?? 0;
 
-        // Retornamos una respuesta de error con código 500
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Error al obtener la lista de locales: ' . $e->getMessage()
-        ], 500);
+                // Obtener el conteo de pedidos
+                $pedidoCount = Pedido::where('id_local', $local->business_registration_id)->count();
+
+                // Retornamos un array con los datos formateados del local
+                return [
+                    'id' => $local->id,
+                    'nombre' => $local->nombre_establecimiento,
+                    'direccion' => $local->direccion_completa,
+                    'ciudad' => $local->ciudad,
+                    'business_id' => $local->business_registration_id,
+                    'empresa' => $empresa,
+                    'logo' => $logo,
+                    'puntuacion' => $puntuacion,
+                    'pedidoCount' => $pedidoCount,
+                    'latitud' => $local->latitud,
+                    'longitud' => $local->longitud
+                ];
+            });
+
+            // Retornamos una respuesta JSON exitosa con los datos
+            return response()->json([
+                'status' => 'success',
+                'data' => $localesFormateados
+            ]);
+        } catch (\Exception $e) {
+            // Registramos el error en el log para debugging
+            Log::error('Error al obtener locales: ' . $e->getMessage());
+
+            // Retornamos una respuesta de error con código 500
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener la lista de locales: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
 }
