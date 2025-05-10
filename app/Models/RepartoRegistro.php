@@ -26,7 +26,9 @@ class RepartoRegistro extends Model
         'aprobado',
         'token_fmc',
         'documentos_adicionales',
-        'cantidad_pedidos_dia',
+
+        'cantidad_pedidos_dias',
+
     ];
 
     protected $casts = [
@@ -35,6 +37,7 @@ class RepartoRegistro extends Model
         'estado' => 'boolean',
         'aprobado' => 'boolean',
         'documentos_adicionales' => 'array',
+        'cantidad_pedidos_dias' => 'integer',
     ];
 
     public function datosPersonales()

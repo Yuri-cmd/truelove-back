@@ -28,6 +28,10 @@ class PromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'required|string|max:255',
             'subtitulo' => 'required|string|max:255',
+
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+
+
             'estado' => 'boolean'
         ]);
 
@@ -51,6 +55,9 @@ class PromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'sometimes|required|string|max:255',
             'subtitulo' => 'sometimes|required|string|max:255',
+
+           'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+
             'estado' => 'boolean'
         ]);
         if ($request->hasFile('imagen')) {
