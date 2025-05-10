@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\DescuentoClienteController;
 use App\Http\Controllers\EntregaCalendarioController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\MotorizadoController;
@@ -84,6 +85,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/motorizado/{id}/details', 'getDetails');
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
             Route::delete('/motorizado/{id}/delete', 'delete');
+            Route::post('/motorizado/{id}/actualizar-pedidos', 'actualizarCantidadPedidos');
+
         });
         Route::controller(HorarioController::class)->group(function () {
             Route::get('/horarios', 'getAllGrupos');
@@ -219,6 +222,10 @@ Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
 Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
 Route::get('get/medios/pago', [MedioPagoController::class, 'index']);
 Route::get('/promociones', [PromocionController::class, 'index']);
+Route::post('/promociones', [PromocionController::class, 'store']);
+Route::get('/promociones/{id}', [PromocionController::class, 'show']);
+Route::put('/promociones/{id}', [PromocionController::class, 'update']);
+Route::delete('/promociones/{id}', [PromocionController::class, 'destroy']);
 Route::get('/banners', [BannerController::class, 'index']);
 
 // CRUD PAGOS
@@ -380,3 +387,14 @@ Route::post('/register/check-status', [RegistrationStatusController::class, 'che
 Route::get('/register/{id}/status', [RegistrationStatusController::class, 'getRegistrationStatus']);
 // En routes/api.php
 Route::post('/register/{id}/reset', [RegistrationStatusController::class, 'resetRegistration']);
+// Rutas para descuentos de clientes
+Route::get('descuentos/clientes', [DescuentoClienteController::class, 'index']);
+Route::post('descuentos/clientes', [DescuentoClienteController::class, 'store']);
+Route::get('descuentos/clientes/{id}', [DescuentoClienteController::class, 'show']);
+Route::put('descuentos/clientes/{id}', [DescuentoClienteController::class, 'update']);
+Route::delete('descuentos/clientes/{id}', [DescuentoClienteController::class, 'destroy']);
+Route::get('descuentos/cliente/{idCliente}', [DescuentoClienteController::class, 'clienteDescuentos']);
+Route::post('descuentos/aplicar', [DescuentoClienteController::class, 'aplicarDescuento']);
+Route::get('clientes/top-completados', [DescuentoClienteController::class, 'getTopClientsWithCompletedOrders']);
+Route::get('descuentos/estadisticas', [DescuentoClienteController::class, 'getEstadisticasDescuentos']);
+Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarClientes']);
