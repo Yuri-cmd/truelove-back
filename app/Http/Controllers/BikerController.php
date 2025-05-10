@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
+use App\Models\HorarioAsignacion;
 use App\Models\Location;
 use App\Models\MedioPago;
 use App\Models\Pedido;
@@ -216,6 +217,70 @@ class BikerController extends Controller
         return response()->json([
             'repartidor' => $reparto,
             'usuario' => $user,
+        ]);
+    }
+
+
+    public function condiciones($id)
+    {
+        // Obtener el horario y grupo del motorizado
+        $horario = HorarioAsignacion::with('grupo')->where('motorizado_id', $id)->first();
+
+        if (!$horario || !$horario->grupo || empty($horario->grupo->rangos)) {
+            return response()->json([
+                'puede_trabajar' => false,
+                'mensaje' => 'No hay horario asignado',
+            ]);
+        }
+
+        // Obtener la cantidad máxima de pedidos permitidos
+        $cantidadPedidoPermitido = RepartoRegistro::where('id', $id)->value('cantidad_pedidos_dia') ?? 0;
+
+        // Contar los pedidos entregados hoy (estado 8)
+        $cantidadPedidosRealizados = Pedido::where('id_motorizado', $id)
+            ->whereDate('created_at', Carbon::today())
+            ->whereHas('trackings', function ($query) {
+                $query->latest()->where('estado', 8);
+            })
+            ->count();
+
+        // Verificar si ha alcanzado el límite de pedidos
+        if ($cantidadPedidosRealizados >= $cantidadPedidoPermitido) {
+            return response()->json([
+                'puede_trabajar' => false,
+                'mensaje' => 'Ya alcanzó el límite de pedidos',
+            ]);
+        }
+
+        // Verificar si está dentro del horario
+        $diaActual = strtolower(Carbon::now()->locale('es')->dayName); // e.g., "viernes"
+        $horaActual = Carbon::now()->format('H:i'); // e.g., "14:30"
+
+        $puedeTrabajar = false;
+
+        foreach ($horario->grupo->rangos as $rango) {
+            if (
+                in_array($diaActual, $rango['dia_semana']) &&
+                $horaActual >= $rango['hora_inicio'] &&
+                $horaActual <= $rango['hora_fin']
+            ) {
+                $puedeTrabajar = true;
+                break;
+            }
+        }
+
+        if (!$puedeTrabajar) {
+            return response()->json([
+                'puede_trabajar' => false,
+                'mensaje' => 'Se encuentra fuera del rango del horario',
+            ]);
+        }
+
+        return response()->json([
+            'puede_trabajar' => $puedeTrabajar,
+            'dia_actual' => $diaActual,
+            'hora_actual' => $horaActual,
+            'limite_restante' => $cantidadPedidoPermitido - $cantidadPedidosRealizados,
         ]);
     }
 }

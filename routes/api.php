@@ -220,7 +220,7 @@ Route::post('/update-info-cliente', [ClienteController::class, 'updateProfile'])
 Route::post('/update-direccion', [ClienteController::class, 'actualizarDireccion']);
 Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
 Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
-Route::get('get/medios/pago', [MedioPagoController::class, 'index']);
+Route::get('get/medios/pago/{idEmpresa?}', [MedioPagoController::class, 'index']);
 Route::get('/promociones', [PromocionController::class, 'index']);
 Route::post('/promociones', [PromocionController::class, 'store']);
 Route::get('/promociones/{id}', [PromocionController::class, 'show']);
@@ -258,6 +258,7 @@ Route::get('/rating-evolution', [RatingController::class, 'getRatingEvolution'])
 
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
+Route::get('biker/condiciones/{id}', [BikerController::class, 'condiciones']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
@@ -387,6 +388,7 @@ Route::post('/register/check-status', [RegistrationStatusController::class, 'che
 Route::get('/register/{id}/status', [RegistrationStatusController::class, 'getRegistrationStatus']);
 // En routes/api.php
 Route::post('/register/{id}/reset', [RegistrationStatusController::class, 'resetRegistration']);
+
 // Rutas para descuentos de clientes
 Route::get('descuentos/clientes', [DescuentoClienteController::class, 'index']);
 Route::post('descuentos/clientes', [DescuentoClienteController::class, 'store']);
@@ -398,3 +400,4 @@ Route::post('descuentos/aplicar', [DescuentoClienteController::class, 'aplicarDe
 Route::get('clientes/top-completados', [DescuentoClienteController::class, 'getTopClientsWithCompletedOrders']);
 Route::get('descuentos/estadisticas', [DescuentoClienteController::class, 'getEstadisticasDescuentos']);
 Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarClientes']);
+

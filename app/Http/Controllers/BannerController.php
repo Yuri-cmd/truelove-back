@@ -13,7 +13,13 @@ class BannerController extends Controller
         if ($request->showAll === 'true') {
             return response()->json(Banner::all());
         }
-        return response()->json(Banner::where('estado', 1)->get());
+
+        $banners = Banner::where('estado', 1)->get()->map(function ($banner) {
+            $banner->url_imagen = $banner->url_imagen ?  env('APP_URL') . '/storage/' . $banner->url_imagen : '';
+            return $banner;
+        });
+
+        return response()->json($banners);
     }
 
     public function show($id)
@@ -29,7 +35,7 @@ class BannerController extends Controller
             'subtitulo' => 'required|string|max:255',
             'color_fondo' => 'required|string|max:7',
             'texto_boton' => 'required|string|max:255',
-            'url_boton' => 'required|url',
+            'url_boton' => 'nullable|url',
             'url_imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
             'estado' => 'required|boolean'
         ]);
