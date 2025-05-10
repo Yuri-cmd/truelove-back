@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Promocion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+
 class PromocionController extends Controller
 {
     public function index(Request $request)
@@ -12,7 +13,14 @@ class PromocionController extends Controller
         if ($request->showAll === 'true') {
             return response()->json(Promocion::all());
         }
-        return response()->json(Promocion::where('estado', 1)->get());
+
+        $promociones = Promocion::where('estado', 1)->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado'])
+            ->map(function ($promocion) {
+                $promocion->imagen = $promocion->imagen ?  env('APP_URL') . '/storage/' . $promocion->imagen : '';
+                return $promocion;
+            });
+
+        return response()->json($promociones);
     }
 
     public function store(Request $request)
@@ -20,9 +28,9 @@ class PromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'required|string|max:255',
             'subtitulo' => 'required|string|max:255',
-            'imagen' => 'nullable|string',
             'estado' => 'boolean'
         ]);
+
         if ($request->hasFile('imagen')) {
             $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
             $data['imagen'] = $imagePath;
@@ -43,7 +51,6 @@ class PromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'sometimes|required|string|max:255',
             'subtitulo' => 'sometimes|required|string|max:255',
-            'imagen' => 'nullable|string',
             'estado' => 'boolean'
         ]);
         if ($request->hasFile('imagen')) {
