@@ -144,8 +144,8 @@ class RepartoRegistroController extends Controller
             $documentosGuardados = [];
 
             foreach ($request->documentos_adicionales as $documento) {
-                // Verificar que sea un archivo y tenga nombre
-                if (isset($documento['archivo']) && isset($documento['nombre'])) {
+                // Verificar que sea un archivo y tenga nombre y categoria
+                if (isset($documento['archivo']) && isset($documento['nombre']) && isset($documento['categoria'])) {
                     // Verificar que sea un PDF por la extensión
                     $extension = pathinfo($documento['nombre'], PATHINFO_EXTENSION);
                     if (strtolower($extension) !== 'pdf') {
@@ -171,6 +171,9 @@ class RepartoRegistroController extends Controller
                         ]);
                         continue; // Saltar archivos demasiado grandes
                     }
+
+                    // usar la categoria en el arreglo
+                    $categoria = $documento['categoria'] ?? 'otros';
                     $fileName = "documento_adicional_" . uniqid() . '.pdf'; // Siempre guardamos como PDF
 
                     $tempFile = tempnam(sys_get_temp_dir(), 'doc_add');
@@ -181,9 +184,10 @@ class RepartoRegistroController extends Controller
                     $filePath = Storage::disk('custom_public')->putFileAs('documentos-adicionales', $uploadedFile, $fileName);
 
                     $documentosGuardados[] = [
-                        'nombre' => $documento['nombre'],
+                        // 'nombre' => $documento['nombre'],
                         'ruta' => $filePath,
                         'tipo' => 'application/pdf', // Forzamos el tipo a PDF
+                        'categoria' => $categoria,
                         'fecha_carga' => now()->toDateTimeString()
                     ];
 

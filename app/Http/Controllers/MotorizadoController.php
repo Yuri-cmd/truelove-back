@@ -49,16 +49,17 @@ class MotorizadoController extends Controller
                         'nro_documento' => $motorizado->nro_documento,
                         'created_at' => $motorizado->created_at,
                         'documento_imagen_frente' => $motorizado->documento_imagen_frente,
-                        'documento_imagen_reverso' => $motorizado->documento_imagen_reverso
+                        'documento_imagen_reverso' => $motorizado->documento_imagen_reverso,
+                        'documentos_adicionales' => $motorizado->documentos_adicionales
                     ],
                     'datosPersonales' => $motorizado->datosPersonales ? [
                         'fecha_nacimiento' => $motorizado->datosPersonales->fecha_nacimiento,
                         'genero' => $motorizado->datosPersonales->genero,
                         'url_selfie' => $motorizado->datosPersonales->url_selfie,
-                   'departamento' => $motorizado->datosPersonales->getDepartamentoAttribute(),
-                    'distrito' => $motorizado->datosPersonales->getDistritoAttribute(),
-                    // Mantener ciudad para compatibilidad con el frontend existente
-                    'provincia' => $motorizado->datosPersonales->getProvinciaAttribute()
+                        'departamento' => $motorizado->datosPersonales->getDepartamentoAttribute(),
+                        'distrito' => $motorizado->datosPersonales->getDistritoAttribute(),
+                        // Mantener ciudad para compatibilidad con el frontend existente
+                        'provincia' => $motorizado->datosPersonales->getProvinciaAttribute()
                     ] : null,
                     'datosBancarios' => $motorizado->datosBancarios ? [
                         'titular' => $motorizado->datosBancarios->titular,
@@ -78,7 +79,9 @@ class MotorizadoController extends Controller
                         'imagen_seguro' => $motorizado->registroVehiculo->imagen_seguro,
                         'imagen_tarjeta_propiedad' => $motorizado->registroVehiculo->imagen_tarjeta_propiedad
                     ] : null,
-                    'aprobado' => $motorizado->aprobado
+                    'aprobado' => $motorizado->aprobado,
+                    'cantidad_pedidos_dias' => $motorizado->cantidad_pedidos_dias
+
                 ]
             ]);
         } catch (\Exception $e) {
@@ -90,19 +93,19 @@ class MotorizadoController extends Controller
         }
     }
 
-    public function aprobar($id)
+    public function aprobar(Request $request, $id)
     {
         DB::beginTransaction();
         try {
             $motorizado = RepartoRegistro::findOrFail($id);
-            
+
             if ($motorizado->aprobado) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'El motorizado ya está aprobado'
                 ], 400);
             }
-            
+
             // Verificar si ya existe un usuario con el mismo correo
             $existingUser = User::where('email', $motorizado->email)->first();
             if ($existingUser) {
@@ -113,14 +116,18 @@ class MotorizadoController extends Controller
             }
 
             $motorizado->aprobado = true;
-            
+            // Guardar cantidad de pedidos si se proporciona
+            if ($request->has('cantidad_pedidos_dias')) {
+                $motorizado->cantidad_pedidos_dias = $request->cantidad_pedidos_dias;
+            }
+
             // Generar credenciales únicas
             $username = $this->generateUniqueUsername($motorizado->nombres, $motorizado->apellidos);
             $password = Str::random(10);
-            
+
             // Obtener el rol de motorizado
             $rolMotorizado = Role::where('name', 'motorizado')->firstOrFail();
-            
+
             // Crear un nuevo usuario
             $user = new User();
             $user->usuario = $username;
@@ -136,7 +143,7 @@ class MotorizadoController extends Controller
 
             // Enviar correo con las credenciales
             Mail::to($motorizado->email)->send(new CredencialesMotorizado($username, $password));
-    
+
             DB::commit();
             return response()->json([
                 'status' => 'success',
@@ -145,7 +152,7 @@ class MotorizadoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al aprobar motorizado: ' . $e->getMessage());
-            
+
             // Verificar si es un error de duplicación de correo
             if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'email_unique') !== false) {
                 return response()->json([
@@ -153,7 +160,7 @@ class MotorizadoController extends Controller
                     'message' => 'El correo electrónico ya está registrado en el sistema'
                 ], 400);
             }
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al aprobar el motorizado: ' . $e->getMessage()
@@ -162,45 +169,45 @@ class MotorizadoController extends Controller
     }
     // este es para motorizado
     private function generateUniqueUsername($nombres, $apellidos)
-{
-    // Dividir nombres y apellidos
-    $nombresArray = explode(' ', trim($nombres));
-    $apellidosArray = explode(' ', trim($apellidos));
-    
-    // Obtener la primera letra del primer nombre en mayúscula
-    $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
-    
-    // // Obtener el segundo nombre si existe, si no, usar el primer nombre
-    // $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
-    
-    // Obtener la primera letra del primer apellido en mayúscula
-    // $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
-    $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '';
-    // // Obtener el segundo apellido si existe, si no, usar el primer apellido
-    // $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
-    //                    (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
-    
-    // Construir el nombre de usuario base
-    // $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
-    $baseUsername = $primeraNombre . $primeraApellido;
-    $username = $baseUsername;
-    $counter = 1;
+    {
+        // Dividir nombres y apellidos
+        $nombresArray = explode(' ', trim($nombres));
+        $apellidosArray = explode(' ', trim($apellidos));
 
-    // Verificar si el usuario ya existe y agregar número si es necesario
-    while (User::where('usuario', $username)->exists()) {
-        $username = $baseUsername . $counter;
-        $counter++;
+        // Obtener la primera letra del primer nombre en mayúscula
+        $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
+
+        // // Obtener el segundo nombre si existe, si no, usar el primer nombre
+        // $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
+
+        // Obtener la primera letra del primer apellido en mayúscula
+        // $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
+        $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '';
+        // // Obtener el segundo apellido si existe, si no, usar el primer apellido
+        // $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
+        //                    (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
+
+        // Construir el nombre de usuario base
+        // $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
+        $baseUsername = $primeraNombre . $primeraApellido;
+        $username = $baseUsername;
+        $counter = 1;
+
+        // Verificar si el usuario ya existe y agregar número si es necesario
+        while (User::where('usuario', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
+        return $username;
     }
-
-    return $username;
-}
     public function delete($id)
     {
         DB::beginTransaction();
         try {
             // Buscar el motorizado
             $motorizado = RepartoRegistro::findOrFail($id);
-            
+
             // Si el motorizado tiene un usuario asociado, eliminarlo también
             if ($motorizado->user_id) {
                 $user = User::find($motorizado->user_id);
@@ -208,31 +215,31 @@ class MotorizadoController extends Controller
                     $user->delete();
                 }
             }
-            
+
             // Eliminar registros relacionados
             if ($motorizado->datosPersonales) {
                 $motorizado->datosPersonales->delete();
             }
-            
+
             if ($motorizado->datosBancarios) {
                 $motorizado->datosBancarios->delete();
             }
-            
+
             if ($motorizado->registroVehiculo) {
                 $motorizado->registroVehiculo->delete();
             }
-            
+
             if ($motorizado->entregaCalendario) {
                 foreach ($motorizado->entregaCalendario as $entrega) {
                     $entrega->delete();
                 }
             }
-            
+
             // Finalmente eliminar el motorizado
             $motorizado->delete();
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Motorizado eliminado correctamente'
@@ -243,6 +250,25 @@ class MotorizadoController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al eliminar el motorizado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function actualizarCantidadPedidos(Request $request, $id)
+    {
+        try {
+            $motorizado = RepartoRegistro::findOrFail($id);
+            $motorizado->cantidad_pedidos_dias = $request->cantidad_pedidos_dias;
+            $motorizado->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Cantidad de pedidos actualizada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar cantidad de pedidos: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar la cantidad de pedidos: ' . $e->getMessage()
             ], 500);
         }
     }
