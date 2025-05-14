@@ -33,7 +33,7 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
-        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota', 'id_tipo_pago']));
+        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota', 'id_tipo_pago', 'tipo_comprobante', 'documento']));
 
         foreach ($request->items as $item) {
             PedidoDetalle::create([
@@ -59,7 +59,18 @@ class PedidoController extends Controller
 
         $this->sendMotorizadosCerca();
 
-        return response()->json(['status' => 'success', 'pedido_id' => $pedido->id]);
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+
+        $distancia = $this->pedidoService->obtenerDistancia($local->latitud, $local->longitud, $request->latitud, $request->longitud);
+        $precio = 0;
+        if ($distancia !== null) {
+            $precio = $this->pedidoService->calcularPrecioPorDistancia($distancia);
+        }
+
+        $pedido->precio_delivery = $precio;
+        $pedido->save();
+
+        return response()->json(['status' => 'success', 'pedido_id' => $pedido->id, 'precio' => $precio]);
     }
 
     public function sendMotorizadosCerca()
@@ -137,23 +148,21 @@ class PedidoController extends Controller
         $pedidos = Pedido::where('id_cliente', $idCliente)->get();
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if ($pedidoTracking['estado'] == 8) {
-                $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-                $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
-                $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                $total = $pedidoDetalles->sum('precio');
-                $data[] = [
-                    'id' => $pedido->id,
-                    'estado' => estadoPedido($pedidoTracking->estado),
-                    'fecha_entrega' => $pedidoTracking->created_at,
-                    'local' => $local->nombre_establecimiento,
-                    'logo' => $logo->ruta_logo ? env('APP_URL') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
-                    'total' => $total,
-                    'cantidad' => count($pedidoDetalles),
-                    'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
-                    'created_at' => $pedido->created_at,
-                ];
-            }
+            $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+            $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
+            $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+            $total = $pedidoDetalles->sum('precio');
+            $data[] = [
+                'id' => $pedido->id,
+                'estado' => estadoPedido($pedidoTracking->estado),
+                'fecha_entrega' => $pedidoTracking->created_at,
+                'local' => $local->nombre_establecimiento,
+                'logo' => $logo->ruta_logo ? env('APP_URL') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
+                'total' => $total,
+                'cantidad' => count($pedidoDetalles),
+                'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
+                'created_at' => $pedido->created_at,
+            ];
         }
         return response()->json($data);
     }
@@ -200,16 +209,16 @@ class PedidoController extends Controller
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             // if ($pedidoTracking->estado == 8) {
-                $rating = Rating::where('id_pedido', $pedido->id)->first();
-                if ($rating) {
-                    $cliente = Cliente::where('id', $pedido->id_cliente)->first();
-                    $coment[] = [
-                        'id' => $pedido->id,
-                        'comentario' => $rating->motorcycle_comment,
-                        'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
-                        'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
-                    ];
-                }
+            $rating = Rating::where('id_pedido', $pedido->id)->first();
+            if ($rating) {
+                $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+                $coment[] = [
+                    'id' => $pedido->id,
+                    'comentario' => $rating->motorcycle_comment,
+                    'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                ];
+            }
             // }
         }
         return response()->json($coment);
@@ -335,5 +344,4 @@ class PedidoController extends Controller
         }
         return response()->json(['status' => 'success']);
     }
-    
 }

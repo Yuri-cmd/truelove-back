@@ -114,6 +114,11 @@ class BikerController extends Controller
     public function obtenerPedidosConTiempoEstimado($idMotorizado)
     {
         // Obtener la ubicación del motorizado
+        $reparto = RepartoRegistro::findOrFail($idMotorizado);
+        if (!$reparto->activo) {
+            return [];
+        }
+
         $motorizadoLocation = Location::where('motorizado_id', $idMotorizado)
             ->latest()
             ->first();
@@ -254,6 +259,14 @@ class BikerController extends Controller
 
         // Verificar si está dentro del horario
         $diaActual = strtolower(Carbon::now()->locale('es')->dayName); // e.g., "viernes"
+        $diaActual = strtr($diaActual, [
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
+        ]);
+
         $horaActual = Carbon::now()->format('H:i'); // e.g., "14:30"
 
         $puedeTrabajar = false;
@@ -282,5 +295,17 @@ class BikerController extends Controller
             'hora_actual' => $horaActual,
             'limite_restante' => $cantidadPedidoPermitido - $cantidadPedidosRealizados,
         ]);
+    }
+
+    public function actualizarEstado(Request $request)
+    {
+        $repartidor = RepartoRegistro::find($request->id);
+        if ($repartidor) {
+            $repartidor->activo = $request->activo;
+            $repartidor->save();
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(['success' => false], 404);
     }
 }

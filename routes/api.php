@@ -6,6 +6,7 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\BikerController;
 use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\EntregaCalendarioController;
@@ -221,6 +222,11 @@ Route::get('get/medios/pago/{idEmpresa?}', [MedioPagoController::class, 'index']
 Route::get('/promociones', [PromocionController::class, 'index']);
 Route::get('/banners', [BannerController::class, 'index']);
 
+//chat 
+Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
+Route::post('/chats/storeCliente', [ChatController::class, 'storeCliente']);
+Route::post('/chats/storeMotorizado', [ChatController::class, 'storeMotorizado']);
+
 // CRUD PAGOS
 Route::post('medios/pago', [MedioPagoController::class, 'store']);
 Route::get('medios/pago/{id}', [MedioPagoController::class, 'show']);
@@ -240,6 +246,7 @@ Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
+Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
@@ -260,6 +267,7 @@ Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBi
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
+Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);

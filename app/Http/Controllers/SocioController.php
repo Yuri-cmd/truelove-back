@@ -268,6 +268,10 @@ class SocioController extends Controller
 
     public function getPedidos($id)
     {
+        $tienda = BusinessRegistration::find($id);
+        if (!$tienda->activo) {
+            return [];
+        }
         $pedidos = Pedido::with([
             'trackings' => function ($query) {
                 $query->orderBy('created_at', 'desc');
@@ -693,4 +697,15 @@ class SocioController extends Controller
         }
     }
 
+    public function actualizarEstado(Request $request)
+    {
+        $local = BusinessRegistration::find($request->id);
+        if ($local) {
+            $local->activo = $request->activo;
+            $local->save();
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(['success' => false], 404);
+    }
 }
