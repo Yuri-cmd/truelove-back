@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SendCode;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
@@ -18,7 +19,8 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 class BikerController extends Controller
 {
     protected $apiKey = '***MAPBOX_TOKEN_REMOVED***';
@@ -307,5 +309,51 @@ class BikerController extends Controller
         }
 
         return response()->json(['success' => false], 404);
+    }
+
+    public function sendCode(Request $request)
+    {
+        try {
+            // Validar los datos recibidos en la solicitud
+            $request->validate([
+                'email' => 'required|email',
+            ]);
+
+            // Generar nuevo código de verificación
+            $newVerificationCode = Str::random(6);
+
+            // Enviar el correo con el código de verificación
+            Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
+
+            $id = User::where('email', $request->email)->first()->id;
+
+            // Retornar el código en la respuesta para ser usado en la aplicación
+            return response()->json([
+                'success' => true,
+                'message' => 'Código de verificación enviado al correo electrónico',
+                'status' => 200,
+                'verification_code' => $newVerificationCode,
+                'id' => $id
+            ]);
+        } catch (\Exception $e) {
+            // Capturar cualquier error y devolver una respuesta de error
+            return response()->json([
+                'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
+                'error' => $e->getMessage() // Detalle del error para depuración
+            ], 500);
+        }
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $usuario = User::where('id', $request->id)->first();
+
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        $usuario->password = Hash::make($request->password);
+        $usuario->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
 }

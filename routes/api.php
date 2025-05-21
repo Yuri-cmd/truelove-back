@@ -228,6 +228,8 @@ Route::get('/promociones/{id}', [PromocionController::class, 'show']);
 Route::put('/promociones/{id}', [PromocionController::class, 'update']);
 Route::delete('/promociones/{id}', [PromocionController::class, 'destroy']);
 Route::get('/banners', [BannerController::class, 'index']);
+Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew']);
+Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
@@ -254,6 +256,8 @@ Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
 Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
+Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);
+Route::post('/socio/update-password', [SocioController::class, 'updatePassword']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
@@ -275,6 +279,8 @@ Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
 Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);
+Route::post('/biker/sendCode', [BikerController::class, 'sendCode']);
+Route::post('/biker/update-password', [BikerController::class, 'updatePassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
