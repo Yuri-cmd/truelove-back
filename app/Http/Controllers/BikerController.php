@@ -241,7 +241,7 @@ class BikerController extends Controller
         }
 
         // Obtener la cantidad máxima de pedidos permitidos
-        $cantidadPedidoPermitido = RepartoRegistro::where('id', $id)->value('cantidad_pedidos_dia') ?? 0;
+        $cantidadPedidoPermitido = RepartoRegistro::where('id', $id)->value('cantidad_pedidos_dias') ?? 0;
 
         // Contar los pedidos entregados hoy (estado 8)
         $cantidadPedidosRealizados = Pedido::where('id_motorizado', $id)
