@@ -327,6 +327,7 @@ class SocioController extends Controller
 
         return response()->json($pedidos);
     }
+
     public function delete($id)
     {
         DB::beginTransaction();
@@ -763,5 +764,57 @@ class SocioController extends Controller
         $usuario->save();
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    public function getPedido($id)
+    {
+        $pedido = Pedido::with([
+            'trackings' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ])
+            ->where('id', $id)
+            ->whereDate('created_at', Carbon::today())
+            ->first();
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+
+        $pedidoDetalles = PedidoDetalle::where('pedido_id', $id)->get();
+        $cliente = Cliente::find($pedido->id_cliente);
+        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+
+        $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
+        if ($motorizado) {
+            $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
+            $pedido->celular_motorizado = $motorizado['celular'] ?? '';
+        } else {
+            $pedido->motorizado = '';
+            $pedido->celular_motorizado = '';
+        }
+
+        $names = array_map(function ($item) {
+            return $item['nombre'];
+        }, $pedidoDetalles->toArray());
+        $namesString = implode(', ', $names);
+
+        // Obtener el último estado del tracking
+        $ultimoTracking = $pedido->trackings->first();
+        $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
+        $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
+
+        // Agregar información adicional
+        $pedido->detalle = $namesString;
+        $pedido->detalleArray = $pedidoDetalles;
+        $pedido->local = $local->nombre_establecimiento;
+        $pedido->direccion_local = $local->direccion_completa;
+        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+        $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
+        $pedido->celular = $cliente->celular;
+        $pedido->lat_local = $local->latitud;
+        $pedido->lon_local = $local->longitud;
+        $pedido->tiempo = $pedido->tiempo ?? 0;
+        $pedido->nota = $pedido->nota ?? 'Sin nota';
+        $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+
+        return response()->json([$pedido]);
     }
 }

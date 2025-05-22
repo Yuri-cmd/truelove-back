@@ -201,6 +201,7 @@ class MenuController extends Controller
     public function getAdicionales($id)
     {
         $adicionales = DB::select("SELECT
+                    id,
                     titulo,
                     precio 
                 FROM

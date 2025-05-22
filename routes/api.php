@@ -230,6 +230,7 @@ Route::delete('/promociones/{id}', [PromocionController::class, 'destroy']);
 Route::get('/banners', [BannerController::class, 'index']);
 Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew']);
 Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword']);
+Route::get('/cliente/repetir/orden/{idPedido}', [PedidoController::class, 'repetirOrden']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
@@ -250,6 +251,7 @@ Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
+Route::get('socio/get/pedido/{id}', [SocioController::class, 'getPedido']);
 Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateEstadoPedido']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
