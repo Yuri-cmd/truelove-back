@@ -9,7 +9,7 @@ class PedidoDetalle extends Model
 {
     use HasFactory;
     protected $table = 'pedido_detalles';
-    protected $fillable = ['pedido_id', 'nombre', 'cantidad', 'precio', 'tipo'];
+    protected $fillable = ['pedido_id', 'id_producto', 'nombre', 'cantidad', 'precio', 'tipo'];
 
     public function pedido()
     {

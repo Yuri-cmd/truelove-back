@@ -42,6 +42,39 @@ class PedidoService
         return $distancia;
     }
 
+    public function obtenerDistancia($lat1, $lon1, $lat2, $lon2)
+    {
+        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
+
+        $response = Http::get($url);
+        $data = $response->json();
+
+        if (isset($data['routes'][0]['distance'])) {
+            return $data['routes'][0]['distance'] / 1000; // en kilómetros
+        }
+
+        return null;
+    }
+
+    public function calcularPrecioPorDistancia($distanciaKm)
+    {
+        $precioBase = 2;
+        $precioMax = 7;
+        $distanciaMax = 10; // km
+
+        if ($distanciaKm <= 1) {
+            return $precioBase;
+        }
+
+        if ($distanciaKm >= $distanciaMax) {
+            return $precioMax;
+        }
+
+        // Tarifa proporcional entre base y máxima
+        $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - 1)) * ($distanciaKm - 1);
+        return round($precio, 2);
+    }
+    
     // Método para obtener el tiempo estimado de llegada desde el motorizado al local
     public function obtenerTiempoEstimadoTresPuntos($lat1, $lon1, $lat2, $lon2, $lat3, $lon3)
     {

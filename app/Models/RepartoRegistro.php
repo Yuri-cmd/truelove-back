@@ -27,6 +27,7 @@ class RepartoRegistro extends Model
         'token_fmc',
         'documentos_adicionales',
         'cantidad_pedidos_dias',
+        'activo',
     ];
 
     protected $casts = [

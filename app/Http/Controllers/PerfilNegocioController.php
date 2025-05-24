@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\PerfilNegocio;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class PerfilNegocioController extends Controller
 {
@@ -12,18 +13,18 @@ class PerfilNegocioController extends Controller
     {
         try {
             // Debug para ver qué token está llegando
-            \Log::info('Token recibido:', [
+            Log::info('Token recibido:', [
                 'token' => $request->header('Authorization')
             ]);
     
             // Verificar autenticación
             if (!$request->user()) {
-                \Log::error('Usuario no autenticado');
+                Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
     
             // Debug para ver el usuario autenticado
-            \Log::info('Usuario autenticado:', [
+            Log::info('Usuario autenticado:', [
                 'user_id' => $request->user()->id
             ]);
     
@@ -68,7 +69,7 @@ class PerfilNegocioController extends Controller
             $logoUrl = url($rutaRelativa);
     
             // Debug para ver la URL generada
-            \Log::info('URL del logo generada:', [
+            Log::info('URL del logo generada:', [
                 'url' => $logoUrl
             ]);
     
@@ -79,7 +80,7 @@ class PerfilNegocioController extends Controller
             ]);
     
         } catch (\Exception $e) {
-            \Log::error('Error en actualizarLogo: ' . $e->getMessage());
+            Log::error('Error en actualizarLogo: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error interno del servidor',
                 'error' => $e->getMessage()
@@ -92,7 +93,7 @@ class PerfilNegocioController extends Controller
         try {
             // Verificar autenticación
             if (!$request->user()) {
-                \Log::error('Usuario no autenticado');
+                Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
     
@@ -143,7 +144,7 @@ class PerfilNegocioController extends Controller
             ]);
     
         } catch (\Exception $e) {
-            \Log::error('Error en actualizarBanner: ' . $e->getMessage());
+            Log::error('Error en actualizarBanner: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error interno del servidor',
                 'error' => $e->getMessage()
@@ -176,7 +177,7 @@ class PerfilNegocioController extends Controller
     
             return response()->json($perfil);
         } catch (\Exception $e) {
-            \Log::error('Error en obtenerPerfil: ' . $e->getMessage());
+            Log::error('Error en obtenerPerfil: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener el perfil',
                 'error' => $e->getMessage()
@@ -227,7 +228,7 @@ class PerfilNegocioController extends Controller
             return response()->json($horario);
 
         } catch (\Exception $e) {
-            \Log::error('Error en guardarHorario: ' . $e->getMessage());
+            Log::error('Error en guardarHorario: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al guardar el horario',
                 'error' => $e->getMessage()
@@ -280,7 +281,7 @@ class PerfilNegocioController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error en actualizarFotoPerfil: ' . $e->getMessage());
+            Log::error('Error en actualizarFotoPerfil: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error interno del servidor',
                 'error' => $e->getMessage()
@@ -298,7 +299,7 @@ class PerfilNegocioController extends Controller
             $perfil = $businessRegistration->perfilNegocio;
 
             // Debug para ver qué contiene el perfil
-            \Log::info('Perfil del negocio:', [
+            Log::info('Perfil del negocio:', [
                 'perfil' => $perfil,
                 'foto_perfil' => $perfil ? $perfil->foto_perfil : null
             ]);
@@ -317,7 +318,7 @@ class PerfilNegocioController extends Controller
             return response()->json($datos);
 
         } catch (\Exception $e) {
-            \Log::error('Error en obtenerDatosNegocio: ' . $e->getMessage());
+            Log::error('Error en obtenerDatosNegocio: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener los datos del negocio',
                 'error' => $e->getMessage()

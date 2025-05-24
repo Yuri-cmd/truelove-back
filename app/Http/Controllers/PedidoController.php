@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Mail\PedidoEntregadoMail;
+use App\Models\Adicional;
 use App\Models\BusinessRegistration;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
+use App\Models\Menu;
 use Illuminate\Http\Request;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
@@ -33,11 +35,12 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
-        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota', 'id_tipo_pago']));
+        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota', 'id_tipo_pago', 'tipo_comprobante', 'documento']));
 
         foreach ($request->items as $item) {
             PedidoDetalle::create([
                 'pedido_id' => $pedido->id,
+                'id_producto' => $item['id'],
                 'nombre' => $item['name'],
                 'cantidad' => $item['quantity'] ?? 1,
                 'precio' => preg_replace('/[^\d.]/', '', $item['price']),
@@ -48,6 +51,7 @@ class PedidoController extends Controller
         foreach ($request->adicionales as $adicional) {
             PedidoDetalle::create([
                 'pedido_id' => $pedido->id,
+                'id_producto' => $adicional['id'],
                 'nombre' => $adicional['name'],
                 'cantidad' => 1,
                 'precio' => preg_replace('/[^\d.]/', '', $adicional['price']),
@@ -59,7 +63,18 @@ class PedidoController extends Controller
 
         $this->sendMotorizadosCerca();
 
-        return response()->json(['status' => 'success', 'pedido_id' => $pedido->id]);
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+
+        $distancia = $this->pedidoService->obtenerDistancia($local->latitud, $local->longitud, $request->latitud, $request->longitud);
+        $precio = 0;
+        if ($distancia !== null) {
+            $precio = $this->pedidoService->calcularPrecioPorDistancia($distancia);
+        }
+
+        $pedido->precio_delivery = $precio;
+        $pedido->save();
+
+        return response()->json(['status' => 'success', 'pedido_id' => $pedido->id, 'precio' => $precio]);
     }
 
     public function sendMotorizadosCerca()
@@ -137,21 +152,25 @@ class PedidoController extends Controller
         $pedidos = Pedido::where('id_cliente', $idCliente)->get();
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if ($pedidoTracking['estado'] == 8) {
+            if ($pedidoTracking) {
                 $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
                 $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $total = $pedidoDetalles->sum('precio');
+                $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
                 $data[] = [
                     'id' => $pedido->id,
                     'estado' => estadoPedido($pedidoTracking->estado),
-                    'fecha_entrega' => $pedidoTracking->created_at,
+                    'estado_numero' => (int) $pedidoTracking->estado,
+                    'fecha_entrega' => Carbon::parse($pedidoTracking->created_at)->format('d/m/Y'),
+                    'hora_entrega' => Carbon::parse($pedidoTracking->created_at)->format('H:i'),
                     'local' => $local->nombre_establecimiento,
                     'logo' => $logo->ruta_logo ? env('APP_URL') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
                     'total' => $total,
                     'cantidad' => count($pedidoDetalles),
                     'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
                     'created_at' => $pedido->created_at,
+                    'existeCalificacion' => $existeCalificacion,
                 ];
             }
         }
@@ -176,7 +195,7 @@ class PedidoController extends Controller
         $rating = [];
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if ($pedidoTracking->estado == 8) {
+            if ($pedidoTracking && $pedidoTracking->estado == 8) {
                 $rating[] = Rating::where('id_pedido', $pedido->id)->first()->motorcycle_rating ?? 0;
             }
         }
@@ -200,16 +219,16 @@ class PedidoController extends Controller
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             // if ($pedidoTracking->estado == 8) {
-                $rating = Rating::where('id_pedido', $pedido->id)->first();
-                if ($rating) {
-                    $cliente = Cliente::where('id', $pedido->id_cliente)->first();
-                    $coment[] = [
-                        'id' => $pedido->id,
-                        'comentario' => $rating->motorcycle_comment,
-                        'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
-                        'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
-                    ];
-                }
+            $rating = Rating::where('id_pedido', $pedido->id)->first();
+            if ($rating) {
+                $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+                $coment[] = [
+                    'id' => $pedido->id,
+                    'comentario' => $rating->motorcycle_comment,
+                    'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                ];
+            }
             // }
         }
         return response()->json($coment);
@@ -335,5 +354,51 @@ class PedidoController extends Controller
         }
         return response()->json(['status' => 'success']);
     }
-    
+
+    public function repetirOrden($idPedido)
+    {
+        $pedido = Pedido::find($idPedido);
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        // 1) IDs de producto que pide la orden (solo tipo 'item')
+        $detalleIds = PedidoDetalle::where('pedido_id', $idPedido)
+            ->where('tipo', 'item')
+            ->pluck('id_producto')   // colección de ints
+            ->toArray();
+
+        // 2) IDs de menú activos para este local
+        $activeMenuIds = Menu::where('empresa_id', $pedido->id_local)
+            ->where('status', 'active')
+            ->pluck('id')            // colección de ints
+            ->toArray();
+
+        // 3) ¿Hay algún ID pedido que NO esté en activeMenuIds?
+        $faltantes = array_diff($detalleIds, $activeMenuIds);
+        if (!empty($faltantes)) {
+            // Al menos uno de los productos ya no está activo
+            return response()->json([]);
+        }
+
+        // 4) Como todo coincide, recuperamos los datos de los productos
+        $productos = Menu::whereIn('id', $detalleIds)->get()->keyBy('id');
+
+        // 5) Construimos el arreglo de items con cantidad
+        $items = [];
+        foreach (PedidoDetalle::where('pedido_id', $idPedido)->where('tipo', 'item')->get() as $detalle) {
+            $menu = $productos[$detalle->id_producto];
+            $items[] = [
+                'id'               => $menu->id,
+                'name'             => $menu->titulo,
+                'category'         => $menu->descripcion,
+                'image'            => $menu->foto,
+                'price'            => $menu->precio,
+                'discountedPrice'  => 0,
+                'quantity'         => $detalle->cantidad,
+            ];
+        }
+
+        return response()->json($items);
+    }
 }

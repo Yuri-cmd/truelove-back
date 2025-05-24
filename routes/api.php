@@ -6,6 +6,7 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\BikerController;
 use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\DescuentoClienteController;
@@ -221,13 +222,21 @@ Route::post('/update-info-cliente', [ClienteController::class, 'updateProfile'])
 Route::post('/update-direccion', [ClienteController::class, 'actualizarDireccion']);
 Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
 Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
-Route::get('get/medios/pago', [MedioPagoController::class, 'index']);
+Route::get('get/medios/pago/{idEmpresa?}', [MedioPagoController::class, 'index']);
 Route::get('/promociones', [PromocionController::class, 'index']);
 Route::post('/promociones', [PromocionController::class, 'store']);
 Route::get('/promociones/{id}', [PromocionController::class, 'show']);
 Route::put('/promociones/{id}', [PromocionController::class, 'update']);
 Route::delete('/promociones/{id}', [PromocionController::class, 'destroy']);
 Route::get('/banners', [BannerController::class, 'index']);
+Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew']);
+Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword']);
+Route::get('/cliente/repetir/orden/{idPedido}', [PedidoController::class, 'repetirOrden']);
+
+//chat 
+Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
+Route::post('/chats/storeCliente', [ChatController::class, 'storeCliente']);
+Route::post('/chats/storeMotorizado', [ChatController::class, 'storeMotorizado']);
 
 // CRUD PAGOS
 Route::post('medios/pago', [MedioPagoController::class, 'store']);
@@ -243,11 +252,15 @@ Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
 //rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
+Route::get('socio/get/pedido/{id}', [SocioController::class, 'getPedido']);
 Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateEstadoPedido']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
+Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
+Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);
+Route::post('/socio/update-password', [SocioController::class, 'updatePassword']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
@@ -259,6 +272,7 @@ Route::get('/rating-evolution', [RatingController::class, 'getRatingEvolution'])
 
 //rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
+Route::get('biker/condiciones/{id}', [BikerController::class, 'condiciones']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
@@ -267,6 +281,9 @@ Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBi
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
+Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);
+Route::post('/biker/sendCode', [BikerController::class, 'sendCode']);
+Route::post('/biker/update-password', [BikerController::class, 'updatePassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
@@ -388,6 +405,7 @@ Route::post('/register/check-status', [RegistrationStatusController::class, 'che
 Route::get('/register/{id}/status', [RegistrationStatusController::class, 'getRegistrationStatus']);
 // En routes/api.php
 Route::post('/register/{id}/reset', [RegistrationStatusController::class, 'resetRegistration']);
+
 // Rutas para descuentos de clientes
 Route::get('descuentos/clientes', [DescuentoClienteController::class, 'index']);
 Route::post('descuentos/clientes', [DescuentoClienteController::class, 'store']);
@@ -400,5 +418,7 @@ Route::get('clientes/top-completados', [DescuentoClienteController::class, 'getT
 Route::get('descuentos/estadisticas', [DescuentoClienteController::class, 'getEstadisticasDescuentos']);
 Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarClientes']);
 
+
 Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
+

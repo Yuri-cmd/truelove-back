@@ -18,7 +18,8 @@ class BusinessRegistration extends Model
         'email_verified_at',
         'estado',
         'aprobado',
-        'posToDriver'
+        'posToDriver',
+        'activo',
     ];
 
     protected $casts = [
