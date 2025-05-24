@@ -420,4 +420,44 @@ class RepartoRegistroController extends Controller
             ], 500);
         }
     }
+    public function validateDocumentAndEmail(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'nro_documento' => 'required|string',
+        'email' => 'required|email',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
+
+    // Verificar en RepartoRegistro
+    $existingDocument = RepartoRegistro::where('nro_documento', $request->nro_documento)->first();
+    $existingEmail = RepartoRegistro::where('email', $request->email)->first();
+
+    // Verificar en BusinessRegistration
+    $existingBusinessDoc = BusinessRegistration::where('documentNumber', $request->nro_documento)->first();
+    $existingBusinessEmail = BusinessRegistration::where('email', $request->email)->first();
+
+    $errors = [];
+
+    if ($existingDocument) {
+        $errors['documento'] = 'Este número de documento ya está registrado como repartidor';
+    }
+    if ($existingEmail) {
+        $errors['email'] = 'Este correo electrónico ya está registrado como repartidor';
+    }
+    if ($existingBusinessDoc) {
+        $errors['documento'] = 'Este número de documento ya está registrado como socio comercial';
+    }
+    if ($existingBusinessEmail) {
+        $errors['email'] = 'Este correo electrónico ya está registrado como socio comercial';
+    }
+
+    if (!empty($errors)) {
+        return response()->json(['errors' => $errors], 422);
+    }
+
+    return response()->json(['message' => 'Documento y correo disponibles'], 200);
+}
 }
