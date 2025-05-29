@@ -87,69 +87,103 @@ class PerfilNegocioController extends Controller
         }
     }
     
-    public function actualizarBanner(Request $request)
-    {
-        try {
-            // Verificar autenticación
-            if (!$request->user()) {
-                \Log::error('Usuario no autenticado');
-                return response()->json(['message' => 'Usuario no autenticado'], 401);
-            }
-    
-            // Validar el archivo
-            $request->validate([
-                'banner' => 'required|image|max:4096' // Permitimos hasta 5MB para el banner
-            ]);
-    
-            $file = $request->file('banner');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            
-            // Crear directorio si no existe
-            $path = public_path('banners-negocio');
-            if (!File::isDirectory($path)) {
-                File::makeDirectory($path, 0777, true, true);
-            }
-    
-            // Mover el archivo
-            $file->move($path, $fileName);
-            
-            $rutaRelativa = 'banners-negocio/' . $fileName;
-    
-            // Obtener el business_registration_id directamente del usuario autenticado
-            $businessRegistrationId = $request->user()->businessRegistration->id;
-    
-            // Obtener el perfil actual para eliminar el banner anterior si existe
-            $perfilActual = PerfilNegocio::where('business_registration_id', $businessRegistrationId)->first();
-            
-            if ($perfilActual && $perfilActual->banner) {
-                $rutaAnterior = public_path($perfilActual->banner);
-                if (File::exists($rutaAnterior)) {
-                    File::delete($rutaAnterior);
-                }
-            }
-    
-            $perfil = PerfilNegocio::updateOrCreate(
-                ['business_registration_id' => $businessRegistrationId],
-                ['banner' => $rutaRelativa]
-            );
-    
-            // Construir la URL completa
-            $bannerUrl = url($rutaRelativa);
-    
-            return response()->json([
-                'success' => true,
-                'banner' => $bannerUrl,
-                'message' => 'Banner actualizado correctamente'
-            ]);
-    
-        } catch (\Exception $e) {
-            \Log::error('Error en actualizarBanner: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error interno del servidor',
-                'error' => $e->getMessage()
-            ], 500);
+  public function actualizarBanner(Request $request)
+{
+    try {
+        // Verificar autenticación
+        if (!$request->user()) {
+            \Log::error('Usuario no autenticado');
+            return response()->json(['message' => 'Usuario no autenticado'], 401);
         }
+
+        // Validar el archivo con reglas más específicas
+        $validator = \Validator::make($request->all(), [
+            'banner' => 'required|file|mimes:jpeg,jpg,png,gif|max:4096' // 4MB máximo
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Verificar que el archivo sea válido
+        if (!$request->hasFile('banner') || !$request->file('banner')->isValid()) {
+            return response()->json([
+                'message' => 'El archivo de banner no es válido'
+            ], 422);
+        }
+
+        $file = $request->file('banner');
+        
+        // Validación adicional del tipo MIME
+        $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            return response()->json([
+                'message' => 'Formato de imagen no válido. Solo se permiten archivos JPG, PNG y GIF.'
+            ], 422);
+        }
+
+        // Verificar tamaño del archivo
+        if ($file->getSize() > 4 * 1024 * 1024) { // 4MB
+            return response()->json([
+                'message' => 'La imagen es demasiado grande. El tamaño máximo permitido es 4MB.'
+            ], 422);
+        }
+
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        
+        // Crear directorio si no existe
+        $path = public_path('banners-negocio');
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0777, true, true);
+        }
+
+        // Mover el archivo
+        $file->move($path, $fileName);
+        
+        $rutaRelativa = 'banners-negocio/' . $fileName;
+
+        // Obtener el business_registration_id directamente del usuario autenticado
+        $businessRegistrationId = $request->user()->businessRegistration->id;
+
+        // Obtener el perfil actual para eliminar el banner anterior si existe
+        $perfilActual = PerfilNegocio::where('business_registration_id', $businessRegistrationId)->first();
+        
+        if ($perfilActual && $perfilActual->banner) {
+            $rutaAnterior = public_path($perfilActual->banner);
+            if (File::exists($rutaAnterior)) {
+                File::delete($rutaAnterior);
+            }
+        }
+
+        $perfil = PerfilNegocio::updateOrCreate(
+            ['business_registration_id' => $businessRegistrationId],
+            ['banner' => $rutaRelativa]
+        );
+
+        // Construir la URL completa
+        $bannerUrl = url($rutaRelativa);
+
+        return response()->json([
+            'success' => true,
+            'banner' => $bannerUrl,
+            'message' => 'Banner actualizado correctamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error en actualizarBanner: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'request_data' => $request->except(['banner'])
+        ]);
+        
+        return response()->json([
+            'message' => 'Error interno del servidor',
+            'error' => config('app.debug') ? $e->getMessage() : 'Error al procesar la imagen'
+        ], 500);
     }
+}
     
     public function obtenerLogo(Request $request)
     {
