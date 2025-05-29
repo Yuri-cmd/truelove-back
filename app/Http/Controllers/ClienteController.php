@@ -99,7 +99,7 @@ class ClienteController extends Controller
         }
 
         $token = env('API_TOKEN');
-        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token={$token}";
+        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InN5c3RlbWNyYWZ0LnBlQGdtYWlsLmNvbSJ9.yuNS5hRaC0hCwymX_PjXRoSZJWLNNBeOdlLRSUGlHGA";
 
         try {
             $response = file_get_contents($url);
