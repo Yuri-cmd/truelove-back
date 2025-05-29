@@ -16,6 +16,7 @@ use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\PerfilNegocioController;
 use App\Http\Controllers\RegistrationStatusController;
 use App\Http\Controllers\RegistroVehiculoController;
+use App\Http\Controllers\RepartoRegistroCompletoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\SociosCuentaBancariaController;
 use App\Http\Controllers\UserController;
@@ -416,4 +417,8 @@ Route::post('descuentos/aplicar', [DescuentoClienteController::class, 'aplicarDe
 Route::get('clientes/top-completados', [DescuentoClienteController::class, 'getTopClientsWithCompletedOrders']);
 Route::get('descuentos/estadisticas', [DescuentoClienteController::class, 'getEstadisticasDescuentos']);
 Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarClientes']);
+
+
+Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
+Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
 

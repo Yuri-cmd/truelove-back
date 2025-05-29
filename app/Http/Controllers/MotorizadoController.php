@@ -50,7 +50,9 @@ class MotorizadoController extends Controller
                         'created_at' => $motorizado->created_at,
                         'documento_imagen_frente' => $motorizado->documento_imagen_frente,
                         'documento_imagen_reverso' => $motorizado->documento_imagen_reverso,
-                        'documentos_adicionales' => $motorizado->documentos_adicionales
+                        'documentos_adicionales' => $motorizado->documentos_adicionales,
+                        'vehiculo' => $motorizado->vehiculo,
+                        'departamento' => $motorizado->departamento,
                     ],
                     'datosPersonales' => $motorizado->datosPersonales ? [
                         'fecha_nacimiento' => $motorizado->datosPersonales->fecha_nacimiento,
