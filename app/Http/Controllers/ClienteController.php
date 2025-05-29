@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Services\TwilioService;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class ClienteController extends Controller
@@ -28,6 +29,13 @@ class ClienteController extends Controller
             $request->validate([
                 'email' => 'required|email',
             ]);
+
+            if (Cliente::where('email', $request->email)->exists()) {
+                return response()->json([
+                    'message' => 'El correo electrónico ya está registrado',
+                    'status' => 400,
+                ]);
+            }
 
             // Generar nuevo código de verificación
             $newVerificationCode = Str::random(6);
@@ -82,22 +90,28 @@ class ClienteController extends Controller
 
     public function getDni(Request $request)
     {
+        if (Cliente::where('documento', $request->documento)->exists()) {
+            return response()->json(['message' => 'El DNI ya se encuentra está registrado'], 400);
+        }
 
         if (!$request->documento) {
-            return response()->json(['error' => 'Error al obtener la información.'], 500);
+            return response()->json(['message' => 'Error al obtener la información.'], 500);
         }
 
         $token = env('API_TOKEN');
-        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token={$token}";
+        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InN5c3RlbWNyYWZ0LnBlQGdtYWlsLmNvbSJ9.yuNS5hRaC0hCwymX_PjXRoSZJWLNNBeOdlLRSUGlHGA";
 
         try {
             $response = file_get_contents($url);
             if ($response === false) {
-                return response()->json(['error' => 'Error al obtener la información.'], 500);
+                return response()->json(['message' => 'Error al obtener la información.'], 500);
             }
-            return response()->json(json_decode($response, true));
+            $data = json_decode($response, true);
+            $data['status'] = 200;
+
+            return response()->json($data, 200);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Excepción capturada: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Excepción capturada: ' . $e->getMessage()], 500);
         }
     }
 
@@ -210,31 +224,41 @@ class ClienteController extends Controller
         }
     }
 
+    /**
+     * Método para iniciar sesión como cliente
+     */
     public function login(Request $request)
     {
-        $cliente = Cliente::where('documento', $request->password)
-            ->where('email', $request->email)
-            ->first();
+        // 1. Buscar cliente por email
+        $cliente = Cliente::where('email', $request->email)->first();
+
+        // 2. Validar contraseña o documento
         if ($cliente) {
-            $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
-            if ($direccion) {
-                $coordenadas = json_decode($direccion->coordenadas);
-                $cliente->latitud = $coordenadas->coordinates[0];
-                $cliente->longitud = $coordenadas->coordinates[1];
-                $cliente->direccion = $direccion->direccion;
-            } else {
-                $cliente->latitud = null;
-                $cliente->longitud = null;
-                $cliente->direccion = null;
+            $isPasswordValid = Hash::check($request->password, $cliente->password);
+            $isDocumentoMatch = $cliente->documento === $request->password;
+
+            if ($isPasswordValid || $isDocumentoMatch) {
+                $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
+                if ($direccion) {
+                    $coordenadas = json_decode($direccion->coordenadas);
+                    $cliente->latitud = $coordenadas->coordinates[0];
+                    $cliente->longitud = $coordenadas->coordinates[1];
+                    $cliente->direccion = $direccion->direccion;
+                } else {
+                    $cliente->latitud = null;
+                    $cliente->longitud = null;
+                    $cliente->direccion = null;
+                }
+                return response()->json([
+                    $cliente,
+                ], 200);
             }
-            return response()->json([
-                $cliente,
-            ], 200);
-        } else {
-            return response()->json([
-                'message' => 'Cliente no encontrado',
-            ], 404);
         }
+
+        // 3. Si no coincide ni con password ni documento
+        return response()->json([
+            'message' => 'Cliente no encontrado',
+        ], 404);
     }
 
     public function getPerfil($idCliente)
@@ -253,7 +277,7 @@ class ClienteController extends Controller
                 $profile->direccion = null;
             }
 
-            $profile->foto_perfil = $profile->foto_perfil ? env('APP_URL')."/storage/{$profile->foto_perfil}" : '';
+            $profile->foto_perfil = $profile->foto_perfil ? env('APP_URL') . "/storage/{$profile->foto_perfil}" : '';
 
             return response()->json([
                 'message' => 'Perfil encontrado',
@@ -335,5 +359,60 @@ class ClienteController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Archivo no recibido'], 400);
+    }
+
+    public function sendCodeNew(Request $request)
+    {
+        try {
+            // Validar los datos recibidos en la solicitud
+            $request->validate([
+                'email' => 'required|email',
+            ]);
+
+            $user = Cliente::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El correo es incorrecto.',
+                    'status' => 500,
+                ]);
+            }
+
+            // Generar nuevo código de verificación
+            $newVerificationCode = Str::random(6);
+
+            // Enviar el correo con el código de verificación
+            Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
+
+
+            // Retornar el código en la respuesta para ser usado en la aplicación
+            return response()->json([
+                'success' => true,
+                'message' => 'Código de verificación enviado al correo electrónico',
+                'status' => 200,
+                'verification_code' => $newVerificationCode,
+                'id' => $user->id
+            ]);
+        } catch (\Exception $e) {
+            // Capturar cualquier error y devolver una respuesta de error
+            return response()->json([
+                'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
+                'error' => $e->getMessage() // Detalle del error para depuración
+            ], 500);
+        }
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $usuario = Cliente::where('id', $request->id)->first();
+
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        $usuario->password = Hash::make($request->password);
+        $usuario->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
 }

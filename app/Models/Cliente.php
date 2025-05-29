@@ -21,5 +21,6 @@ class Cliente extends Model
         'dni_photo',
         'selfie_photo',
         'foto_perfil',
+        'password',
     ];
 }

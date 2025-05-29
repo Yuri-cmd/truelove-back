@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Mail\CredencialesSocio;
+use App\Mail\SendCode;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
@@ -268,6 +269,10 @@ class SocioController extends Controller
 
     public function getPedidos($id)
     {
+        $tienda = BusinessRegistration::find($id);
+        if (!$tienda->activo) {
+            return [];
+        }
         $pedidos = Pedido::with([
             'trackings' => function ($query) {
                 $query->orderBy('created_at', 'desc');
@@ -322,6 +327,7 @@ class SocioController extends Controller
 
         return response()->json($pedidos);
     }
+
     public function delete($id)
     {
         DB::beginTransaction();
@@ -693,4 +699,122 @@ class SocioController extends Controller
         }
     }
 
+    public function actualizarEstado(Request $request)
+    {
+        $local = BusinessRegistration::find($request->id);
+        if ($local) {
+            $local->activo = $request->activo;
+            $local->save();
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(['success' => false], 404);
+    }
+
+    public function sendCode(Request $request)
+    {
+        try {
+            // Validar los datos recibidos en la solicitud
+            $request->validate([
+                'email' => 'required|email',
+            ]);
+
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El correo es incorrecto.',
+                    'status' => 500,
+                ]);
+            }
+
+            // Generar nuevo código de verificación
+            $newVerificationCode = Str::random(6);
+
+            // Enviar el correo con el código de verificación
+            Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
+
+
+            // Retornar el código en la respuesta para ser usado en la aplicación
+            return response()->json([
+                'success' => true,
+                'message' => 'Código de verificación enviado al correo electrónico',
+                'status' => 200,
+                'verification_code' => $newVerificationCode,
+                'id' => $user->id
+            ]);
+        } catch (\Exception $e) {
+            // Capturar cualquier error y devolver una respuesta de error
+            return response()->json([
+                'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
+                'error' => $e->getMessage() // Detalle del error para depuración
+            ], 500);
+        }
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $usuario = User::where('id', $request->id)->first();
+
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        $usuario->password = Hash::make($request->password);
+        $usuario->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    public function getPedido($id)
+    {
+        $pedido = Pedido::with([
+            'trackings' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ])
+            ->where('id', $id)
+            ->whereDate('created_at', Carbon::today())
+            ->first();
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+
+        $pedidoDetalles = PedidoDetalle::where('pedido_id', $id)->get();
+        $cliente = Cliente::find($pedido->id_cliente);
+        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+
+        $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
+        if ($motorizado) {
+            $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
+            $pedido->celular_motorizado = $motorizado['celular'] ?? '';
+        } else {
+            $pedido->motorizado = '';
+            $pedido->celular_motorizado = '';
+        }
+
+        $names = array_map(function ($item) {
+            return $item['nombre'];
+        }, $pedidoDetalles->toArray());
+        $namesString = implode(', ', $names);
+
+        // Obtener el último estado del tracking
+        $ultimoTracking = $pedido->trackings->first();
+        $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
+        $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
+
+        // Agregar información adicional
+        $pedido->detalle = $namesString;
+        $pedido->detalleArray = $pedidoDetalles;
+        $pedido->local = $local->nombre_establecimiento;
+        $pedido->direccion_local = $local->direccion_completa;
+        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+        $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
+        $pedido->celular = $cliente->celular;
+        $pedido->lat_local = $local->latitud;
+        $pedido->lon_local = $local->longitud;
+        $pedido->tiempo = $pedido->tiempo ?? 0;
+        $pedido->nota = $pedido->nota ?? 'Sin nota';
+        $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+
+        return response()->json([$pedido]);
+    }
 }

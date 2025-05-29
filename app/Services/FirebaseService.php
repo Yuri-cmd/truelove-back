@@ -67,6 +67,18 @@ class FirebaseService
                     "title" => $title,
                     "body" => $body
                 ],
+                "android" => [
+                    "notification" => [
+                        "sound" => "notification_sound"
+                    ]
+                ],
+                "apns" => [
+                    "payload" => [
+                        "aps" => [
+                            "sound" => "notification_sound.caf"
+                        ]
+                    ]
+                ]
             ]
         ];
 
