@@ -106,7 +106,10 @@ class ClienteController extends Controller
             if ($response === false) {
                 return response()->json(['message' => 'Error al obtener la información.'], 500);
             }
-            return response()->json(json_decode($response, true));
+            $data = json_decode($response, true);
+            $data['status'] = 200;
+
+            return response()->json($data, 200);
         } catch (Exception $e) {
             return response()->json(['message' => 'Excepción capturada: ' . $e->getMessage()], 500);
         }
