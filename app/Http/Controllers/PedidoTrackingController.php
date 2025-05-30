@@ -20,6 +20,7 @@ class PedidoTrackingController extends Controller
             'id' => $id,
             'estado' => $pedido->estado,
             'tiempo' => $tiempo ?? 0,
+            'tieneMotorizado' => Pedido::find($id)->id_motorizado ? true : false,
         ]);
     }
 

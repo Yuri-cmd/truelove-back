@@ -320,6 +320,7 @@ class SocioController extends Controller
             $pedido->tiempo = $pedido->tiempo ?? 0;
             $pedido->nota = $pedido->nota ?? 'Sin nota';
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+            $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
         }
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente
@@ -816,5 +817,18 @@ class SocioController extends Controller
         $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
 
         return response()->json([$pedido]);
+    }
+
+    public function updateToken(Request $request)
+    {
+        $reparto = BusinessRegistration::findOrFail($request->id_reparto);
+        $reparto->token_fmc = $request->token_fcm;
+        $reparto->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token actualizado correctamente',
+            'data' => $reparto
+        ]);
     }
 }

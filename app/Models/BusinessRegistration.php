@@ -20,6 +20,7 @@ class BusinessRegistration extends Model
         'aprobado',
         'posToDriver',
         'activo',
+        'token_fmc'
     ];
 
     protected $casts = [

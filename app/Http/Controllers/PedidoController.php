@@ -7,6 +7,7 @@ use App\Models\Adicional;
 use App\Models\BusinessRegistration;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
+use App\Models\DescuentoCliente;
 use App\Models\Establecimiento;
 use App\Models\Menu;
 use Illuminate\Http\Request;
@@ -35,53 +36,118 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
-        $pedido = Pedido::create($request->only(['id_local', 'id_cliente', 'latitud', 'longitud', 'nota', 'id_tipo_pago', 'tipo_comprobante', 'documento']));
+        $pedido = Pedido::create($request->only([
+            'id_local',
+            'id_cliente',
+            'latitud',
+            'longitud',
+            'nota',
+            'id_tipo_pago',
+            'tipo_comprobante',
+            'documento',
+            'precio_delivery',
+            'descuento',
+            'subtotal',
+            'codigo',
+        ]));
+
+        $totalPedido = 0;
 
         foreach ($request->items as $item) {
+            $precio = preg_replace('/[^\d.]/', '', $item['price']);
+            $totalPedido += $precio * ($item['quantity'] ?? 1);
+
             PedidoDetalle::create([
                 'pedido_id' => $pedido->id,
                 'id_producto' => $item['id'],
                 'nombre' => $item['name'],
                 'cantidad' => $item['quantity'] ?? 1,
-                'precio' => preg_replace('/[^\d.]/', '', $item['price']),
+                'precio' => $precio,
                 'tipo' => 'item',
             ]);
         }
 
         foreach ($request->adicionales as $adicional) {
+            $precio = preg_replace('/[^\d.]/', '', $adicional['price']);
+            $totalPedido += $precio;
+
             PedidoDetalle::create([
                 'pedido_id' => $pedido->id,
                 'id_producto' => $adicional['id'],
                 'nombre' => $adicional['name'],
                 'cantidad' => 1,
-                'precio' => preg_replace('/[^\d.]/', '', $adicional['price']),
+                'precio' => $precio,
                 'tipo' => 'adicional',
             ]);
         }
 
-        PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
+        $requiereConfirmacion = $totalPedido > 100;
 
-        $this->sendMotorizadosCerca();
+        $pedido->requiere_confirmacion_local = $requiereConfirmacion;
 
-        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+        //descontar uso del cupon
+        $descuento = DescuentoCliente::where('id_cliente', $request->id_cliente)
+            ->where('codigo', $request->codigo)
+            ->where('estado', 1)
+            ->first();
 
-        $distancia = $this->pedidoService->obtenerDistancia($local->latitud, $local->longitud, $request->latitud, $request->longitud);
-        $precio = 0;
-        if ($distancia !== null) {
-            $precio = $this->pedidoService->calcularPrecioPorDistancia($distancia);
+        if (($descuento->usos_disponibles - 1) == 0) {
+            $descuento->usos_disponibles = 0;
+        } else {
+            $descuento->usos_disponibles = $descuento->usos_disponibles - 1;
         }
+        $descuento->cantidad_usos = 1;
+        $descuento->save();
 
-        $pedido->precio_delivery = $precio;
+
+        PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
         $pedido->save();
 
-        return response()->json(['status' => 'success', 'pedido_id' => $pedido->id, 'precio' => $precio]);
+        $comercio = BusinessRegistration::find($request->id_local);
+
+        if ($comercio->token_fmc) {
+            $this->firebaseService->sendNotification(
+                $comercio->token_fmc,
+                '🛒 Nuevo Pedido de ' . Cliente::where('id', $request->id_cliente)->first()->nombre,
+                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+            );
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'pedido_id' => $pedido->id,
+            'requiere_confirmacion' => $requiereConfirmacion,
+            'precio_delivery' => $precio
+        ]);
+    }
+
+
+    public function calcularPrecioDelivery($idLocal, $idCliente)
+    {
+        $local = Establecimiento::where('business_registration_id', $idLocal)->first();
+
+        $clienteDireccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
+        $coordenadas = json_decode($clienteDireccion->coordenadas);
+        $distancia = $this->pedidoService->obtenerDistancia(
+            $local->latitud,
+            $local->longitud,
+            $coordenadas->coordinates[1],
+            $coordenadas->coordinates[0]
+        );
+
+        $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia) : 0;
+
+        // Formatear con 2 decimales
+        return response()->json(number_format((float)$precio_delivery, 2, '.', ''));
     }
 
     public function sendMotorizadosCerca()
     {
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
         foreach ($motorizadosToken as $token) {
-            $this->firebaseService->sendNotification($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+            if ($token) {
+                $this->firebaseService->sendNotification($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+            }
         }
     }
 
@@ -125,6 +191,10 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
+        if ($request->estado == 3) {
+            $this->sendMotorizadosCerca();
+        }
+
         // Retornar respuesta exitosa
         return response()->json(['message' => 'Estado actualizado correctamente'], 200);
     }
@@ -158,6 +228,9 @@ class PedidoController extends Controller
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $total = $pedidoDetalles->sum('precio');
                 $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
+                if ($pedidoTracking->estado !== 8) {
+                    $existeCalificacion = true;
+                }
                 $data[] = [
                     'id' => $pedido->id,
                     'estado' => estadoPedido($pedidoTracking->estado),
@@ -170,10 +243,14 @@ class PedidoController extends Controller
                     'cantidad' => count($pedidoDetalles),
                     'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
                     'created_at' => $pedido->created_at,
+                    'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
                 ];
             }
         }
+        usort($data, function ($a, $b) {
+            return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+        });
         return response()->json($data);
     }
 
@@ -400,5 +477,21 @@ class PedidoController extends Controller
         }
 
         return response()->json($items);
+    }
+
+    public function verificarConfirmacion($id)
+    {
+        $pedido = Pedido::findOrFail($id);
+        return response()->json([
+            'requiere_confirmacion' => $pedido->requiere_confirmacion_local
+        ]);
+    }
+
+    public function updateVerificarConfirmacion($id)
+    {
+        $pedido = Pedido::findOrFail($id);
+        $pedido->requiere_confirmacion_local = 0;
+        $pedido->save();
+        return response()->json(true);
     }
 }

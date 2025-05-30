@@ -17,10 +17,12 @@ use App\Models\User;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+
 class BikerController extends Controller
 {
     protected $apiKey = '***MAPBOX_TOKEN_REMOVED***';
@@ -127,7 +129,18 @@ class BikerController extends Controller
 
         // Obtener los pedidos con el id_local correspondiente
         $pedidos = Pedido::whereNotNull('id_local')
+            ->whereNull('id_motorizado')
             ->whereDate('created_at', Carbon::today())
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('pedido_id'))
+                    ->from('pedido_trackings')
+                    ->whereRaw('estado = 3')
+                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
+                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
+                            ->from('pedido_trackings')
+                            ->groupBy('pedido_id');
+                    });
+            })
             ->get();
 
         foreach ($pedidos as $pedido) {
@@ -179,6 +192,8 @@ class BikerController extends Controller
                         $pedido->nota = $pedido->nota ?? 'Sin nota';
                         $pedido->tiempo = $pedido->tiempo ?? 0;
                         $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+                        $pedido->precio_delivery = $pedido->precio_delivery;
+                        $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
                     }
                 }
             }

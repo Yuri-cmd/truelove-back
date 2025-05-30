@@ -88,7 +88,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
             Route::delete('/motorizado/{id}/delete', 'delete');
             Route::post('/motorizado/{id}/actualizar-pedidos', 'actualizarCantidadPedidos');
-
         });
         Route::controller(HorarioController::class)->group(function () {
             Route::get('/horarios', 'getAllGrupos');
@@ -232,6 +231,10 @@ Route::get('/banners', [BannerController::class, 'index']);
 Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew']);
 Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword']);
 Route::get('/cliente/repetir/orden/{idPedido}', [PedidoController::class, 'repetirOrden']);
+Route::get('/pedidos/{id}/verificar-confirmacion', [PedidoController::class, 'verificarConfirmacion']);
+Route::put('socio/update/verificar/confirmacion/{idPedido}', [PedidoController::class, 'updateVerificarConfirmacion']);
+Route::get('get/precio/delivery/{idLocal}/{idCliente}', [PedidoController::class, 'calcularPrecioDelivery']);
+Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteController::class, 'validarCodeDescuento']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
@@ -261,6 +264,7 @@ Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'des
 Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
 Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);
 Route::post('/socio/update-password', [SocioController::class, 'updatePassword']);
+Route::post('socio/update-token', [SocioController::class, 'updateToken']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
@@ -291,7 +295,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
- 
+
     Route::post('/negocio/banner', [PerfilNegocioController::class, 'actualizarBanner']);
 
     // categorias
@@ -421,4 +425,3 @@ Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarCliente
 
 Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
-

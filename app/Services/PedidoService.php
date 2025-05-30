@@ -58,8 +58,8 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm)
     {
-        $precioBase = 2;
-        $precioMax = 7;
+        $precioBase = 5;
+        $precioMax = 10;
         $distanciaMax = 10; // km
 
         if ($distanciaKm <= 1) {
