@@ -72,9 +72,11 @@ class PedidoService
 
         // Tarifa proporcional entre base y máxima
         $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - 1)) * ($distanciaKm - 1);
-        return floor($precio * 100) / 100;
+
+        // Redondear hacia abajo en múltiplos de 0.5
+        return floor($precio * 2) / 2;
     }
-    
+
     // Método para obtener el tiempo estimado de llegada desde el motorizado al local
     public function obtenerTiempoEstimadoTresPuntos($lat1, $lon1, $lat2, $lon2, $lat3, $lon3)
     {
