@@ -90,15 +90,16 @@ class PedidoController extends Controller
             ->where('codigo', $request->codigo)
             ->where('estado', 1)
             ->first();
-
-        if (($descuento->usos_disponibles - 1) == 0) {
-            $descuento->usos_disponibles = 0;
-        } else {
-            $descuento->usos_disponibles = $descuento->usos_disponibles - 1;
+            
+        if ($descuento) {
+            if (($descuento->usos_disponibles - 1) == 0) {
+                $descuento->usos_disponibles = 0;
+            } else {
+                $descuento->usos_disponibles = $descuento->usos_disponibles - 1;
+            }
+            $descuento->cantidad_usos = 1;
+            $descuento->save();
         }
-        $descuento->cantidad_usos = 1;
-        $descuento->save();
-
 
         PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
         $pedido->save();

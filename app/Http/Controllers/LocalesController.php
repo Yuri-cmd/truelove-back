@@ -90,18 +90,6 @@ class LocalesController extends Controller
 
         $locales = $query->get();
 
-        // Ordena manualmente por prioridad (nulls muy altos) y luego por distancia
-        $locales = $locales->sort(function ($a, $b) {
-            $aPrioridad = $a->prioridad ?? PHP_INT_MAX;
-            $bPrioridad = $b->prioridad ?? PHP_INT_MAX;
-
-            if ($aPrioridad === $bPrioridad) {
-                return $a->distancia <=> $b->distancia;
-            }
-
-            return $aPrioridad <=> $bPrioridad;
-        })->values(); // Reinicia los índices de la colección
-
         return $locales;
     }
 }
