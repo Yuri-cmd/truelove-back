@@ -58,7 +58,7 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm)
     {
-        $precioBase = 5;
+        $precioBase = 4;
         $precioMax = 10;
         $distanciaMax = 10; // km
 
@@ -72,7 +72,7 @@ class PedidoService
 
         // Tarifa proporcional entre base y máxima
         $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - 1)) * ($distanciaKm - 1);
-        return round($precio, 2);
+        return floor($precio * 100) / 100;
     }
     
     // Método para obtener el tiempo estimado de llegada desde el motorizado al local
