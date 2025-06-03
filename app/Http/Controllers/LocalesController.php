@@ -65,11 +65,11 @@ class LocalesController extends Controller
         $radio = 10;
         $query = BusinessRegistration::with(['establecimiento', 'perfil'])
             ->selectRaw("
-                *,
-                perfiles_negocio.ruta_logo, 
-                (6371 * acos(cos(radians(?)) * cos(radians(establecimientos.latitud)) * 
-                cos(radians(establecimientos.longitud) - radians(?)) + 
-                sin(radians(?)) * sin(radians(establecimientos.latitud)))) AS distancia", [$lat, $lng, $lat])
+            *,
+            perfiles_negocio.ruta_logo, 
+            (6371 * acos(cos(radians(?)) * cos(radians(establecimientos.latitud)) * 
+            cos(radians(establecimientos.longitud) - radians(?)) + 
+            sin(radians(?)) * sin(radians(establecimientos.latitud)))) AS distancia", [$lat, $lng, $lat])
             ->join('establecimientos', 'business_registrations.id', '=', 'establecimientos.business_registration_id')
             ->join('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
             ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id');
@@ -82,13 +82,26 @@ class LocalesController extends Controller
             $query->where('establecimientos.nombre_establecimiento', 'like', '%' . $term . '%');
         }
 
-        $query->having('distancia', '<=', $radio)
-            ->orderBy('local_priorities.prioridad', 'asc')
-            ->orderBy('distancia', 'asc');
+        $query->having('distancia', '<=', $radio);
+
         if ($category) {
             $query->take(10);
         }
-        $locales =  $query->get();
+
+        $locales = $query->get();
+
+        // Ordena manualmente por prioridad (nulls muy altos) y luego por distancia
+        $locales = $locales->sort(function ($a, $b) {
+            $aPrioridad = $a->prioridad ?? PHP_INT_MAX;
+            $bPrioridad = $b->prioridad ?? PHP_INT_MAX;
+
+            if ($aPrioridad === $bPrioridad) {
+                return $a->distancia <=> $b->distancia;
+            }
+
+            return $aPrioridad <=> $bPrioridad;
+        })->values(); // Reinicia los índices de la colección
+
         return $locales;
     }
 }
