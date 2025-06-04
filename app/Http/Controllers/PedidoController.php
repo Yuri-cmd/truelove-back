@@ -192,7 +192,7 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
-        if ($request->estado == 3) {
+        if ($request->estado == 2) {
             $this->sendMotorizadosCerca();
         }
 
