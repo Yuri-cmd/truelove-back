@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\AdicionalController;
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\BannerController;
@@ -63,6 +64,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/users/create', 'store');
             Route::delete('/users/delete/{id}', 'delete');
         });
+      Route::get('/deletion-requests', [AccountDeletionController::class, 'getPendingRequests']);
+        Route::post('/deletion-requests/{id}/approve', [AccountDeletionController::class, 'approveRequest']);
+        Route::post('/deletion-requests/{id}/reject', [AccountDeletionController::class, 'rejectRequest']);
+        Route::get('/deletion-requests/history', [AccountDeletionController::class, 'getRequestHistory']);
 
         // Gestión de socios
         Route::controller(SocioController::class)->group(function () {
@@ -382,6 +387,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
     Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
     Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
+  Route::post('/account/request-deletion', [AccountDeletionController::class, 'requestDeletion']);
 });
 
 Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
