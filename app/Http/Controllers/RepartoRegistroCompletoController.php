@@ -40,6 +40,19 @@ class RepartoRegistroCompletoController extends Controller
         $cuentaBancaria = $request->input('cuentaBancaria');
         $vehiculo = $request->input('vehiculo');
 
+        // Log detallado de los datos recibidos
+        Log::info('Datos extraídos del request', [
+            'datosBasicos_keys' => array_keys($datosBasicos),
+            'datosPersonales_keys' => array_keys($datosPersonales),
+            'cuentaBancaria_keys' => array_keys($cuentaBancaria),
+            'vehiculo_keys' => array_keys($vehiculo),
+            'vehiculo_imagenes' => [
+                'placa_imagen' => isset($vehiculo['placa_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'licenciaConducir_imagen' => isset($vehiculo['licenciaConducir_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'seguro_imagen' => isset($vehiculo['seguro_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'tarjetaPropiedad_imagen' => isset($vehiculo['tarjetaPropiedad_imagen']) ? 'PRESENTE' : 'AUSENTE'
+            ]
+        ]);
         // Iniciar transacción
         DB::beginTransaction();
 
@@ -201,32 +214,255 @@ class RepartoRegistroCompletoController extends Controller
 
 
             // PASO 8: Crear registro de vehículo
-            $almacenarImagen = function ($base64Data, $carpeta) {
-                if (!$base64Data)
+
+            $almacenarImagen = function ($base64Data, $carpeta, $tipoImagen = 'imagen') use ($registro) {
+                // Log inicial para verificar si se recibe la imagen
+                Log::info("Procesando imagen de vehículo", [
+                    'registro_id' => $registro->id,
+                    'tipo_imagen' => $tipoImagen,
+                    'carpeta' => $carpeta,
+                    'tiene_datos' => !empty($base64Data),
+                    'longitud_datos' => $base64Data ? strlen($base64Data) : 0
+                ]);
+
+                if (!$base64Data) {
+                    Log::warning("No se recibieron datos de imagen", [
+                        'registro_id' => $registro->id,
+                        'tipo_imagen' => $tipoImagen
+                    ]);
                     return null;
+                }
 
-                $imagen = base64_decode(explode(',', $base64Data)[1]);
-                $fileName = time() . '_' . Str::random(10) . '.jpg';
+                try {
+                    // Verificar formato base64
+                    if (!str_contains($base64Data, ',')) {
+                        Log::error("Formato base64 inválido - no contiene coma separadora", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'primeros_50_chars' => substr($base64Data, 0, 50)
+                        ]);
+                        return null;
+                    }
 
-                $tempFile = tempnam(sys_get_temp_dir(), 'img');
-                file_put_contents($tempFile, $imagen);
+                    $partes = explode(',', $base64Data);
+                    if (count($partes) !== 2) {
+                        Log::error("Formato base64 inválido - estructura incorrecta", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'partes_encontradas' => count($partes)
+                        ]);
+                        return null;
+                    }
 
-                $ruta = Storage::disk('custom_public')->putFileAs($carpeta, $tempFile, $fileName);
-                unlink($tempFile);
+                    // Decodificar imagen
+                    $imagen = base64_decode($partes[1]);
+                    if ($imagen === false) {
+                        Log::error("Error al decodificar base64", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen
+                        ]);
+                        return null;
+                    }
 
-                return $ruta;
+                    $tamanoImagen = strlen($imagen);
+                    Log::info("Imagen decodificada exitosamente", [
+                        'registro_id' => $registro->id,
+                        'tipo_imagen' => $tipoImagen,
+                        'tamano_bytes' => $tamanoImagen
+                    ]);
+
+                    // Verificar tamaño mínimo de imagen (1KB)
+                    if ($tamanoImagen < 1024) {
+                        Log::warning("Imagen muy pequeña, posible corrupción", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'tamano_bytes' => $tamanoImagen
+                        ]);
+                    }
+
+                    $fileName = time() . '_' . Str::random(10) . '.jpg';
+
+                    // Crear archivo temporal
+                    $tempFile = tempnam(sys_get_temp_dir(), 'img_vehiculo');
+                    if ($tempFile === false) {
+                        Log::error("No se pudo crear archivo temporal", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen
+                        ]);
+                        return null;
+                    }
+
+                    // Escribir datos al archivo temporal
+                    $bytesEscritos = file_put_contents($tempFile, $imagen);
+                    if ($bytesEscritos === false) {
+                        Log::error("Error al escribir archivo temporal", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'archivo_temporal' => $tempFile
+                        ]);
+                        return null;
+                    }
+
+                    Log::info("Archivo temporal creado", [
+                        'registro_id' => $registro->id,
+                        'tipo_imagen' => $tipoImagen,
+                        'archivo_temporal' => $tempFile,
+                        'bytes_escritos' => $bytesEscritos
+                    ]);
+
+                    // Verificar que el archivo temporal existe y tiene contenido
+                    if (!file_exists($tempFile) || filesize($tempFile) === 0) {
+                        Log::error("Archivo temporal inválido", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'existe' => file_exists($tempFile),
+                            'tamano' => file_exists($tempFile) ? filesize($tempFile) : 'N/A'
+                        ]);
+                        return null;
+                    }
+
+                    // Intentar guardar en storage
+                    $ruta = Storage::disk('custom_public')->putFileAs($carpeta, $tempFile, $fileName);
+
+                    if ($ruta === false) {
+                        Log::error("Error al guardar en storage", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'carpeta' => $carpeta,
+                            'nombre_archivo' => $fileName
+                        ]);
+                        unlink($tempFile);
+                        return null;
+                    }
+
+                    // Verificar que el archivo se guardó correctamente
+                    if (!Storage::disk('custom_public')->exists($ruta)) {
+                        Log::error("Archivo no existe después de guardarlo", [
+                            'registro_id' => $registro->id,
+                            'tipo_imagen' => $tipoImagen,
+                            'ruta_esperada' => $ruta
+                        ]);
+                        unlink($tempFile);
+                        return null;
+                    }
+
+                    $tamanoFinal = Storage::disk('custom_public')->size($ruta);
+                    Log::info("Imagen guardada exitosamente", [
+                        'registro_id' => $registro->id,
+                        'tipo_imagen' => $tipoImagen,
+                        'ruta_final' => $ruta,
+                        'tamano_final' => $tamanoFinal
+                    ]);
+
+                    // Limpiar archivo temporal
+                    unlink($tempFile);
+
+                    return $ruta;
+
+                } catch (\Exception $e) {
+                    Log::error("Excepción al procesar imagen de vehículo", [
+                        'registro_id' => $registro->id,
+                        'tipo_imagen' => $tipoImagen,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+
+                    // Limpiar archivo temporal si existe
+                    if (isset($tempFile) && file_exists($tempFile)) {
+                        unlink($tempFile);
+                    }
+
+                    return null;
+                }
             };
 
-            RegistroVehiculo::create([
+            // ✅ AQUÍ VA EL SEGUNDO BLOQUE DE LOGGING
+// Log de datos recibidos para vehículo
+            Log::info("Datos de vehículo recibidos", [
+                'registro_id' => $registro->id,
+                'placa' => $vehiculo['placa'] ?? 'NO_DEFINIDA',
+                'tiene_imagen_placa' => isset($vehiculo['placa_imagen']),
+                'tiene_imagen_licencia' => isset($vehiculo['licenciaConducir_imagen']),
+                'tiene_imagen_seguro' => isset($vehiculo['seguro_imagen']),
+                'tiene_imagen_tarjeta' => isset($vehiculo['tarjetaPropiedad_imagen']),
+                'keys_vehiculo' => array_keys($vehiculo)
+            ]);
+
+            // Procesar cada imagen individualmente con logging
+            $imagenPlaca = null;
+            $imagenLicencia = null;
+            $imagenSeguro = null;
+            $imagenTarjeta = null;
+
+            if (isset($vehiculo['placa_imagen'])) {
+                Log::info("Procesando imagen de placa", ['registro_id' => $registro->id]);
+                $imagenPlaca = $almacenarImagen($vehiculo['placa_imagen'], 'placas', 'placa');
+                Log::info("Resultado imagen placa", [
+                    'registro_id' => $registro->id,
+                    'ruta' => $imagenPlaca,
+                    'exitoso' => $imagenPlaca !== null
+                ]);
+            }
+
+            if (isset($vehiculo['licenciaConducir_imagen'])) {
+                Log::info("Procesando imagen de licencia", ['registro_id' => $registro->id]);
+                $imagenLicencia = $almacenarImagen($vehiculo['licenciaConducir_imagen'], 'licencias', 'licencia');
+                Log::info("Resultado imagen licencia", [
+                    'registro_id' => $registro->id,
+                    'ruta' => $imagenLicencia,
+                    'exitoso' => $imagenLicencia !== null
+                ]);
+            }
+
+            if (isset($vehiculo['seguro_imagen'])) {
+                Log::info("Procesando imagen de seguro", ['registro_id' => $registro->id]);
+                $imagenSeguro = $almacenarImagen($vehiculo['seguro_imagen'], 'seguros', 'seguro');
+                Log::info("Resultado imagen seguro", [
+                    'registro_id' => $registro->id,
+                    'ruta' => $imagenSeguro,
+                    'exitoso' => $imagenSeguro !== null
+                ]);
+            }
+
+            if (isset($vehiculo['tarjetaPropiedad_imagen'])) {
+                Log::info("Procesando imagen de tarjeta propiedad", ['registro_id' => $registro->id]);
+                $imagenTarjeta = $almacenarImagen($vehiculo['tarjetaPropiedad_imagen'], 'tarjetas_propiedad', 'tarjeta_propiedad');
+                Log::info("Resultado imagen tarjeta", [
+                    'registro_id' => $registro->id,
+                    'ruta' => $imagenTarjeta,
+                    'exitoso' => $imagenTarjeta !== null
+                ]);
+            }
+
+            // Crear registro con logging de los valores finales
+            $datosVehiculo = [
                 'reparto_registro_id' => $registro->id,
                 'placa' => $vehiculo['placa'],
                 'licencia_conducir' => $vehiculo['licenciaConducir'],
                 'seguro' => $vehiculo['seguro'],
                 'tarjeta_propiedad' => $vehiculo['tarjetaPropiedad'],
-                'imagen_placa' => isset($vehiculo['placa_imagen']) ? $almacenarImagen($vehiculo['placa_imagen'], 'placas') : null,
-                'imagen_licencia' => isset($vehiculo['licenciaConducir_imagen']) ? $almacenarImagen($vehiculo['licenciaConducir_imagen'], 'licencias') : null,
-                'imagen_seguro' => isset($vehiculo['seguro_imagen']) ? $almacenarImagen($vehiculo['seguro_imagen'], 'seguros') : null,
-                'imagen_tarjeta_propiedad' => isset($vehiculo['tarjetaPropiedad_imagen']) ? $almacenarImagen($vehiculo['tarjetaPropiedad_imagen'], 'tarjetas_propiedad') : null
+                'imagen_placa' => $imagenPlaca,
+                'imagen_licencia' => $imagenLicencia,
+                'imagen_seguro' => $imagenSeguro,
+                'imagen_tarjeta_propiedad' => $imagenTarjeta
+            ];
+
+            Log::info("Creando registro de vehículo", [
+                'registro_id' => $registro->id,
+                'datos_vehiculo' => $datosVehiculo
+            ]);
+
+            $vehiculoCreado = RegistroVehiculo::create($datosVehiculo);
+
+            Log::info("Registro de vehículo creado", [
+                'registro_id' => $registro->id,
+                'vehiculo_id' => $vehiculoCreado->id,
+                'imagenes_guardadas' => [
+                    'placa' => $imagenPlaca !== null,
+                    'licencia' => $imagenLicencia !== null,
+                    'seguro' => $imagenSeguro !== null,
+                    'tarjeta' => $imagenTarjeta !== null
+                ]
             ]);
 
             // Confirmar transacción
