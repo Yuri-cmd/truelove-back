@@ -28,25 +28,43 @@ class BannerController extends Controller
         return response()->json($banner);
     }
 
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'titulo' => 'required|string|max:255',
-            'subtitulo' => 'required|string|max:255',
-            'color_fondo' => 'required|string|max:7',
-            'texto_boton' => 'required|string|max:255',
-            'url_boton' => 'nullable|url',
-            'url_imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
-            'estado' => 'required|boolean'
-        ]);
+  public function store(Request $request)
+{
+    \Log::info('Iniciando store de banner');
+    \Log::info('Request completo', ['request' => $request->all()]);
+    
+    $data = $request->validate([
+        'titulo' => 'required|string|max:255',
+        'subtitulo' => 'required|string|max:255',
+        'color_fondo' => 'required|string|max:7',
+        'texto_boton' => 'required|string|max:255',
+        'url_boton' => 'nullable|url',
+        'url_imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+        'estado' => 'required|boolean'
+    ]);
 
-        if ($request->hasFile('url_imagen')) {
+    \Log::info('Datos validados', ['data' => $data]);
+
+    if ($request->hasFile('url_imagen')) {
+        \Log::info('Tiene archivo de imagen');
+        \Log::info('Nombre original', ['nombre' => $request->file('url_imagen')->getClientOriginalName()]);
+        
+        try {
             $imagePath = $request->file('url_imagen')->store('banners', 'custom_public');
+            \Log::info('Imagen guardada', ['path' => $imagePath]);
             $data['url_imagen'] = $imagePath;
+        } catch (\Exception $e) {
+            \Log::error('Error guardando imagen', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error guardando imagen'], 500);
         }
-        $banner = Banner::create($data);
-        return response()->json($banner, 201);
+    } else {
+        \Log::info('No se detectó archivo de imagen');
     }
+
+    $banner = Banner::create($data);
+    return response()->json($banner, 201);
+}
+
 
 
     public function update(Request $request, $id)
