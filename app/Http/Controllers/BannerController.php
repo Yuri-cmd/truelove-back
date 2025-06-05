@@ -15,9 +15,9 @@ class BannerController extends Controller
         }
 
         $banners = Banner::where('estado', 1)->get()->map(function ($banner) {
-            // Si ya tiene la URL completa, no la modifiques
+            // Construir URL completa si solo tiene el path
             if ($banner->url_imagen && !str_starts_with($banner->url_imagen, 'http')) {
-                $banner->url_imagen = env('APP_URL') . $banner->url_imagen;
+                $banner->url_imagen = env('APP_URL') . '/storage/' . $banner->url_imagen;
             }
             return $banner;
         });
@@ -28,14 +28,17 @@ class BannerController extends Controller
     public function show($id)
     {
         $banner = Banner::findOrFail($id);
+        
+        // Construir URL completa para la respuesta
+        if ($banner->url_imagen && !str_starts_with($banner->url_imagen, 'http')) {
+            $banner->url_imagen = env('APP_URL') . '/storage/' . $banner->url_imagen;
+        }
+        
         return response()->json($banner);
     }
 
     public function store(Request $request)
     {
-        \Log::info('=== INICIO DEBUG BANNER ===');
-        \Log::info('Request completo', ['request' => $request->all()]);
-        
         try {
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
@@ -47,86 +50,41 @@ class BannerController extends Controller
                 'estado' => 'required|boolean'
             ]);
 
-            \Log::info('Datos validados', ['data' => $data]);
+            // Crear banner sin imagen primero
+            $banner = Banner::create([
+                'titulo' => $data['titulo'],
+                'subtitulo' => $data['subtitulo'],
+                'color_fondo' => $data['color_fondo'],
+                'texto_boton' => $data['texto_boton'],
+                'url_boton' => $data['url_boton'],
+                'estado' => $data['estado']
+            ]);
 
+            // Procesar imagen después si existe
             if ($request->hasFile('url_imagen')) {
-                $file = $request->file('url_imagen');
-                
-                \Log::info('Archivo recibido', [
-                    'nombre' => $file->getClientOriginalName(),
-                    'tamaño' => $file->getSize(),
-                    'valido' => $file->isValid(),
-                    'mime' => $file->getMimeType()
-                ]);
-                
-                // Verificar que el archivo sea válido
-                if (!$file->isValid()) {
-                    throw new \Exception('Archivo inválido: ' . $file->getErrorMessage());
-                }
-                
-                $directory = 'banners';
-                
-                // Verificar espacio en disco
-                $storagePath = storage_path('app/public');
-                if (is_dir($storagePath)) {
-                    $diskSpace = disk_free_space($storagePath);
-                    \Log::info('Espacio disponible', ['bytes' => $diskSpace, 'MB' => round($diskSpace / 1024 / 1024, 2)]);
-                }
-                
-                // Crear directorio si no existe
-                if (!Storage::disk('custom_public')->exists($directory)) {
-                    try {
-                        $created = Storage::disk('custom_public')->makeDirectory($directory);
-                        \Log::info('Directorio creado', ['success' => $created, 'directory' => $directory]);
-                    } catch (\Exception $e) {
-                        \Log::error('Error creando directorio', ['error' => $e->getMessage()]);
-                        throw new \Exception('No se pudo crear el directorio de imágenes: ' . $e->getMessage());
-                    }
-                }
-
-                // Intentar guardar el archivo
-                try {
-                    $imagePath = $file->store($directory, 'custom_public');
-                    \Log::info('Store ejecutado', ['resultado' => $imagePath]);
+                $imagePath = $request->file('url_imagen')->store('banners', 'custom_public');
+                if ($imagePath) {
+                    $banner->url_imagen = $imagePath; // Guardar solo el path
+                    $banner->save();
                     
-                    if (!$imagePath) {
-                        throw new \Exception('El método store() retornó false - posible problema de permisos');
-                    }
-                    
-                    // Verificar que el archivo realmente se guardó
-                    if (!Storage::disk('custom_public')->exists($imagePath)) {
-                        throw new \Exception('El archivo no existe después del store()');
-                    }
-                    
-                    // Generar URL 
-                    $fullUrl = Storage::url($imagePath);
-                    \Log::info('URL generada', ['url' => $fullUrl, 'path' => $imagePath]);
-                    
-                    $data['url_imagen'] = $fullUrl;
-                    
-                } catch (\Exception $e) {
-                    \Log::error('Error en store de archivo', [
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                    \Log::info('Imagen de banner guardada', [
+                        'banner_id' => $banner->id,
+                        'path' => $imagePath
                     ]);
-                    throw new \Exception('Error guardando imagen: ' . $e->getMessage());
+                } else {
+                    \Log::warning('No se pudo guardar imagen de banner', [
+                        'banner_id' => $banner->id
+                    ]);
                 }
-            } else {
-                \Log::info('No se detectó archivo de imagen');
             }
 
-            $banner = Banner::create($data);
-            \Log::info('Banner creado exitosamente', ['banner_id' => $banner->id]);
-            \Log::info('=== FIN DEBUG BANNER ===');
-            
             return response()->json($banner, 201);
             
         } catch (\Exception $e) {
             \Log::error('Error en store de banner', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString()
+                'file' => $e->getFile()
             ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
@@ -146,39 +104,41 @@ class BannerController extends Controller
                 'estado' => 'sometimes|required|boolean'
             ]);
 
+            // Actualizar campos básicos
+            $banner->update([
+                'titulo' => $data['titulo'] ?? $banner->titulo,
+                'subtitulo' => $data['subtitulo'] ?? $banner->subtitulo,
+                'color_fondo' => $data['color_fondo'] ?? $banner->color_fondo,
+                'texto_boton' => $data['texto_boton'] ?? $banner->texto_boton,
+                'url_boton' => $data['url_boton'] ?? $banner->url_boton,
+                'estado' => $data['estado'] ?? $banner->estado
+            ]);
+
+            // Procesar nueva imagen si se envió
             if ($request->hasFile('url_imagen')) {
                 \Log::info('Actualizando imagen de banner');
                 
-                $directory = 'banners';
-                
-                // Crear directorio si no existe
-                if (!Storage::disk('custom_public')->exists($directory)) {
-                    Storage::disk('custom_public')->makeDirectory($directory);
-                    \Log::info('Directorio creado', ['directory' => $directory]);
-                }
-
                 // Eliminar imagen anterior si existe
                 if ($banner->url_imagen) {
-                    // Extraer solo el path de la URL completa
-                    $oldPath = str_replace('/storage/', '', parse_url($banner->url_imagen, PHP_URL_PATH));
-                    if ($oldPath && Storage::disk('custom_public')->exists($oldPath)) {
-                        Storage::disk('custom_public')->delete($oldPath);
-                        \Log::info('Imagen anterior eliminada', ['path' => $oldPath]);
-                    }
+                    $this->eliminarImagenAnterior($banner->url_imagen);
                 }
 
-                $imagePath = $request->file('url_imagen')->store($directory, 'custom_public');
+                // Guardar nueva imagen
+                $imagePath = $request->file('url_imagen')->store('banners', 'custom_public');
                 
-                if (!$imagePath) {
-                    throw new \Exception('No se pudo guardar la imagen');
+                if ($imagePath) {
+                    $banner->url_imagen = $imagePath; // Guardar solo el path
+                    $banner->save();
+                    
+                    \Log::info('Nueva imagen de banner guardada', [
+                        'banner_id' => $banner->id,
+                        'path' => $imagePath
+                    ]);
+                } else {
+                    throw new \Exception('No se pudo guardar la nueva imagen');
                 }
-                
-                // Generar URL completa
-                $data['url_imagen'] = Storage::url($imagePath);
-                \Log::info('Nueva imagen guardada', ['path' => $imagePath, 'url' => $data['url_imagen']]);
             }
 
-            $banner->update($data);
             return response()->json($banner);
             
         } catch (\Exception $e) {
@@ -198,11 +158,7 @@ class BannerController extends Controller
             
             // Eliminar imagen si existe
             if ($banner->url_imagen) {
-                $imagePath = str_replace('/storage/', '', parse_url($banner->url_imagen, PHP_URL_PATH));
-                if ($imagePath && Storage::disk('custom_public')->exists($imagePath)) {
-                    Storage::disk('custom_public')->delete($imagePath);
-                    \Log::info('Imagen eliminada', ['path' => $imagePath]);
-                }
+                $this->eliminarImagenAnterior($banner->url_imagen);
             }
             
             $banner->delete();
@@ -215,6 +171,31 @@ class BannerController extends Controller
                 'file' => $e->getFile()
             ]);
             return response()->json(['error' => 'Error eliminando el banner: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Eliminar imagen anterior del storage
+     */
+    private function eliminarImagenAnterior($imagenPath)
+    {
+        try {
+            // Si es una URL completa, extraer solo el path
+            if (str_starts_with($imagenPath, 'http') || str_starts_with($imagenPath, '/storage/')) {
+                $path = str_replace('/storage/', '', parse_url($imagenPath, PHP_URL_PATH));
+            } else {
+                $path = $imagenPath; // Ya es solo el path
+            }
+            
+            if ($path && Storage::disk('custom_public')->exists($path)) {
+                Storage::disk('custom_public')->delete($path);
+                \Log::info('Imagen anterior eliminada', ['path' => $path]);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('No se pudo eliminar imagen anterior', [
+                'path' => $imagenPath,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }
