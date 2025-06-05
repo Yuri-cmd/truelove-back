@@ -28,9 +28,6 @@ class PromocionController extends Controller
 
     public function store(Request $request)
     {
-        \Log::info('=== INICIO DEBUG PROMOCION ===');
-        \Log::info('Request completo', ['request' => $request->all()]);
-
         try {
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
@@ -39,57 +36,18 @@ class PromocionController extends Controller
                 'estado' => 'boolean'
             ]);
 
-            \Log::info('Datos validados', ['data' => $data]);
+            $promocion = Promocion::create($data);
 
+            // Subir imagen 
             if ($request->hasFile('imagen')) {
-                $file = $request->file('imagen');
-                \Log::info('Archivo recibido', [
-                    'nombre' => $file->getClientOriginalName(),
-                    'tamaño' => $file->getSize(),
-                    'valido' => $file->isValid(),
-                    'mime' => $file->getMimeType()
-                ]);
-                if (!$file->isValid()) {
-                    throw new \Exception('Archivo inválido: ' . $file->getErrorMessage());
-                }
-
-                $directory = 'promociones-img';
-
-                // Asegura que el directorio exista
-                if (!Storage::disk('public')->exists($directory)) {
-                    Storage::disk('public')->makeDirectory($directory);
-                }
-
-                // Guarda la imagen en el disco 'public'
-                $imagePath = $file->store($directory, 'public');
-                \Log::info('Store ejecutado', ['resultado' => $imagePath]);
-
-                if (!$imagePath || !Storage::disk('public')->exists($imagePath)) {
-                    throw new \Exception('No se pudo guardar la imagen.');
-                }
-
-                // Genera la URL accesible públicamente
-                $fullUrl = Storage::url($imagePath);
-                \Log::info('URL generada', ['url' => $fullUrl, 'path' => $imagePath]);
-
-                $data['imagen'] = $fullUrl;
-            } else {
-                \Log::info('No se detectó archivo de imagen');
-                $data['imagen'] = null;
+                $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+                $promocion->image = $imagePath;
             }
 
-            $promocion = Promocion::create($data);
-            \Log::info('Promoción creada exitosamente', ['promocion_id' => $promocion->id]);
-            \Log::info('=== FIN DEBUG PROMOCION ===');
+            $promocion->save();
 
             return response()->json($promocion, 201);
         } catch (\Exception $e) {
-            \Log::error('Error en store de promoción', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }
