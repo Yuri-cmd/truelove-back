@@ -16,9 +16,9 @@ class PromocionController extends Controller
 
         $promociones = Promocion::where('estado', 1)->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado'])
             ->map(function ($promocion) {
-                // Si ya tiene la URL completa, no la modifiques
+                // Construir URL completa si solo tiene el path
                 if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
-                    $promocion->imagen = env('APP_URL') . $promocion->imagen;
+                    $promocion->imagen = env('APP_URL') . '/storage/' . $promocion->imagen;
                 }
                 return $promocion;
             });
@@ -36,25 +36,53 @@ class PromocionController extends Controller
                 'estado' => 'boolean'
             ]);
 
-            $promocion = Promocion::create($data);
+            // Crear promoción sin imagen primero
+            $promocion = Promocion::create([
+                'titulo' => $data['titulo'],
+                'subtitulo' => $data['subtitulo'],
+                'estado' => $data['estado'] ?? false
+            ]);
 
-            // Subir imagen 
+            // Procesar imagen después si existe
             if ($request->hasFile('imagen')) {
                 $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
-                $promocion->image = $imagePath;
+                if ($imagePath) {
+                    $promocion->imagen = $imagePath; // Guardar solo el path
+                    $promocion->save();
+                    
+                    \Log::info('Imagen de promoción guardada', [
+                        'promocion_id' => $promocion->id,
+                        'path' => $imagePath
+                    ]);
+                } else {
+                    \Log::warning('No se pudo guardar imagen de promoción', [
+                        'promocion_id' => $promocion->id
+                    ]);
+                }
             }
 
-            $promocion->save();
-
             return response()->json($promocion, 201);
+            
         } catch (\Exception $e) {
+            \Log::error('Error en store de promoción', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }
 
     public function show($id)
     {
-        return response()->json(Promocion::findOrFail($id));
+        $promocion = Promocion::findOrFail($id);
+        
+        // Construir URL completa para la respuesta
+        if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
+            $promocion->imagen = env('APP_URL') . '/storage/' . $promocion->imagen;
+        }
+        
+        return response()->json($promocion);
     }
 
     public function update(Request $request, $id)
@@ -65,43 +93,43 @@ class PromocionController extends Controller
                 'titulo' => 'sometimes|required|string|max:255',
                 'subtitulo' => 'sometimes|required|string|max:255',
                 'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
-                'estado' => 'boolean'
+                'estado' => 'sometimes|boolean'
             ]);
 
+            // Actualizar campos básicos
+            $promocion->update([
+                'titulo' => $data['titulo'] ?? $promocion->titulo,
+                'subtitulo' => $data['subtitulo'] ?? $promocion->subtitulo,
+                'estado' => $data['estado'] ?? $promocion->estado
+            ]);
+
+            // Procesar nueva imagen si se envió
             if ($request->hasFile('imagen')) {
                 \Log::info('Actualizando imagen de promoción');
-
-                $directory = 'promociones-img';
-
-                // Crear directorio si no existe
-                if (!Storage::disk('custom_public')->exists($directory)) {
-                    Storage::disk('custom_public')->makeDirectory($directory);
-                    \Log::info('Directorio creado', ['directory' => $directory]);
-                }
-
+                
                 // Eliminar imagen anterior si existe
                 if ($promocion->imagen) {
-                    // Extraer solo el path de la URL completa
-                    $oldPath = str_replace('/storage/', '', parse_url($promocion->imagen, PHP_URL_PATH));
-                    if ($oldPath && Storage::disk('custom_public')->exists($oldPath)) {
-                        Storage::disk('custom_public')->delete($oldPath);
-                        \Log::info('Imagen anterior eliminada', ['path' => $oldPath]);
-                    }
+                    $this->eliminarImagenAnterior($promocion->imagen);
                 }
 
-                $imagePath = $request->file('imagen')->store($directory, 'custom_public');
-
-                if (!$imagePath) {
-                    throw new \Exception('No se pudo guardar la imagen');
+                // Guardar nueva imagen
+                $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+                
+                if ($imagePath) {
+                    $promocion->imagen = $imagePath; // Guardar solo el path
+                    $promocion->save();
+                    
+                    \Log::info('Nueva imagen de promoción guardada', [
+                        'promocion_id' => $promocion->id,
+                        'path' => $imagePath
+                    ]);
+                } else {
+                    throw new \Exception('No se pudo guardar la nueva imagen');
                 }
-
-                // Generar URL completa
-                $data['imagen'] = Storage::url($imagePath);
-                \Log::info('Nueva imagen guardada', ['path' => $imagePath, 'url' => $data['imagen']]);
             }
 
-            $promocion->update($data);
             return response()->json($promocion);
+            
         } catch (\Exception $e) {
             \Log::error('Error en update de promoción', [
                 'message' => $e->getMessage(),
@@ -116,18 +144,15 @@ class PromocionController extends Controller
     {
         try {
             $promocion = Promocion::findOrFail($id);
-
+            
             // Eliminar imagen si existe
             if ($promocion->imagen) {
-                $imagePath = str_replace('/storage/', '', parse_url($promocion->imagen, PHP_URL_PATH));
-                if ($imagePath && Storage::disk('custom_public')->exists($imagePath)) {
-                    Storage::disk('custom_public')->delete($imagePath);
-                    \Log::info('Imagen eliminada', ['path' => $imagePath]);
-                }
+                $this->eliminarImagenAnterior($promocion->imagen);
             }
-
+            
             $promocion->delete();
             return response()->json(['message' => 'Promoción eliminada correctamente']);
+            
         } catch (\Exception $e) {
             \Log::error('Error en destroy de promoción', [
                 'message' => $e->getMessage(),
@@ -135,6 +160,31 @@ class PromocionController extends Controller
                 'file' => $e->getFile()
             ]);
             return response()->json(['error' => 'Error eliminando la promoción: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Eliminar imagen anterior del storage
+     */
+    private function eliminarImagenAnterior($imagenPath)
+    {
+        try {
+            // Si es una URL completa, extraer solo el path
+            if (str_starts_with($imagenPath, 'http') || str_starts_with($imagenPath, '/storage/')) {
+                $path = str_replace('/storage/', '', parse_url($imagenPath, PHP_URL_PATH));
+            } else {
+                $path = $imagenPath; // Ya es solo el path
+            }
+            
+            if ($path && Storage::disk('custom_public')->exists($path)) {
+                Storage::disk('custom_public')->delete($path);
+                \Log::info('Imagen anterior eliminada', ['path' => $path]);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('No se pudo eliminar imagen anterior', [
+                'path' => $imagenPath,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }
