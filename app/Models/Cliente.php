@@ -22,5 +22,6 @@ class Cliente extends Model
         'selfie_photo',
         'foto_perfil',
         'password',
+        'token_fmc',
     ];
 }
