@@ -240,6 +240,7 @@ Route::get('/pedidos/{id}/verificar-confirmacion', [PedidoController::class, 've
 Route::put('socio/update/verificar/confirmacion/{idPedido}', [PedidoController::class, 'updateVerificarConfirmacion']);
 Route::get('get/precio/delivery/{idLocal}/{idCliente}', [PedidoController::class, 'calcularPrecioDelivery']);
 Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteController::class, 'validarCodeDescuento']);
+Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);

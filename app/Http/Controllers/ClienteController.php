@@ -415,4 +415,17 @@ class ClienteController extends Controller
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
+
+    public function updateToken(Request $request)
+    {
+        $reparto = Cliente::findOrFail($request->id_reparto);
+        $reparto->token_fmc = $request->token_fcm;
+        $reparto->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token actualizado correctamente',
+            'data' => $reparto
+        ]);
+    }
 }
