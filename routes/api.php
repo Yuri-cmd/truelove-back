@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoriaAdicionalController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\CuotaMotorizadoController;
 use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\DescuentoClienteController;
 use App\Http\Controllers\EntregaCalendarioController;
@@ -65,7 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/users/create', 'store');
             Route::delete('/users/delete/{id}', 'delete');
         });
-      Route::get('/deletion-requests', [AccountDeletionController::class, 'getPendingRequests']);
+        Route::get('/deletion-requests', [AccountDeletionController::class, 'getPendingRequests']);
         Route::post('/deletion-requests/{id}/approve', [AccountDeletionController::class, 'approveRequest']);
         Route::post('/deletion-requests/{id}/reject', [AccountDeletionController::class, 'rejectRequest']);
         Route::get('/deletion-requests/history', [AccountDeletionController::class, 'getRequestHistory']);
@@ -94,14 +95,26 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/motorizado/{id}/delete', 'delete');
             Route::post('/motorizado/{id}/actualizar-pedidos', 'actualizarCantidadPedidos');
         });
-        Route::controller(HorarioController::class)->group(function () {
-            Route::get('/horarios', 'getAllGrupos');
-            Route::get('/horarios/{id}', 'getGrupo');
-            Route::post('/horarios', 'createGrupo');
-            Route::put('/horarios/{id}', 'updateGrupo');
-            Route::delete('/horarios/{id}', 'deleteGrupo');
-            Route::post('/horarios/{id}/asignar', 'asignarMotorizados');
-            Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
+      Route::controller(HorarioController::class)->group(function () {
+    Route::get('/horarios', 'getAllHorarios');
+    Route::get('/horarios/grupales', 'getHorariosGrupales');
+    Route::get('/horarios/individuales', 'getHorariosIndividuales');
+    Route::get('/horarios/{id}', 'getHorario');
+    Route::get('/horarios/motorizado/{motorizadoId}', 'getHorarioMotorizado');
+    Route::post('/horarios', 'createHorario');
+    Route::put('/horarios/{id}', 'updateHorario');
+    Route::delete('/horarios/{id}', 'deleteHorario');
+    Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
+});
+        Route::controller(CuotaMotorizadoController::class)->prefix('cuotas-motorizados')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/generar-semanal', 'generarCuotasSemanal');
+            Route::post('/{id}/marcar-pagada', 'marcarPagada');
+            Route::post('/{id}/revertir-pago', 'revertirPago');
+            Route::get('/estadisticas', 'estadisticas');
+            Route::get('/motorizados-aprobados', 'getMotorizadosAprobados');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
         });
     });
 
@@ -409,7 +422,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categorias-adicionales/web/detalle/{categoriaAdicional}', [CategoriaAdicionalController::class, 'obtenerCategoriaAdicional']);
     Route::put('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'actualizarCategoriaAdicional']);
     Route::delete('/categorias-adicionales/web/{categoriaAdicional}', [CategoriaAdicionalController::class, 'eliminarCategoriaAdicional']);
-  Route::post('/account/request-deletion', [AccountDeletionController::class, 'requestDeletion']);
+    Route::post('/account/request-deletion', [AccountDeletionController::class, 'requestDeletion']);
 });
 
 Route::post('/register/check-status', [RegistrationStatusController::class, 'checkStatus']);
@@ -432,3 +445,5 @@ Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarCliente
 
 Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
+
+
