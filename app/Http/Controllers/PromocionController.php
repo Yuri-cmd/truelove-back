@@ -47,16 +47,17 @@ class PromocionController extends Controller
             $promocion->subtitulo = $data['subtitulo'];
             $promocion->estado = $data['estado'] ?? 1;
 
-            // Solo guardar la imagen si fue enviada
             if ($request->hasFile('imagen')) {
-                $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+                $filePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+
+                // Guarda solo la ruta relativa a public
+                $promocion->imagen = $filePath;
                 \Log::info('Imagen subida correctamente', [
-                    'path' => $imagePath
+                    'path' => $promocion->imagen
                 ]);
-                $promocion->imagen = $imagePath;
             } else {
                 \Log::info('No se envió imagen o no es válida');
-                $promocion->imagen = null; // O simplemente no lo asignes si es nullable
+                $promocion->imagen = null;
             }
 
             $promocion->save();
