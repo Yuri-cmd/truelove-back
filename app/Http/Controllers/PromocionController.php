@@ -26,7 +26,7 @@ class PromocionController extends Controller
         return response()->json($promociones);
     }
 
-    public function store(Request $request)
+  public function store(Request $request)
     {
         try {
             $data = $request->validate([
@@ -36,39 +36,18 @@ class PromocionController extends Controller
                 'estado' => 'boolean'
             ]);
 
-            // Crear promoción sin imagen primero
-            $promocion = Promocion::create([
-                'titulo' => $data['titulo'],
-                'subtitulo' => $data['subtitulo'],
-                'estado' => $data['estado'] ?? false
-            ]);
+            $promocion = Promocion::create($data);
 
-            // Procesar imagen después si existe
+            // Subir imagen 
             if ($request->hasFile('imagen')) {
                 $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
-                if ($imagePath) {
-                    $promocion->imagen = $imagePath; // Guardar solo el path
-                    $promocion->save();
-                    
-                    \Log::info('Imagen de promoción guardada', [
-                        'promocion_id' => $promocion->id,
-                        'path' => $imagePath
-                    ]);
-                } else {
-                    \Log::warning('No se pudo guardar imagen de promoción', [
-                        'promocion_id' => $promocion->id
-                    ]);
-                }
+                $promocion->imagen = $imagePath;
             }
 
+            $promocion->save();
+
             return response()->json($promocion, 201);
-            
         } catch (\Exception $e) {
-            \Log::error('Error en store de promoción', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }
