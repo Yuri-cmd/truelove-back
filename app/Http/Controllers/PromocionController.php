@@ -26,7 +26,7 @@ class PromocionController extends Controller
         return response()->json($promociones);
     }
 
-  public function store(Request $request)
+    public function store(Request $request)
     {
         try {
             $data = $request->validate([
@@ -36,11 +36,10 @@ class PromocionController extends Controller
                 'estado' => 'boolean'
             ]);
 
-            $promocion = Promocion::create([
-                'titulo' => $data['titulo'],
-                'subtitulo' => $data['subtitulo'],
-                'estado' => $data['estado']
-            ]);
+            $promocion = new Promocion();
+            $promocion->titulo = $data['titulo'];
+            $promocion->subtitulo = $data['subtitulo'];
+            $promocion->estado = $data['estado'] ?? 1; // Por defecto activo
 
             // Subir imagen 
             if ($request->hasFile('imagen')) {
@@ -59,12 +58,12 @@ class PromocionController extends Controller
     public function show($id)
     {
         $promocion = Promocion::findOrFail($id);
-        
+
         // Construir URL completa para la respuesta
         if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
             $promocion->imagen = env('APP_URL') . '/storage/' . $promocion->imagen;
         }
-        
+
         return response()->json($promocion);
     }
 
@@ -89,7 +88,7 @@ class PromocionController extends Controller
             // Procesar nueva imagen si se envió
             if ($request->hasFile('imagen')) {
                 \Log::info('Actualizando imagen de promoción');
-                
+
                 // Eliminar imagen anterior si existe
                 if ($promocion->imagen) {
                     $this->eliminarImagenAnterior($promocion->imagen);
@@ -97,11 +96,11 @@ class PromocionController extends Controller
 
                 // Guardar nueva imagen
                 $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
-                
+
                 if ($imagePath) {
                     $promocion->imagen = $imagePath; // Guardar solo el path
                     $promocion->save();
-                    
+
                     \Log::info('Nueva imagen de promoción guardada', [
                         'promocion_id' => $promocion->id,
                         'path' => $imagePath
@@ -112,7 +111,6 @@ class PromocionController extends Controller
             }
 
             return response()->json($promocion);
-            
         } catch (\Exception $e) {
             \Log::error('Error en update de promoción', [
                 'message' => $e->getMessage(),
@@ -127,15 +125,14 @@ class PromocionController extends Controller
     {
         try {
             $promocion = Promocion::findOrFail($id);
-            
+
             // Eliminar imagen si existe
             if ($promocion->imagen) {
                 $this->eliminarImagenAnterior($promocion->imagen);
             }
-            
+
             $promocion->delete();
             return response()->json(['message' => 'Promoción eliminada correctamente']);
-            
         } catch (\Exception $e) {
             \Log::error('Error en destroy de promoción', [
                 'message' => $e->getMessage(),
@@ -158,7 +155,7 @@ class PromocionController extends Controller
             } else {
                 $path = $imagenPath; // Ya es solo el path
             }
-            
+
             if ($path && Storage::disk('custom_public')->exists($path)) {
                 Storage::disk('custom_public')->delete($path);
                 \Log::info('Imagen anterior eliminada', ['path' => $path]);
