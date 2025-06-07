@@ -48,10 +48,10 @@ class PromocionController extends Controller
             $promocion->estado = $data['estado'] ?? 1;
 
             if ($request->hasFile('imagen')) {
-                $filePath = $request->file('imagen')->store('promociones-img', 'public');
+               $imagePath = $request->file('imagen')->store('promociones-img', 'public');
 
                 // Guarda solo la ruta relativa a public
-                $promocion->imagen = $filePath;
+                $promocion->imagen = $imagePath;
                 \Log::info('Imagen subida correctamente', [
                     'path' => $promocion->imagen
                 ]);
