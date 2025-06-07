@@ -29,27 +29,48 @@ class PromocionController extends Controller
     public function store(Request $request)
     {
         try {
+            \Log::info('Iniciando método store de Promocion', [
+                'datos_request' => $request->all(),
+                'tiene_imagen' => $request->hasFile('imagen'),
+                'file_imagen' => $request->file('imagen')
+            ]);
+
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
+                'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
                 'estado' => 'boolean'
             ]);
 
             $promocion = new Promocion();
             $promocion->titulo = $data['titulo'];
             $promocion->subtitulo = $data['subtitulo'];
-            $promocion->estado = $data['estado'] ?? 1; // Por defecto activo
+            $promocion->estado = $data['estado'] ?? 1;
 
-            // Subir imagen 
+            // Solo guardar la imagen si fue enviada
             if ($request->hasFile('imagen')) {
                 $imagePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+                \Log::info('Imagen subida correctamente', [
+                    'path' => $imagePath
+                ]);
                 $promocion->imagen = $imagePath;
+            } else {
+                \Log::info('No se envió imagen o no es válida');
+                $promocion->imagen = null; // O simplemente no lo asignes si es nullable
             }
 
             $promocion->save();
 
+            \Log::info('Promocion guardada', [
+                'promocion' => $promocion->toArray()
+            ]);
+
             return response()->json($promocion, 201);
         } catch (\Exception $e) {
+            \Log::error('Error al guardar promoción', [
+                'mensaje' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }
