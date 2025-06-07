@@ -32,7 +32,6 @@ class PromocionController extends Controller
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
-                'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
                 'estado' => 'boolean'
             ]);
 
