@@ -36,7 +36,11 @@ class PromocionController extends Controller
                 'estado' => 'boolean'
             ]);
 
-            $promocion = Promocion::create($data);
+            $promocion = Promocion::create([
+                'titulo' => $data['titulo'],
+                'subtitulo' => $data['subtitulo'],
+                'estado' => $data['estado']
+            ]);
 
             // Subir imagen 
             if ($request->hasFile('imagen')) {
