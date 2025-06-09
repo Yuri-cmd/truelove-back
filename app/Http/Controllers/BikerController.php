@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\HorarioAsignacion;
+use App\Models\HorarioGrupo;
 use App\Models\Location;
 use App\Models\MedioPago;
 use App\Models\Pedido;
@@ -146,7 +147,7 @@ class BikerController extends Controller
         foreach ($pedidos as $pedido) {
             // Obtener el establecimiento asociado al pedido
             $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-            $estado = PedidoTracking::where('pedido_id',  $pedido->id)->latest()->first();
+            $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             if ($motorizadoLocation && $local) {
                 // Calcular la distancia entre el motorizado y el local
                 $distancia = $this->calcularDistanciaHaversine(
@@ -245,20 +246,47 @@ class BikerController extends Controller
 
     public function condiciones($id)
     {
-        // Obtener el horario y grupo del motorizado
-        $horario = HorarioAsignacion::with('grupo')->where('motorizado_id', $id)->first();
+        // Verificar si el motorizado existe
+        $motorizado = RepartoRegistro::find($id);
+        if (!$motorizado) {
+            return response()->json([
+                'puede_trabajar' => false,
+                'mensaje' => 'Motorizado no encontrado',
+            ]);
+        }
 
-        if (!$horario || !$horario->grupo || empty($horario->grupo->rangos)) {
+        // Buscar horario individual
+        $horarioIndividual = HorarioGrupo::where('motorizado_individual_id', $id)
+            ->where('tipo', 'individual')
+            ->with('bloques')
+            ->first();
+
+        // Buscar horario grupal
+        $horarioGrupal = HorarioAsignacion::where('motorizado_id', $id)
+            ->with('grupo.bloques')
+            ->first();
+
+        // Determinar qué bloques usar
+        $bloques = collect();
+        $tipoHorario = 'ninguno';
+
+        if ($horarioIndividual && $horarioIndividual->bloques->count() > 0) {
+            $bloques = $horarioIndividual->bloques;
+            $tipoHorario = 'individual';
+        } elseif ($horarioGrupal && $horarioGrupal->grupo && $horarioGrupal->grupo->bloques->count() > 0) {
+            $bloques = $horarioGrupal->grupo->bloques;
+            $tipoHorario = 'grupal';
+        }
+
+        if ($bloques->isEmpty()) {
             return response()->json([
                 'puede_trabajar' => false,
                 'mensaje' => 'No hay horario asignado',
             ]);
         }
 
-        // Obtener la cantidad máxima de pedidos permitidos
-        $cantidadPedidoPermitido = RepartoRegistro::where('id', $id)->value('cantidad_pedidos_dias') ?? 0;
-
-        // Contar los pedidos entregados hoy (estado 8)
+        // Verificar límite de pedidos
+        $cantidadPedidoPermitido = $motorizado->cantidad_pedidos_dias ?? 0;
         $cantidadPedidosRealizados = Pedido::where('id_motorizado', $id)
             ->whereDate('created_at', Carbon::today())
             ->whereHas('trackings', function ($query) {
@@ -266,52 +294,131 @@ class BikerController extends Controller
             })
             ->count();
 
-        // Verificar si ha alcanzado el límite de pedidos
-        if ($cantidadPedidosRealizados >= $cantidadPedidoPermitido) {
+        if ($cantidadPedidoPermitido > 0 && $cantidadPedidosRealizados >= $cantidadPedidoPermitido) {
             return response()->json([
                 'puede_trabajar' => false,
                 'mensaje' => 'Ya alcanzó el límite de pedidos',
+                'limite_restante' => 0
             ]);
         }
 
-        // Verificar si está dentro del horario
-        $diaActual = strtolower(Carbon::now()->locale('es')->dayName); // e.g., "viernes"
+        // Usar zona horaria de Perú
+        $now = Carbon::now('America/Lima');
+        $diaActual = strtolower($now->locale('es')->dayName);
         $diaActual = strtr($diaActual, [
             'á' => 'a',
             'é' => 'e',
             'í' => 'i',
             'ó' => 'o',
-            'ú' => 'u',
+            'ú' => 'u'
         ]);
-
-        $horaActual = Carbon::now()->format('H:i'); // e.g., "14:30"
+        $horaActual = $now->format('H:i');
 
         $puedeTrabajar = false;
+        $bloqueActivo = null;
+        $bloquesDelDia = [];
 
-        foreach ($horario->grupo->rangos as $rango) {
-            if (
-                in_array($diaActual, $rango['dia_semana']) &&
-                $horaActual >= $rango['hora_inicio'] &&
-                $horaActual <= $rango['hora_fin']
-            ) {
+        // CORRECCIÓN: Primero recolectar TODOS los bloques del día actual
+        foreach ($bloques as $bloque) {
+            // Asegurarse de que dia_semana sea un array
+            $diasBloque = [];
+            if (is_string($bloque->dia_semana)) {
+                $diasBloque = json_decode($bloque->dia_semana, true);
+            } elseif (is_array($bloque->dia_semana)) {
+                $diasBloque = $bloque->dia_semana;
+            }
+
+            // Verificar si el día actual está en los días del bloque
+            if (is_array($diasBloque) && in_array($diaActual, $diasBloque)) {
+                // Extraer solo la hora de los timestamps
+                $horaInicio = Carbon::parse($bloque->hora_inicio)->format('H:i');
+                $horaFin = Carbon::parse($bloque->hora_fin)->format('H:i');
+
+                $bloquesDelDia[] = [
+                    'tipo' => $bloque->tipo,
+                    'hora_inicio' => $horaInicio,
+                    'hora_fin' => $horaFin,
+                    'descripcion' => $bloque->descripcion
+                ];
+            }
+        }
+
+        // Ordenar bloques por hora de inicio
+        usort($bloquesDelDia, function ($a, $b) {
+            return $a['hora_inicio'] <=> $b['hora_inicio'];
+        });
+
+        // Ahora verificar si la hora actual está dentro de algún bloque
+        foreach ($bloquesDelDia as $bloque) {
+            if ($horaActual >= $bloque['hora_inicio'] && $horaActual <= $bloque['hora_fin']) {
                 $puedeTrabajar = true;
+                $bloqueActivo = $bloque;
                 break;
             }
         }
 
-        if (!$puedeTrabajar) {
-            return response()->json([
-                'puede_trabajar' => false,
-                'mensaje' => 'Se encuentra fuera del rango del horario',
-            ]);
-        }
+        // Calcular el horario completo del día
+        $horaInicioDia = !empty($bloquesDelDia) ? min(array_column($bloquesDelDia, 'hora_inicio')) : null;
+        $horaFinDia = !empty($bloquesDelDia) ? max(array_column($bloquesDelDia, 'hora_fin')) : null;
+
+        // Contar bloques por tipo
+        $bloquesTrabajo = array_filter($bloquesDelDia, function ($b) {
+            return $b['tipo'] === 'trabajo'; });
+        $bloquesAlmuerzo = array_filter($bloquesDelDia, function ($b) {
+            return $b['tipo'] === 'almuerzo'; });
 
         return response()->json([
             'puede_trabajar' => $puedeTrabajar,
+            'mensaje' => $puedeTrabajar ? 'Puede trabajar' : 'Se encuentra fuera del rango del horario',
             'dia_actual' => $diaActual,
             'hora_actual' => $horaActual,
-            'limite_restante' => $cantidadPedidoPermitido - $cantidadPedidosRealizados,
+            'limite_restante' => max(0, $cantidadPedidoPermitido - $cantidadPedidosRealizados),
+            'tipo_horario' => $tipoHorario,
+            'bloque_activo' => $bloqueActivo,
+            'bloques_del_dia' => $bloquesDelDia,
+            'horario_completo' => [
+                'hora_inicio' => $horaInicioDia,
+                'hora_fin' => $horaFinDia,
+                'total_horas' => $horaInicioDia && $horaFinDia ? $this->calcularHorasTotales($horaInicioDia, $horaFinDia) : 0
+            ],
+            'resumen_horario' => [
+                'hora_inicio_dia' => $horaInicioDia,
+                'hora_fin_dia' => $horaFinDia,
+                'total_bloques_trabajo' => count($bloquesTrabajo),
+                'total_bloques_almuerzo' => count($bloquesAlmuerzo),
+                'tiene_almuerzo' => count($bloquesAlmuerzo) > 0
+            ],
+            'debug' => [
+                'total_bloques' => $bloques->count(),
+                'bloques_hoy' => count($bloquesDelDia),
+                'servidor_hora_local' => $now->format('Y-m-d H:i:s'),
+                'timezone' => $now->timezoneName,
+                'dia_actual_raw' => $diaActual,
+                'bloques_dias' => $bloques->map(function ($b) {
+                    return [
+                        'dias' => is_string($b->dia_semana) ? json_decode($b->dia_semana, true) : $b->dia_semana,
+                        'hora_inicio' => $b->hora_inicio,
+                        'hora_fin' => $b->hora_fin,
+                        'tipo' => $b->tipo
+                    ];
+                })
+            ]
         ]);
+    }
+
+
+    private function calcularHorasTotales($horaInicio, $horaFin)
+    {
+        $inicio = Carbon::createFromFormat('H:i', $horaInicio);
+        $fin = Carbon::createFromFormat('H:i', $horaFin);
+
+        // Si el fin es menor que el inicio, asumimos que cruza la medianoche
+        if ($fin < $inicio) {
+            $fin->addDay();
+        }
+
+        $minutos = $fin->diffInMinutes($inicio);
+        return number_format($minutos / 60, 1);
     }
 
     public function actualizarEstado(Request $request)

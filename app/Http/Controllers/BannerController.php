@@ -37,58 +37,46 @@ class BannerController extends Controller
         return response()->json($banner);
     }
 
-    public function store(Request $request)
-    {
-        try {
-            $data = $request->validate([
-                'titulo' => 'required|string|max:255',
-                'subtitulo' => 'required|string|max:255',
-                'color_fondo' => 'required|string|max:7',
-                'texto_boton' => 'required|string|max:255',
-                'url_boton' => 'nullable|url',
-                'url_imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
-                'estado' => 'required|boolean'
-            ]);
+  public function store(Request $request)
+{
+    try {
+        $data = $request->validate([
+            'titulo' => 'required|string|max:255',
+            'subtitulo' => 'required|string|max:255',
+            'color_fondo' => 'required|string|max:7',
+            'texto_boton' => 'required|string|max:255',
+            'url_boton' => 'nullable|url',
+            'url_imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+            'estado' => 'required|boolean'
+        ]);
 
-            // Crear banner sin imagen primero
-            $banner = Banner::create([
-                'titulo' => $data['titulo'],
-                'subtitulo' => $data['subtitulo'],
-                'color_fondo' => $data['color_fondo'],
-                'texto_boton' => $data['texto_boton'],
-                'url_boton' => $data['url_boton'],
-                'estado' => $data['estado']
-            ]);
-
-            // Procesar imagen después si existe
-            if ($request->hasFile('url_imagen')) {
-                $imagePath = $request->file('url_imagen')->store('banners', 'custom_public');
-                if ($imagePath) {
-                    $banner->url_imagen = $imagePath; // Guardar solo el path
-                    $banner->save();
-                    
-                    \Log::info('Imagen de banner guardada', [
-                        'banner_id' => $banner->id,
-                        'path' => $imagePath
-                    ]);
-                } else {
-                    \Log::warning('No se pudo guardar imagen de banner', [
-                        'banner_id' => $banner->id
-                    ]);
-                }
-            }
-
-            return response()->json($banner, 201);
-            
-        } catch (\Exception $e) {
-            \Log::error('Error en store de banner', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ]);
-            return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
+        // Procesar imagen si existe
+        if ($request->hasFile('url_imagen')) {
+            $imagePath = $request->file('url_imagen')->store('banners', 'custom_public');
+            $data['url_imagen'] = $imagePath; // Agregar el path al array de datos
+        } else {
+            $data['url_imagen'] = null; // Asegurar que sea null si no hay imagen
         }
+
+        // Crear el banner con todos los datos incluyendo la imagen (si existe)
+        $banner = Banner::create($data);
+
+        \Log::info('Banner creado exitosamente', [
+            'banner_id' => $banner->id,
+            'data' => $data
+        ]);
+
+        return response()->json($banner, 201);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error en store de banner', [
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ]);
+        return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
     }
+}
 
     public function update(Request $request, $id)
     {
