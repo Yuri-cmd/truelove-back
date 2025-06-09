@@ -1,0 +1,81 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Truelove API",
+        "description": "Documentación de la API de Truelove",
+        "contact": {
+            "email": "tucorreo@ejemplo.com"
+        },
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/promociones": {
+            "get": {
+                "tags": [
+                    "Promociones"
+                ],
+                "summary": "Obtener promociones",
+                "description": "Devuelve una lista de promociones. Si se pasa el parámetro showAll=true, devuelve todas las promociones, de lo contrario solo las activas.",
+                "operationId": "6eaf5889f209f7e4eda6d82f65e03eb0",
+                "parameters": [
+                    {
+                        "name": "showAll",
+                        "in": "query",
+                        "description": "Mostrar todas las promociones (true: todas, false u omitido: solo activas)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de promociones",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "titulo": {
+                                                "type": "string",
+                                                "example": "Promo especial"
+                                            },
+                                            "subtitulo": {
+                                                "type": "string",
+                                                "example": "Subtitulo promo"
+                                            },
+                                            "imagen": {
+                                                "type": "string",
+                                                "example": "http://localhost:8000/storage/imagen.jpg"
+                                            },
+                                            "estado": {
+                                                "type": "integer",
+                                                "example": 1
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Promociones",
+            "description": "Promociones"
+        }
+    ]
+}

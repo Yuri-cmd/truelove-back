@@ -8,6 +8,38 @@ use Illuminate\Support\Facades\Storage;
 
 class PromocionController extends Controller
 {
+    /**
+     * @OA\Get(
+     *     path="/api/promociones",
+     *     summary="Obtener promociones",
+     *     description="Devuelve una lista de promociones. Si se pasa el parámetro showAll=true, devuelve todas las promociones, de lo contrario solo las activas.",
+     *     tags={"Promociones"},
+     *     @OA\Parameter(
+     *         name="showAll",
+     *         in="query",
+     *         description="Mostrar todas las promociones (true: todas, false u omitido: solo activas)",
+     *         required=false,
+     *         @OA\Schema(
+     *             type="string",
+     *             enum={"true", "false"}
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de promociones",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="titulo", type="string", example="Promo especial"),
+     *                 @OA\Property(property="subtitulo", type="string", example="Subtitulo promo"),
+     *                 @OA\Property(property="imagen", type="string", example="http://localhost:8000/storage/imagen.jpg"),
+     *                 @OA\Property(property="estado", type="integer", example=1)
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function index(Request $request)
     {
         if ($request->showAll === 'true') {
@@ -48,7 +80,7 @@ class PromocionController extends Controller
             $promocion->estado = $data['estado'] ?? 1;
 
             if ($request->hasFile('imagen')) {
-               $imagePath = $request->file('imagen')->store('promociones-img', 'public');
+                $imagePath = $request->file('imagen')->store('promociones-img', 'public');
 
                 // Guarda solo la ruta relativa a public
                 $promocion->imagen = $imagePath;
