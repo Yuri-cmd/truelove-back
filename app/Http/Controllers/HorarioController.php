@@ -1,8 +1,8 @@
 <?php
-// app/Http/Controllers/HorarioController.php
 namespace App\Http\Controllers;
 
 use App\Models\HorarioGrupo;
+use App\Models\HorarioBloque;
 use App\Models\HorarioAsignacion;
 use App\Models\RepartoRegistro;
 use Illuminate\Http\Request;
@@ -12,66 +12,53 @@ use Illuminate\Support\Facades\Validator;
 
 class HorarioController extends Controller
 {
-    // Obtener todos los grupos de horarios con sus motorizados asignados
-    public function getAllGrupos()
+    // Obtener todos los horarios (grupales e individuales)
+    public function getAllHorarios()
     {
         try {
-            $grupos = HorarioGrupo::with([
+            $horarios = HorarioGrupo::with([
+                'bloques' => function($query) {
+                    $query->orderBy('orden');
+                },
                 'motorizados' => function ($query) {
                     $query->select('reparto_registros.id', 'nombres', 'apellidos', 'celular', 'email');
+                },
+                'motorizadoIndividual' => function($query) {
+                    $query->select('id', 'nombres', 'apellidos', 'celular', 'email');
                 }
             ])->get();
 
             return response()->json([
                 'status' => 'success',
-                'data' => $grupos
+                'data' => $horarios
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener grupos de horarios: ' . $e->getMessage());
+            Log::error('Error al obtener horarios: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al obtener los grupos de horarios: ' . $e->getMessage()
+                'message' => 'Error al obtener los horarios: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    // Obtener un grupo específico con sus motorizados
-    public function getGrupo($id)
-    {
-        try {
-            $grupo = HorarioGrupo::with([
-                'motorizados' => function ($query) {
-                    $query->select('reparto_registros.id', 'nombres', 'apellidos', 'celular', 'email');
-                }
-            ])->findOrFail($id);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => $grupo
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al obtener grupo de horario: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al obtener el grupo de horario: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // Crear un nuevo grupo de horarios
-    public function createGrupo(Request $request)
+    // Crear horario (grupal o individual)
+    public function createHorario(Request $request)
     {
         DB::beginTransaction();
         try {
-            // Validar datos
             $validator = Validator::make($request->all(), [
                 'nombre' => 'required|string|max:100',
                 'descripcion' => 'nullable|string',
-                'rangos' => 'required|array|min:1',
-                'rangos.*.dia_semana' => 'required',
-                'rangos.*.hora_inicio' => 'required|date_format:H:i',
-                'rangos.*.hora_fin' => 'required|date_format:H:i|after:rangos.*.hora_inicio',
-                'motorizados' => 'nullable|array',
+                'tipo' => 'required|in:grupal,individual',
+                'motorizado_individual_id' => 'required_if:tipo,individual|exists:reparto_registros,id',
+                'bloques' => 'required|array|min:1',
+                'bloques.*.dia_semana' => 'required',
+                'bloques.*.hora_inicio' => 'required|date_format:H:i',
+                'bloques.*.hora_fin' => 'required|date_format:H:i',
+                'bloques.*.tipo' => 'required|in:trabajo,descanso,almuerzo',
+                'bloques.*.descripcion' => 'nullable|string',
+                'bloques.*.color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+                'motorizados' => 'required_if:tipo,grupal|array',
                 'motorizados.*' => 'exists:reparto_registros,id'
             ]);
 
@@ -82,52 +69,38 @@ class HorarioController extends Controller
                     'errors' => $validator->errors()
                 ], 422);
             }
-            // validación 
-            foreach ($request->rangos as $index => $rango) {
-                $diasValidos = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
-                // Si es un string, validar que sea uno de los valores permitidos
-                if (is_string($rango['dia_semana'])) {
-                    if (!in_array($rango['dia_semana'], $diasValidos) && $rango['dia_semana'] !== 'todos') {
-                        return response()->json([
-                            'status' => 'error',
-                            'message' => 'Datos inválidos',
-                            'errors' => ['rangos.' . $index . '.dia_semana' => ['El día de la semana no es válido']]
-                        ], 422);
-                    }
-                }
-                // Si es un array, validar que todos los elementos sean valores permitidos
-                else if (is_array($rango['dia_semana'])) {
-                    foreach ($rango['dia_semana'] as $dia) {
-                        if (!in_array($dia, $diasValidos)) {
-                            return response()->json([
-                                'status' => 'error',
-                                'message' => 'Datos inválidos',
-                                'errors' => ['rangos.' . $index . '.dia_semana' => ['El día de la semana no es válido']]
-                            ], 422);
-                        }
-                    }
-                } else {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Datos inválidos',
-                        'errors' => ['rangos.' . $index . '.dia_semana' => ['Formato de día de la semana no válido']]
-                    ], 422);
-                }
-            }
+            // Validar que no haya solapamiento de horarios para el mismo día
+            $this->validarSolapamientoBloques($request->bloques);
 
-            // Crear grupo
-            $grupo = HorarioGrupo::create([
+            // Crear horario
+            $horario = HorarioGrupo::create([
                 'nombre' => $request->nombre,
                 'descripcion' => $request->descripcion,
-                'rangos' => $request->rangos
+                'tipo' => $request->tipo,
+                'motorizado_individual_id' => $request->tipo === 'individual' ? $request->motorizado_individual_id : null,
+                'rangos' => [] // Mantener por compatibilidad, pero usar bloques
             ]);
 
-            // Asignar motorizados si se proporcionaron
-            if ($request->has('motorizados') && is_array($request->motorizados)) {
+            // Crear bloques de horario
+            foreach ($request->bloques as $index => $bloque) {
+                HorarioBloque::create([
+                    'grupo_id' => $horario->id,
+                    'dia_semana' => $bloque['dia_semana'],
+                    'hora_inicio' => $bloque['hora_inicio'],
+                    'hora_fin' => $bloque['hora_fin'],
+                    'tipo' => $bloque['tipo'],
+                    'descripcion' => $bloque['descripcion'] ?? null,
+                    'color' => $bloque['color'] ?? $this->getDefaultColor($bloque['tipo']),
+                    'orden' => $index
+                ]);
+            }
+
+            // Asignar motorizados (solo para horarios grupales)
+            if ($request->tipo === 'grupal' && $request->has('motorizados')) {
                 foreach ($request->motorizados as $motorizadoId) {
                     HorarioAsignacion::create([
-                        'grupo_id' => $grupo->id,
+                        'grupo_id' => $horario->id,
                         'motorizado_id' => $motorizadoId
                     ]);
                 }
@@ -135,41 +108,40 @@ class HorarioController extends Controller
 
             DB::commit();
 
-            // Cargar el grupo con sus relaciones
-            $grupo = HorarioGrupo::with([
-                'motorizados' => function ($query) {
-                    $query->select('reparto_registros.id', 'nombres', 'apellidos', 'celular', 'email');
-                }
-            ])->find($grupo->id);
+            // Cargar horario completo
+            $horario = $this->getHorarioCompleto($horario->id);
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Grupo de horario creado exitosamente',
-                'data' => $grupo
+                'message' => 'Horario creado exitosamente',
+                'data' => $horario
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear grupo de horario: ' . $e->getMessage());
+            Log::error('Error al crear horario: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al crear el grupo de horario: ' . $e->getMessage()
+                'message' => 'Error al crear el horario: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    // Actualizar un grupo de horarios
-    public function updateGrupo(Request $request, $id)
+    // Actualizar horario
+    public function updateHorario(Request $request, $id)
     {
         DB::beginTransaction();
         try {
-            // Validar datos
             $validator = Validator::make($request->all(), [
                 'nombre' => 'required|string|max:100',
                 'descripcion' => 'nullable|string',
-                'rangos' => 'required|array|min:1',
-                'rangos.*.dia_semana' => 'required',
-                'rangos.*.hora_inicio' => 'required|date_format:H:i',
-                'rangos.*.hora_fin' => 'required|date_format:H:i|after:rangos.*.hora_inicio',
+                'bloques' => 'required|array|min:1',
+                'bloques.*.dia_semana' => 'required',
+                'bloques.*.hora_inicio' => 'required|date_format:H:i',
+                'bloques.*.hora_fin' => 'required|date_format:H:i',
+                'bloques.*.tipo' => 'required|in:trabajo,descanso,almuerzo',
+                'bloques.*.descripcion' => 'nullable|string',
+                'bloques.*.color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
                 'motorizados' => 'nullable|array',
                 'motorizados.*' => 'exists:reparto_registros,id'
             ]);
@@ -182,55 +154,37 @@ class HorarioController extends Controller
                 ], 422);
             }
 
-            foreach ($request->rangos as $index => $rango) {
-                $diasValidos = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+            $horario = HorarioGrupo::findOrFail($id);
 
-                // Si es un string, validar que sea uno de los valores permitidos
-                if (is_string($rango['dia_semana'])) {
-                    if (!in_array($rango['dia_semana'], $diasValidos) && $rango['dia_semana'] !== 'todos') {
-                        return response()->json([
-                            'status' => 'error',
-                            'message' => 'Datos inválidos',
-                            'errors' => ['rangos.' . $index . '.dia_semana' => ['El día de la semana no es válido']]
-                        ], 422);
-                    }
-                }
-                // Si es un array, validar que todos los elementos sean valores permitidos
-                else if (is_array($rango['dia_semana'])) {
-                    foreach ($rango['dia_semana'] as $dia) {
-                        if (!in_array($dia, $diasValidos)) {
-                            return response()->json([
-                                'status' => 'error',
-                                'message' => 'Datos inválidos',
-                                'errors' => ['rangos.' . $index . '.dia_semana' => ['El día de la semana no es válido']]
-                            ], 422);
-                        }
-                    }
-                } else {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Datos inválidos',
-                        'errors' => ['rangos.' . $index . '.dia_semana' => ['Formato de día de la semana no válido']]
-                    ], 422);
-                }
-            }
-
-            // Buscar el grupo
-            $grupo = HorarioGrupo::findOrFail($id);
+            // Validar solapamiento
+            $this->validarSolapamientoBloques($request->bloques);
 
             // Actualizar datos básicos
-            $grupo->update([
+            $horario->update([
                 'nombre' => $request->nombre,
-                'descripcion' => $request->descripcion,
-                'rangos' => $request->rangos
+                'descripcion' => $request->descripcion
             ]);
 
-            // Actualizar asignaciones de motorizados
-            if ($request->has('motorizados')) {
-                // Eliminar asignaciones existentes
-                HorarioAsignacion::where('grupo_id', $id)->delete();
+            // Eliminar bloques existentes y crear nuevos
+            HorarioBloque::where('grupo_id', $id)->delete();
+            
+            foreach ($request->bloques as $index => $bloque) {
+                HorarioBloque::create([
+                    'grupo_id' => $id,
+                    'dia_semana' => $bloque['dia_semana'],
+                    'hora_inicio' => $bloque['hora_inicio'],
+                    'hora_fin' => $bloque['hora_fin'],
+                    'tipo' => $bloque['tipo'],
+                    'descripcion' => $bloque['descripcion'] ?? null,
+                    'color' => $bloque['color'] ?? $this->getDefaultColor($bloque['tipo']),
+                    'orden' => $index
+                ]);
+            }
 
-                // Crear nuevas asignaciones
+            // Actualizar asignaciones (solo para grupales)
+            if ($horario->tipo === 'grupal' && $request->has('motorizados')) {
+                HorarioAsignacion::where('grupo_id', $id)->delete();
+                
                 foreach ($request->motorizados as $motorizadoId) {
                     HorarioAsignacion::create([
                         'grupo_id' => $id,
@@ -241,60 +195,226 @@ class HorarioController extends Controller
 
             DB::commit();
 
-            // Cargar el grupo actualizado con sus relaciones
-            $grupo = HorarioGrupo::with([
-                'motorizados' => function ($query) {
-                    $query->select('reparto_registros.id', 'nombres', 'apellidos', 'celular', 'email');
-                }
-            ])->find($id);
+            $horario = $this->getHorarioCompleto($id);
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Grupo de horario actualizado exitosamente',
-                'data' => $grupo
+                'message' => 'Horario actualizado exitosamente',
+                'data' => $horario
             ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al actualizar grupo de horario: ' . $e->getMessage());
+            Log::error('Error al actualizar horario: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al actualizar el grupo de horario: ' . $e->getMessage()
+                'message' => 'Error al actualizar el horario: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    // Eliminar un grupo de horarios
-    public function deleteGrupo($id)
+    // Obtener horarios grupales
+    public function getHorariosGrupales()
+    {
+        try {
+            $horarios = HorarioGrupo::where('tipo', 'grupal')
+                ->with(['bloques', 'motorizados'])
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $horarios
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener horarios grupales: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener horarios grupales: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Obtener horarios individuales
+    public function getHorariosIndividuales()
+    {
+        try {
+            $horarios = HorarioGrupo::where('tipo', 'individual')
+                ->with(['bloques', 'motorizadoIndividual'])
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $horarios
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener horarios individuales: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener horarios individuales: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Obtener horario de un motorizado específico
+    public function getHorarioMotorizado($motorizadoId)
+    {
+        try {
+            // Buscar horario individual
+            $horarioIndividual = HorarioGrupo::where('tipo', 'individual')
+                ->where('motorizado_individual_id', $motorizadoId)
+                ->with('bloques')
+                ->first();
+
+            if ($horarioIndividual) {
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $horarioIndividual,
+                    'tipo' => 'individual'
+                ]);
+            }
+
+            // Buscar en horarios grupales
+            $horarioGrupal = HorarioGrupo::whereHas('motorizados', function($query) use ($motorizadoId) {
+                $query->where('reparto_registros.id', $motorizadoId);
+            })->with('bloques')->first();
+
+            if ($horarioGrupal) {
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $horarioGrupal,
+                    'tipo' => 'grupal'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => null,
+                'message' => 'El motorizado no tiene horario asignado'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener horario del motorizado: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener horario del motorizado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Métodos auxiliares
+    private function validarSolapamientoBloques($bloques)
+    {
+        $bloquesPorDia = [];
+        
+        foreach ($bloques as $bloque) {
+            $dias = is_array($bloque['dia_semana']) ? $bloque['dia_semana'] : [$bloque['dia_semana']];
+            
+            foreach ($dias as $dia) {
+                if (!isset($bloquesPorDia[$dia])) {
+                    $bloquesPorDia[$dia] = [];
+                }
+                $bloquesPorDia[$dia][] = [
+                    'inicio' => $bloque['hora_inicio'],
+                    'fin' => $bloque['hora_fin'],
+                    'tipo' => $bloque['tipo'] ?? 'trabajo'
+                ];
+            }
+        }
+
+        foreach ($bloquesPorDia as $dia => $bloquesDelDia) {
+            // Ordenar bloques por hora de inicio
+            usort($bloquesDelDia, function($a, $b) {
+                return strcmp($a['inicio'], $b['inicio']);
+            });
+
+            // Verificar solapamientos
+            for ($i = 0; $i < count($bloquesDelDia) - 1; $i++) {
+                $bloqueActual = $bloquesDelDia[$i];
+                $bloqueSiguiente = $bloquesDelDia[$i + 1];
+                
+                // Convertir horas a minutos para comparación más precisa
+                $finActual = $this->horaAMinutos($bloqueActual['fin']);
+                $inicioSiguiente = $this->horaAMinutos($bloqueSiguiente['inicio']);
+                
+                // Permitir que un bloque termine exactamente cuando empieza el siguiente
+                if ($finActual > $inicioSiguiente) {
+                    throw new \Exception("Hay solapamiento de horarios en el día $dia: {$bloqueActual['inicio']}-{$bloqueActual['fin']} se superpone con {$bloqueSiguiente['inicio']}-{$bloqueSiguiente['fin']}");
+                }
+            }
+        }
+    }
+      private function horaAMinutos($hora) {
+        $partes = explode(':', $hora);
+        return (int)$partes[0] * 60 + (int)$partes[1];
+    }
+
+
+    private function getDefaultColor($tipo)
+    {
+        switch ($tipo) {
+            case 'trabajo': return '#3B82F6'; // Azul
+            case 'descanso': return '#F59E0B'; // Amarillo
+            case 'almuerzo': return '#10B981'; // Verde
+            default: return '#6B7280'; // Gris
+        }
+    }
+
+    private function getHorarioCompleto($id)
+    {
+        return HorarioGrupo::with([
+            'bloques' => function($query) {
+                $query->orderBy('orden');
+            },
+            'motorizados' => function ($query) {
+                $query->select('reparto_registros.id', 'nombres', 'apellidos', 'celular', 'email');
+            },
+            'motorizadoIndividual' => function($query) {
+                $query->select('id', 'nombres', 'apellidos', 'celular', 'email');
+            }
+        ])->find($id);
+    }
+
+    // Eliminar horario
+    public function deleteHorario($id)
     {
         DB::beginTransaction();
         try {
-            $grupo = HorarioGrupo::findOrFail($id);
-
-            // Las eliminaciones en cascada se manejarán automáticamente por las restricciones de clave foránea
-            $grupo->delete();
+            $horario = HorarioGrupo::findOrFail($id);
+            $horario->delete(); // Las eliminaciones en cascada se manejan automáticamente
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Grupo de horario eliminado exitosamente'
+                'message' => 'Horario eliminado exitosamente'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al eliminar grupo de horario: ' . $e->getMessage());
+            Log::error('Error al eliminar horario: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al eliminar el grupo de horario: ' . $e->getMessage()
+                'message' => 'Error al eliminar el horario: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    // Obtener todos los motorizados disponibles
+    // Obtener motorizados disponibles (sin horario asignado)
     public function getMotorizadosDisponibles()
     {
         try {
             $motorizados = RepartoRegistro::where('estado', 1)
                 ->where('aprobado', 1)
+                ->whereNotExists(function($query) {
+                    $query->select(DB::raw(1))
+                          ->from('horario_asignaciones')
+                          ->whereRaw('horario_asignaciones.motorizado_id = reparto_registros.id');
+                })
+                ->whereNotExists(function($query) {
+                    $query->select(DB::raw(1))
+                          ->from('horario_grupos')
+                          ->whereRaw('horario_grupos.motorizado_individual_id = reparto_registros.id')
+                          ->where('horario_grupos.tipo', 'individual');
+                })
                 ->select('id', 'nombres', 'apellidos', 'celular', 'email')
                 ->get();
 
