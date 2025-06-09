@@ -1,5 +1,4 @@
 <?php
-// app/Models/HorarioGrupo.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,12 +13,19 @@ class HorarioGrupo extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
+        'tipo',
+        'motorizado_individual_id',
         'rangos'
     ];
 
     protected $casts = [
-        'rangos' => 'array', // Esto convierte automáticamente JSON a array y viceversa
+        'rangos' => 'array',
     ];
+
+    public function bloques()
+    {
+        return $this->hasMany(HorarioBloque::class, 'grupo_id')->orderBy('orden');
+    }
 
     public function asignaciones()
     {
@@ -29,5 +35,10 @@ class HorarioGrupo extends Model
     public function motorizados()
     {
         return $this->belongsToMany(RepartoRegistro::class, 'horario_asignaciones', 'grupo_id', 'motorizado_id');
+    }
+
+    public function motorizadoIndividual()
+    {
+        return $this->belongsTo(RepartoRegistro::class, 'motorizado_individual_id');
     }
 }
