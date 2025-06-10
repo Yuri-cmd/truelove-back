@@ -123,7 +123,7 @@ class BikerController extends Controller
         if (!$reparto->activo) {
             return [];
         }
-
+        
         $motorizadoLocation = Location::where('motorizado_id', $idMotorizado)
             ->latest()
             ->first();
@@ -135,7 +135,7 @@ class BikerController extends Controller
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
-                    ->whereRaw('estado = 3')
+                    ->whereRaw('estado = 2')
                     ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
                         $sub->select(DB::raw('pedido_id, MAX(created_at)'))
                             ->from('pedido_trackings')
