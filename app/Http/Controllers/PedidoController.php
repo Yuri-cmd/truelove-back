@@ -106,7 +106,7 @@ class PedidoController extends Controller
 
         $comercio = BusinessRegistration::find($request->id_local);
 
-        if ($comercio->token_fmc) {
+        if ($comercio->token_fmc && $comercio->activo == 1) {
             $this->firebaseService->sendNotification(
                 $comercio->token_fmc,
                 '🛒 Nuevo Pedido de ' . Cliente::where('id', $request->id_cliente)->first()->nombre,

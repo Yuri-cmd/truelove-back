@@ -2,12 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
 use App\Models\Promocion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
 
 class PromocionController extends Controller
 {
+
+    private $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
     /**
      * @OA\Get(
      *     path="/api/promociones",
@@ -61,12 +71,6 @@ class PromocionController extends Controller
     public function store(Request $request)
     {
         try {
-            \Log::info('Iniciando método store de Promocion', [
-                'datos_request' => $request->all(),
-                'tiene_imagen' => $request->hasFile('imagen'),
-                'file_imagen' => $request->file('imagen')
-            ]);
-
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
@@ -84,26 +88,20 @@ class PromocionController extends Controller
 
                 // Guarda solo la ruta relativa a public
                 $promocion->imagen = $imagePath;
-                \Log::info('Imagen subida correctamente', [
-                    'path' => $promocion->imagen
-                ]);
             } else {
-                \Log::info('No se envió imagen o no es válida');
                 $promocion->imagen = null;
             }
-
             $promocion->save();
 
-            \Log::info('Promocion guardada', [
-                'promocion' => $promocion->toArray()
-            ]);
+            if($promocion){
+                $clientes = Cliente::whereNotNull('token_fmc')->get();
+                foreach($clientes as $cliente){
+                    $this->firebaseService->sendNotification($cliente->token_fmc, $promocion->titulo , $promocion->subtitulo);
+                }
+            }
 
             return response()->json($promocion, 201);
         } catch (\Exception $e) {
-            \Log::error('Error al guardar promoción', [
-                'mensaje' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }

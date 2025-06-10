@@ -58,7 +58,16 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm)
     {
-        $precioBase = 4;
+        // Obtener la hora actual (0-23)
+        $hora = (int)date('G');
+
+        // Si es entre las 23:00 (11pm) y 4:59am, tarifa base 5
+        if ($hora >= 23 || $hora < 5) {
+            $precioBase = 5;
+        } else {
+            $precioBase = 4;
+        }
+
         $precioMax = 10;
         $distanciaMax = 10; // km
 
@@ -104,7 +113,7 @@ class PedidoService
     // Método para obtener el listado de pedidos y calcular el tiempo estimado
     public function obtenerPedidosCercanos()
     {
-        $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->get();
+        $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->where('activo', 1)->get();
         $tokens = [];
         foreach ($motorizados as $motorizado) {
             // Obtener la ubicación del motorizado
