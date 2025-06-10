@@ -7,9 +7,17 @@ use App\Models\DescuentoCliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\FirebaseService;
 
 class DescuentoClienteController extends Controller
 {
+    private $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
     /**
      * Obtener todos los descuentos
      */
@@ -49,6 +57,17 @@ class DescuentoClienteController extends Controller
             'usos_disponibles' => $request->usos_disponibles,
             'descripcion' => $request->descripcion
         ]);
+
+        if ($descuento) {
+            $cliente = Cliente::find($request->id_cliente);
+            if ($cliente->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $cliente->token_fmc,
+                    '¡Tienes un nuevo descuento disponible! 🎉',
+                    "¡Hola {$cliente->nombre}! Hemos agregado un nuevo descuento a tu cuenta. Utiliza el código: {$codigo} y disfruta de tus beneficios exclusivos. ¡Aprovéchalo antes de que expire!"
+                );
+            }
+        }
 
         return response()->json([
             'message' => 'Descuento creado con éxito',
