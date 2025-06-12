@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
 
 class RepartoRegistroCompletoController extends Controller
 {
@@ -119,8 +120,14 @@ class RepartoRegistroCompletoController extends Controller
 
                 $tempFile = tempnam(sys_get_temp_dir(), 'doc');
                 file_put_contents($tempFile, $imagen);
-
-                $imgPath = Storage::disk('custom_public')->putFileAs('documento-motorizado', $tempFile, $fileName);
+                $uploadedFile = new UploadedFile(
+                    $tempFile,
+                    $fileName,
+                    'image/jpeg',
+                    null,
+                    true
+                );
+                $imgPath = $uploadedFile->store('documento-motorizado', 'custom_public');
                 $registro->update(["documento_imagen_frente" => $imgPath]);
                 unlink($tempFile);
             }
@@ -132,7 +139,14 @@ class RepartoRegistroCompletoController extends Controller
                 $tempFile = tempnam(sys_get_temp_dir(), 'doc');
                 file_put_contents($tempFile, $imagen);
 
-                $imgPath = Storage::disk('custom_public')->putFileAs('documento-motorizado', $tempFile, $fileName);
+                $uploadedFile = new UploadedFile(
+                    $tempFile,
+                    $fileName,
+                    'image/jpeg',
+                    null,
+                    true
+                );
+                $imgPath = $uploadedFile->store('documento-motorizado', 'custom_public');
                 $registro->update(["documento_imagen_reverso" => $imgPath]);
                 unlink($tempFile);
             }
@@ -148,8 +162,15 @@ class RepartoRegistroCompletoController extends Controller
 
                         $tempFile = tempnam(sys_get_temp_dir(), 'doc_add');
                         file_put_contents($tempFile, $archivo);
+                        $uploadedFile = new UploadedFile(
+                            $tempFile,
+                            $fileName,
+                            'image/jpeg',
+                            null,
+                            true
+                        );
 
-                        $filePath = Storage::disk('custom_public')->putFileAs('documentos-adicionales', $tempFile, $fileName);
+                        $filePath = $uploadedFile->store('documentos-adicionales', 'custom_public');
 
                         $documentosGuardados[] = [
                             'ruta' => $filePath,
