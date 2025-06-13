@@ -79,7 +79,7 @@ class HorarioController extends Controller
                 'descripcion' => $request->descripcion,
                 'tipo' => $request->tipo,
                 'motorizado_individual_id' => $request->tipo === 'individual' ? $request->motorizado_individual_id : null,
-                'rangos' => [] // Mantener por compatibilidad, pero usar bloques
+               
             ]);
 
             // Crear bloques de horario
@@ -301,6 +301,54 @@ class HorarioController extends Controller
         }
     }
 
+    // Función auxiliar para verificar si un horario cruza medianoche
+    private function cruzaMedianoche($horaInicio, $horaFin)
+    {
+        $inicioMinutos = $this->horaAMinutos($horaInicio);
+        $finMinutos = $this->horaAMinutos($horaFin);
+        return $finMinutos < $inicioMinutos;
+    }
+
+    // Función auxiliar para calcular duración considerando cruce de medianoche
+    private function calcularDuracion($horaInicio, $horaFin)
+    {
+        $inicioMinutos = $this->horaAMinutos($horaInicio);
+        $finMinutos = $this->horaAMinutos($horaFin);
+        
+        if ($this->cruzaMedianoche($horaInicio, $horaFin)) {
+            // Si cruza medianoche: (24:00 - inicio) + fin
+            return (24 * 60 - $inicioMinutos) + $finMinutos;
+        }
+        
+        return $finMinutos - $inicioMinutos;
+    }
+
+    // Función auxiliar para verificar solapamiento considerando cruce de medianoche
+    private function verificarSolapamiento($bloque1, $bloque2)
+    {
+        $inicio1 = $this->horaAMinutos($bloque1['inicio']);
+        $fin1 = $this->horaAMinutos($bloque1['fin']);
+        $inicio2 = $this->horaAMinutos($bloque2['inicio']);
+        $fin2 = $this->horaAMinutos($bloque2['fin']);
+
+        $cruza1 = $this->cruzaMedianoche($bloque1['inicio'], $bloque1['fin']);
+        $cruza2 = $this->cruzaMedianoche($bloque2['inicio'], $bloque2['fin']);
+
+        if (!$cruza1 && !$cruza2) {
+            // Ninguno cruza medianoche - validación normal
+            return $fin1 > $inicio2 && $fin2 > $inicio1;
+        } elseif ($cruza1 && !$cruza2) {
+            // Solo el primero cruza medianoche
+            return ($fin1 > $inicio2) || ($inicio1 <= $fin2);
+        } elseif (!$cruza1 && $cruza2) {
+            // Solo el segundo cruza medianoche
+            return ($fin2 > $inicio1) || ($inicio2 <= $fin1);
+        } else {
+            // Ambos cruzan medianoche - siempre se solapan
+            return true;
+        }
+    }
+
     // Métodos auxiliares
     private function validarSolapamientoBloques($bloques)
     {
@@ -308,6 +356,17 @@ class HorarioController extends Controller
         
         foreach ($bloques as $bloque) {
             $dias = is_array($bloque['dia_semana']) ? $bloque['dia_semana'] : [$bloque['dia_semana']];
+            
+            // Validar duración mínima y máxima
+            $duracion = $this->calcularDuracion($bloque['hora_inicio'], $bloque['hora_fin']);
+            
+            if ($duracion < 15) {
+                throw new \Exception("La duración del bloque es demasiado corta: {$duracion} minutos (mínimo 15 minutos)");
+            }
+            
+            if ($duracion > 18 * 60) {
+                throw new \Exception("La duración del bloque es demasiado larga: " . floor($duracion / 60) . "h " . ($duracion % 60) . "min (máximo 18 horas)");
+            }
             
             foreach ($dias as $dia) {
                 if (!isset($bloquesPorDia[$dia])) {
@@ -321,33 +380,30 @@ class HorarioController extends Controller
             }
         }
 
+        // Verificar solapamientos por día
         foreach ($bloquesPorDia as $dia => $bloquesDelDia) {
-            // Ordenar bloques por hora de inicio
-            usort($bloquesDelDia, function($a, $b) {
-                return strcmp($a['inicio'], $b['inicio']);
-            });
-
-            // Verificar solapamientos
             for ($i = 0; $i < count($bloquesDelDia) - 1; $i++) {
-                $bloqueActual = $bloquesDelDia[$i];
-                $bloqueSiguiente = $bloquesDelDia[$i + 1];
-                
-                // Convertir horas a minutos para comparación más precisa
-                $finActual = $this->horaAMinutos($bloqueActual['fin']);
-                $inicioSiguiente = $this->horaAMinutos($bloqueSiguiente['inicio']);
-                
-                // Permitir que un bloque termine exactamente cuando empieza el siguiente
-                if ($finActual > $inicioSiguiente) {
-                    throw new \Exception("Hay solapamiento de horarios en el día $dia: {$bloqueActual['inicio']}-{$bloqueActual['fin']} se superpone con {$bloqueSiguiente['inicio']}-{$bloqueSiguiente['fin']}");
+                for ($j = $i + 1; $j < count($bloquesDelDia); $j++) {
+                    if ($this->verificarSolapamiento($bloquesDelDia[$i], $bloquesDelDia[$j])) {
+                        $duracion1 = $this->calcularDuracion($bloquesDelDia[$i]['inicio'], $bloquesDelDia[$i]['fin']);
+                        $duracion2 = $this->calcularDuracion($bloquesDelDia[$j]['inicio'], $bloquesDelDia[$j]['fin']);
+                        
+                        throw new \Exception("Hay solapamiento de horarios en el día $dia: " .
+                            "Bloque {$bloquesDelDia[$i]['tipo']} ({$bloquesDelDia[$i]['inicio']}-{$bloquesDelDia[$i]['fin']}, " .
+                            floor($duracion1 / 60) . "h " . ($duracion1 % 60) . "min) se superpone con " .
+                            "Bloque {$bloquesDelDia[$j]['tipo']} ({$bloquesDelDia[$j]['inicio']}-{$bloquesDelDia[$j]['fin']}, " .
+                            floor($duracion2 / 60) . "h " . ($duracion2 % 60) . "min)");
+                    }
                 }
             }
         }
     }
-      private function horaAMinutos($hora) {
+
+    private function horaAMinutos($hora) 
+    {
         $partes = explode(':', $hora);
         return (int)$partes[0] * 60 + (int)$partes[1];
     }
-
 
     private function getDefaultColor($tipo)
     {
