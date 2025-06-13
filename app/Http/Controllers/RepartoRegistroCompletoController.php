@@ -7,7 +7,6 @@ use App\Models\DatosPersonalesReparto;
 use App\Models\CuentaBancariaReparto;
 use App\Models\RegistroVehiculo;
 use App\Models\BusinessRegistration;
-use App\Models\UbigeoInei;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -18,33 +17,15 @@ use Illuminate\Http\UploadedFile;
 
 class RepartoRegistroCompletoController extends Controller
 {
+    /**
+     * Procesa el registro completo de un repartidor
+     */
     public function registroCompleto(Request $request)
     {
         Log::info('Iniciando registro completo de repartidor', $request->all());
 
-        // // Validar la estructura de la solicitud
-        // $validator = Validator::make($request->all(), [
-        //     'datosBasicos' => 'required|array',
-        //     'datosPersonales' => 'required|array',
-        //     'cuentaBancaria' => 'required|array',
-        //     'vehiculo' => 'required|array',
-        // ]);
-        $rules = [
-            'datosBasicos' => 'required|array',
-            'datosPersonales' => 'required|array',
-            'cuentaBancaria' => 'required|array',
-        ];
-
-        // Solo requerir vehículo si no es bicicleta o moto eléctrica
-        $datosBasicos = $request->input('datosBasicos', []);
-        $vehiculo = $datosBasicos['vehiculo'] ?? '';
-
-        if (!in_array($vehiculo, ['BICICLETA', 'MOTO ELECTRICA'])) {
-            $rules['vehiculo'] = 'required|array';
-        }
-
-        $validator = Validator::make($request->all(), $rules);
-
+        // Validar la estructura de la solicitud
+        $validator = $this->validarSolicitud($request);
         if ($validator->fails()) {
             Log::error('Error de validación en estructura de registro completo', $validator->errors()->toArray());
             return response()->json(['errors' => $validator->errors()], 422);
@@ -57,525 +38,37 @@ class RepartoRegistroCompletoController extends Controller
         $vehiculo = $request->input('vehiculo');
 
         // Log detallado de los datos recibidos
-        Log::info('Datos extraídos del request', [
-            'datosBasicos_keys' => array_keys($datosBasicos),
-            'datosPersonales_keys' => array_keys($datosPersonales),
-            'cuentaBancaria_keys' => array_keys($cuentaBancaria),
-            // 'vehiculo_keys' => array_keys($vehiculo),
-            'vehiculo_keys' => $vehiculo ? array_keys($vehiculo) : [],
-            'vehiculo_imagenes' => [
-                'placa_imagen' => isset($vehiculo['placa_imagen']) ? 'PRESENTE' : 'AUSENTE',
-                'licenciaConducir_imagen' => isset($vehiculo['licenciaConducir_imagen']) ? 'PRESENTE' : 'AUSENTE',
-                'seguro_imagen' => isset($vehiculo['seguro_imagen']) ? 'PRESENTE' : 'AUSENTE',
-                'tarjetaPropiedad_imagen' => isset($vehiculo['tarjetaPropiedad_imagen']) ? 'PRESENTE' : 'AUSENTE'
-            ]
-        ]);
+        $this->logDatosRecibidos($datosBasicos, $datosPersonales, $cuentaBancaria, $vehiculo);
+
         // Iniciar transacción
         DB::beginTransaction();
 
         try {
-            // PASO 1: Verificar si existen registros duplicados
-            $existingEmail = RepartoRegistro::where('email', $datosBasicos['email'])->first();
-            $existingDocument = RepartoRegistro::where('nro_documento', $datosBasicos['nro_documento'])->first();
-
-            if ($existingEmail || $existingDocument) {
+            // Verificar duplicados
+            $resultadoVerificacion = $this->verificarDuplicados($datosBasicos);
+            if ($resultadoVerificacion !== true) {
                 DB::rollBack();
-                return response()->json([
-                    'error' => 'registro_duplicado',
-                    'message' => 'Ya existe un registro con este email o documento'
-                ], 422);
+                return $resultadoVerificacion;
             }
 
-            // PASO 2: Verificar duplicados en BusinessRegistration
-            $existingBusiness = BusinessRegistration::where('documentNumber', $datosBasicos['nro_documento'])
-                ->orWhere('email', $datosBasicos['email'])
-                ->first();
+            // Crear registro básico
+            $registro = $this->crearRegistroBasico($datosBasicos);
 
-            if ($existingBusiness) {
-                DB::rollBack();
-                $message = $existingBusiness->documentNumber === $datosBasicos['nro_documento']
-                    ? 'Este número de documento ya está registrado como socio comercial'
-                    : 'Este correo electrónico ya está registrado como socio comercial';
-                return response()->json(['errors' => ['duplicate' => [$message]]], 422);
-            }
+            // Procesar documentos de identidad
+            $this->procesarDocumentosIdentidad($registro, $datosBasicos);
 
-            // PASO 3: Crear registro básico
-            $registro = RepartoRegistro::create([
-                'departamento' => $datosBasicos['departamento'],
-                'vehiculo' => $datosBasicos['vehiculo'],
-                'tipo_documento' => $datosBasicos['tipo_documento'],
-                'nro_documento' => $datosBasicos['nro_documento'],
-                'nombres' => $datosBasicos['nombres'],
-                'apellidos' => $datosBasicos['apellidos'],
-                'celular' => $datosBasicos['celular'],
-                'email' => $datosBasicos['email'],
-                'mayor_edad' => $datosBasicos['mayor_edad'] === 'si' || $datosBasicos['mayor_edad'] === true,
-                'acepta_politica' => $datosBasicos['aceptaPolitica'] || false,
-            ]);
+            // Procesar documentos adicionales
+            $this->procesarDocumentosAdicionales($registro, $datosBasicos);
 
-            // PASO 4: Procesar documentos de identidad si existen
-            if (isset($datosBasicos['documentoImagenFrente'])) {
-                // Detectar el tipo MIME del base64
-                $base64Parts = explode(',', $datosBasicos['documentoImagenFrente']);
-                $mimeType = 'image/jpeg'; // Valor por defecto para documentos de identidad
+            // Crear datos personales
+            $this->crearDatosPersonales($registro, $datosPersonales);
 
-                if (count($base64Parts) > 1 && strpos($base64Parts[0], ':') !== false) {
-                    $mimeHeader = explode(':', $base64Parts[0])[1];
-                    if (strpos($mimeHeader, ';') !== false) {
-                        $mimeType = explode(';', $mimeHeader)[0];
-                    }
-                }
+            // Crear cuenta bancaria
+            $this->crearCuentaBancaria($registro, $cuentaBancaria);
 
-                // Determinar la extensión basada en el tipo MIME
-                $extension = match ($mimeType) {
-                    'image/jpeg' => '.jpg',
-                    'image/png' => '.png',
-                    default => '.jpg'
-                };
-
-                $imagen = base64_decode($base64Parts[1]);
-                $fileName = "documento_motorizado_frente_" . uniqid() . $extension;
-
-                $tempFile = tempnam(sys_get_temp_dir(), 'doc');
-                file_put_contents($tempFile, $imagen);
-                $uploadedFile = new UploadedFile(
-                    $tempFile,
-                    $fileName,
-                    $mimeType,
-                    null,
-                    true
-                );
-                $imgPath = $uploadedFile->store('documento-motorizado', 'custom_public');
-                $registro->update(["documento_imagen_frente" => $imgPath]);
-                unlink($tempFile);
-            }
-
-            if (isset($datosBasicos['documentoImagenReverso'])) {
-                $imagen = base64_decode(explode(',', $datosBasicos['documentoImagenReverso'])[1]);
-                $fileName = "documento_motorizado_reverso_" . uniqid() . '.jpg';
-
-                $tempFile = tempnam(sys_get_temp_dir(), 'doc');
-                file_put_contents($tempFile, $imagen);
-
-                $uploadedFile = new UploadedFile(
-                    $tempFile,
-                    $fileName,
-                    'application/pdf',
-                    null,
-                    true
-                );
-                $imgPath = $uploadedFile->store('documento-motorizado', 'custom_public');
-                $registro->update(["documento_imagen_reverso" => $imgPath]);
-                unlink($tempFile);
-            }
-
-            // PASO 5: Procesar documentos adicionales
-            if (isset($datosBasicos['documentosAdicionales']) && is_array($datosBasicos['documentosAdicionales'])) {
-                $documentosGuardados = [];
-
-                foreach ($datosBasicos['documentosAdicionales'] as $documento) {
-                    if (isset($documento['archivo']) && isset($documento['nombre']) && isset($documento['categoria'])) {
-                        // Detectar el tipo MIME del base64
-                        $base64Parts = explode(',', $documento['archivo']);
-                        $mimeType = 'application/pdf'; // Valor por defecto
-
-                        // Extraer el tipo MIME del encabezado base64 si existe
-                        if (count($base64Parts) > 1 && strpos($base64Parts[0], ':') !== false) {
-                            $mimeHeader = explode(':', $base64Parts[0])[1];
-                            if (strpos($mimeHeader, ';') !== false) {
-                                $mimeType = explode(';', $mimeHeader)[0];
-                            }
-                        }
-
-                        // Determinar la extensión basada en el tipo MIME
-                        $extension = match ($mimeType) {
-                            'application/pdf' => '.pdf',
-                            'image/jpeg' => '.jpg',
-                            'image/png' => '.png',
-                            default => '.pdf' // Por defecto usamos PDF para documentos
-                        };
-
-                        // Decodificar el archivo
-                        $archivo = base64_decode($base64Parts[1]);
-                        $fileName = "documento_adicional_" . uniqid() . $extension;
-
-                        // Crear archivo temporal
-                        $tempFile = tempnam(sys_get_temp_dir(), 'doc_add');
-                        file_put_contents($tempFile, $archivo);
-
-                        // Crear el UploadedFile con el tipo MIME correcto
-                        $uploadedFile = new UploadedFile(
-                            $tempFile,
-                            $fileName,
-                            $mimeType,
-                            null,
-                            true
-                        );
-
-                        // Guardar el archivo
-                        $filePath = $uploadedFile->store('documentos-adicionales', 'custom_public');
-
-                        // Registrar información sobre el archivo guardado
-                        Log::info("Documento adicional guardado", [
-                            'categoria' => $documento['categoria'],
-                            'nombre_original' => $documento['nombre'],
-                            'mime_detectado' => $mimeType,
-                            'extension' => $extension,
-                            'ruta_guardada' => $filePath
-                        ]);
-
-                        $documentosGuardados[] = [
-                            'ruta' => $filePath,
-                            'tipo' => $mimeType,
-                            'categoria' => $documento['categoria'],
-                            'fecha_carga' => now()->toDateTimeString()
-                        ];
-
-                        unlink($tempFile);
-                    }
-                }
-
-                if (!empty($documentosGuardados)) {
-                    $registro->update(['documentos_adicionales' => $documentosGuardados]);
-                }
-            }
-
-            // PASO 6: Crear datos personales
-            $urlSelfie = null;
-            if (isset($datosPersonales['selfie'])) {
-                $imagen = base64_decode(explode(',', $datosPersonales['selfie'])[1]);
-                $fileName = "selfie_" . uniqid() . '.jpg';
-
-                $tempFile = tempnam(sys_get_temp_dir(), 'selfie');
-                file_put_contents($tempFile, $imagen);
-
-                $urlSelfie = Storage::disk('custom_public')->putFileAs('selfies', $tempFile, $fileName);
-                unlink($tempFile);
-            }
-
-            DatosPersonalesReparto::create([
-                'reparto_registro_id' => $registro->id,
-                'fecha_nacimiento' => $datosPersonales['fecha_nacimiento'],
-                'genero' => $datosPersonales['genero'],
-                'url_selfie' => $urlSelfie,
-                'ubigeo_id' => $datosPersonales['ubigeo_id']
-            ]);
-            // PASO 7: Crear cuenta bancaria
-            $urlImagenCuenta = null;
-            if (isset($cuentaBancaria['imagen_cuenta'])) {
-                // Obtener el tipo MIME del base64
-                $mime = explode(';', explode(':', $cuentaBancaria['imagen_cuenta'])[1])[0];
-
-                // Determinar la extensión basada en el tipo MIME
-                $extension = match ($mime) {
-                    'application/pdf' => '.pdf',
-                    'image/jpeg' => '.jpg',
-                    'image/png' => '.png',
-                    default => '.jpg'
-                };
-
-                $imagen = base64_decode(explode(',', $cuentaBancaria['imagen_cuenta'])[1]);
-                $fileName = "cuenta_bancaria_" . uniqid() . $extension;
-
-                $tempFile = tempnam(sys_get_temp_dir(), 'cuenta');
-                file_put_contents($tempFile, $imagen);
-
-                // Usar Storage::disk en lugar de move_uploaded_file
-                $urlImagenCuenta = Storage::disk('custom_public')->putFileAs(
-                    'cuentas_bancarias',
-                    $tempFile,
-                    $fileName
-                );
-
-                unlink($tempFile);
-            }
-
-
-            CuentaBancariaReparto::create([
-                'reparto_registro_id' => $registro->id,
-                'titular' => $cuentaBancaria['titular'],
-                'dni' => $cuentaBancaria['dni'],
-                'banco_id' => $cuentaBancaria['banco_id'],
-                'tipo_cuenta_id' => $cuentaBancaria['tipo_cuenta_id'],
-                'numero_cuenta' => $cuentaBancaria['numero_cuenta'],
-                'url_imagen_cuenta' => $urlImagenCuenta // Ahora guardará la ruta relativa
-            ]);
-
-
-            // PASO 8: Crear registro de vehículo (solo si no es bicicleta o moto eléctrica)
+            // Procesar vehículo si corresponde
             if (!in_array($datosBasicos['vehiculo'], ['BICICLETA', 'MOTO ELECTRICA'])) {
-                // Solo crear registro de vehículo si no es bicicleta o moto eléctrica
-                $vehiculo = $request->input('vehiculo');
-
-                $almacenarImagen = function ($base64Data, $carpeta, $tipoImagen = 'imagen') use ($registro) {
-                    // Log inicial para verificar si se recibe la imagen
-                    Log::info("Procesando imagen de vehículo", [
-                        'registro_id' => $registro->id,
-                        'tipo_imagen' => $tipoImagen,
-                        'carpeta' => $carpeta,
-                        'tiene_datos' => !empty($base64Data),
-                        'longitud_datos' => $base64Data ? strlen($base64Data) : 0
-                    ]);
-
-                    if (!$base64Data) {
-                        Log::warning("No se recibieron datos de imagen", [
-                            'registro_id' => $registro->id,
-                            'tipo_imagen' => $tipoImagen
-                        ]);
-                        return null;
-                    }
-
-                    try {
-                        // Verificar formato base64
-                        if (!str_contains($base64Data, ',')) {
-                            Log::error("Formato base64 inválido - no contiene coma separadora", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'primeros_50_chars' => substr($base64Data, 0, 50)
-                            ]);
-                            return null;
-                        }
-
-                        $partes = explode(',', $base64Data);
-                        if (count($partes) !== 2) {
-                            Log::error("Formato base64 inválido - estructura incorrecta", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'partes_encontradas' => count($partes)
-                            ]);
-                            return null;
-                        }
-
-                        // Detectar el tipo MIME del base64
-                        $mimeType = 'image/jpeg'; // Valor por defecto
-
-                        if (strpos($partes[0], ':') !== false) {
-                            $mimeHeader = explode(':', $partes[0])[1];
-                            if (strpos($mimeHeader, ';') !== false) {
-                                $mimeType = explode(';', $mimeHeader)[0];
-                            }
-                        }
-
-                        // Determinar la extensión basada en el tipo MIME
-                        $extension = match ($mimeType) {
-                            'application/pdf' => '.pdf',
-                            'image/jpeg' => '.jpg',
-                            'image/png' => '.png',
-                            default => '.jpg'
-                        };
-
-                        // Decodificar imagen
-                        $imagen = base64_decode($partes[1]);
-                        if ($imagen === false) {
-                            Log::error("Error al decodificar base64", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen
-                            ]);
-                            return null;
-                        }
-
-                        $tamanoImagen = strlen($imagen);
-                        Log::info("Imagen decodificada exitosamente", [
-                            'registro_id' => $registro->id,
-                            'tipo_imagen' => $tipoImagen,
-                            'tamano_bytes' => $tamanoImagen,
-                            'mime_detectado' => $mimeType
-                        ]);
-
-                        // Verificar tamaño mínimo de imagen (1KB)
-                        if ($tamanoImagen < 1024) {
-                            Log::warning("Imagen muy pequeña, posible corrupción", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'tamano_bytes' => $tamanoImagen
-                            ]);
-                        }
-
-                        $fileName = time() . '_' . Str::random(10) . $extension;
-
-                        // Crear archivo temporal
-                        $tempFile = tempnam(sys_get_temp_dir(), 'img_vehiculo');
-                        if ($tempFile === false) {
-                            Log::error("No se pudo crear archivo temporal", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen
-                            ]);
-                            return null;
-                        }
-
-                        // Escribir datos al archivo temporal
-                        $bytesEscritos = file_put_contents($tempFile, $imagen);
-                        if ($bytesEscritos === false) {
-                            Log::error("Error al escribir archivo temporal", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'archivo_temporal' => $tempFile
-                            ]);
-                            return null;
-                        }
-
-                        Log::info("Archivo temporal creado", [
-                            'registro_id' => $registro->id,
-                            'tipo_imagen' => $tipoImagen,
-                            'archivo_temporal' => $tempFile,
-                            'bytes_escritos' => $bytesEscritos
-                        ]);
-
-                        // Verificar que el archivo temporal existe y tiene contenido
-                        if (!file_exists($tempFile) || filesize($tempFile) === 0) {
-                            Log::error("Archivo temporal inválido", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'existe' => file_exists($tempFile),
-                                'tamano' => file_exists($tempFile) ? filesize($tempFile) : 'N/A'
-                            ]);
-                            return null;
-                        }
-
-                        // Intentar guardar en storage
-                        $ruta = Storage::disk('custom_public')->putFileAs($carpeta, $tempFile, $fileName);
-
-                        if ($ruta === false) {
-                            Log::error("Error al guardar en storage", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'carpeta' => $carpeta,
-                                'nombre_archivo' => $fileName
-                            ]);
-                            unlink($tempFile);
-                            return null;
-                        }
-
-                        // Verificar que el archivo se guardó correctamente
-                        if (!Storage::disk('custom_public')->exists($ruta)) {
-                            Log::error("Archivo no existe después de guardarlo", [
-                                'registro_id' => $registro->id,
-                                'tipo_imagen' => $tipoImagen,
-                                'ruta_esperada' => $ruta
-                            ]);
-                            unlink($tempFile);
-                            return null;
-                        }
-
-                        $tamanoFinal = Storage::disk('custom_public')->size($ruta);
-                        Log::info("Imagen guardada exitosamente", [
-                            'registro_id' => $registro->id,
-                            'tipo_imagen' => $tipoImagen,
-                            'ruta_final' => $ruta,
-                            'tamano_final' => $tamanoFinal,
-                            'extension' => $extension
-                        ]);
-
-                        // Limpiar archivo temporal
-                        unlink($tempFile);
-
-                        return $ruta;
-
-                    } catch (\Exception $e) {
-                        Log::error("Excepción al procesar imagen de vehículo", [
-                            'registro_id' => $registro->id,
-                            'tipo_imagen' => $tipoImagen,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
-                        ]);
-
-                        // Limpiar archivo temporal si existe
-                        if (isset($tempFile) && file_exists($tempFile)) {
-                            unlink($tempFile);
-                        }
-
-                        return null;
-                    }
-                };
-
-                // ✅ AQUÍ VA EL SEGUNDO BLOQUE DE LOGGING
-// Log de datos recibidos para vehículo
-                Log::info("Datos de vehículo recibidos", [
-                    'registro_id' => $registro->id,
-                    'placa' => $vehiculo['placa'] ?? 'NO_DEFINIDA',
-                    'tiene_imagen_placa' => isset($vehiculo['placa_imagen']),
-                    'tiene_imagen_licencia' => isset($vehiculo['licenciaConducir_imagen']),
-                    'tiene_imagen_seguro' => isset($vehiculo['seguro_imagen']),
-                    'tiene_imagen_tarjeta' => isset($vehiculo['tarjetaPropiedad_imagen']),
-                    'keys_vehiculo' => array_keys($vehiculo)
-                ]);
-
-                // Procesar cada imagen individualmente con logging
-                $imagenPlaca = null;
-                $imagenLicencia = null;
-                $imagenSeguro = null;
-                $imagenTarjeta = null;
-
-                if (isset($vehiculo['placa_imagen'])) {
-                    Log::info("Procesando imagen de placa", ['registro_id' => $registro->id]);
-                    $imagenPlaca = $almacenarImagen($vehiculo['placa_imagen'], 'placas', 'placa');
-                    Log::info("Resultado imagen placa", [
-                        'registro_id' => $registro->id,
-                        'ruta' => $imagenPlaca,
-                        'exitoso' => $imagenPlaca !== null
-                    ]);
-                }
-
-                if (isset($vehiculo['licenciaConducir_imagen'])) {
-                    Log::info("Procesando imagen de licencia", ['registro_id' => $registro->id]);
-                    $imagenLicencia = $almacenarImagen($vehiculo['licenciaConducir_imagen'], 'licencias', 'licencia');
-                    Log::info("Resultado imagen licencia", [
-                        'registro_id' => $registro->id,
-                        'ruta' => $imagenLicencia,
-                        'exitoso' => $imagenLicencia !== null
-                    ]);
-                }
-
-                if (isset($vehiculo['seguro_imagen'])) {
-                    Log::info("Procesando imagen de seguro", ['registro_id' => $registro->id]);
-                    $imagenSeguro = $almacenarImagen($vehiculo['seguro_imagen'], 'seguros', 'seguro');
-                    Log::info("Resultado imagen seguro", [
-                        'registro_id' => $registro->id,
-                        'ruta' => $imagenSeguro,
-                        'exitoso' => $imagenSeguro !== null
-                    ]);
-                }
-
-                if (isset($vehiculo['tarjetaPropiedad_imagen'])) {
-                    Log::info("Procesando imagen de tarjeta propiedad", ['registro_id' => $registro->id]);
-                    $imagenTarjeta = $almacenarImagen($vehiculo['tarjetaPropiedad_imagen'], 'tarjetas_propiedad', 'tarjeta_propiedad');
-                    Log::info("Resultado imagen tarjeta", [
-                        'registro_id' => $registro->id,
-                        'ruta' => $imagenTarjeta,
-                        'exitoso' => $imagenTarjeta !== null
-                    ]);
-                }
-
-                // Crear registro con logging de los valores finales
-                $datosVehiculo = [
-                    'reparto_registro_id' => $registro->id,
-                    'placa' => $vehiculo['placa'],
-                    'licencia_conducir' => $vehiculo['licenciaConducir'],
-                    'seguro' => $vehiculo['seguro'],
-                    'tarjeta_propiedad' => $vehiculo['tarjetaPropiedad'],
-                    'imagen_placa' => $imagenPlaca,
-                    'imagen_licencia' => $imagenLicencia,
-                    'imagen_seguro' => $imagenSeguro,
-                    'imagen_tarjeta_propiedad' => $imagenTarjeta
-                ];
-
-                Log::info("Creando registro de vehículo", [
-                    'registro_id' => $registro->id,
-                    'datos_vehiculo' => $datosVehiculo
-                ]);
-
-                $vehiculoCreado = RegistroVehiculo::create($datosVehiculo);
-
-                Log::info("Registro de vehículo creado", [
-                    'registro_id' => $registro->id,
-                    'vehiculo_id' => $vehiculoCreado->id,
-                    'imagenes_guardadas' => [
-                        'placa' => $imagenPlaca !== null,
-                        'licencia' => $imagenLicencia !== null,
-                        'seguro' => $imagenSeguro !== null,
-                        'tarjeta' => $imagenTarjeta !== null
-                    ]
-                ]);
+                $this->procesarVehiculo($registro, $vehiculo);
             } else {
                 Log::info("Vehículo sin documentos motorizados, saltando registro de vehículo", [
                     'registro_id' => $registro->id,
@@ -606,4 +99,564 @@ class RepartoRegistroCompletoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Valida la estructura de la solicitud
+     */
+    private function validarSolicitud(Request $request)
+    {
+        $rules = [
+            'datosBasicos' => 'required|array',
+            'datosPersonales' => 'required|array',
+            'cuentaBancaria' => 'required|array',
+        ];
+
+        // Solo requerir vehículo si no es bicicleta o moto eléctrica
+        $datosBasicos = $request->input('datosBasicos', []);
+        $vehiculo = $datosBasicos['vehiculo'] ?? '';
+
+        if (!in_array($vehiculo, ['BICICLETA', 'MOTO ELECTRICA'])) {
+            $rules['vehiculo'] = 'required|array';
+        }
+
+        return Validator::make($request->all(), $rules);
+    }
+
+    /**
+     * Registra los datos recibidos en el log
+     */
+    private function logDatosRecibidos($datosBasicos, $datosPersonales, $cuentaBancaria, $vehiculo)
+    {
+        Log::info('Datos extraídos del request', [
+            'datosBasicos_keys' => array_keys($datosBasicos),
+            'datosPersonales_keys' => array_keys($datosPersonales),
+            'cuentaBancaria_keys' => array_keys($cuentaBancaria),
+            'vehiculo_keys' => $vehiculo ? array_keys($vehiculo) : [],
+            'vehiculo_imagenes' => [
+                'placa_imagen' => isset($vehiculo['placa_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'licenciaConducir_imagen' => isset($vehiculo['licenciaConducir_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'seguro_imagen' => isset($vehiculo['seguro_imagen']) ? 'PRESENTE' : 'AUSENTE',
+                'tarjetaPropiedad_imagen' => isset($vehiculo['tarjetaPropiedad_imagen']) ? 'PRESENTE' : 'AUSENTE'
+            ]
+        ]);
+    }
+
+    /**
+     * Verifica si existen registros duplicados
+     * @return true|Response true si no hay duplicados, Response con error si hay duplicados
+     */
+    private function verificarDuplicados($datosBasicos)
+    {
+        // Verificar duplicados en RepartoRegistro
+        $existingEmail = RepartoRegistro::where('email', $datosBasicos['email'])->first();
+        $existingDocument = RepartoRegistro::where('nro_documento', $datosBasicos['nro_documento'])->first();
+
+        if ($existingEmail || $existingDocument) {
+            return response()->json([
+                'error' => 'registro_duplicado',
+                'message' => 'Ya existe un registro con este email o documento'
+            ], 422);
+        }
+
+        // Verificar duplicados en BusinessRegistration
+        $existingBusiness = BusinessRegistration::where('documentNumber', $datosBasicos['nro_documento'])
+            ->orWhere('email', $datosBasicos['email'])
+            ->first();
+
+        if ($existingBusiness) {
+            $message = $existingBusiness->documentNumber === $datosBasicos['nro_documento']
+                ? 'Este número de documento ya está registrado como socio comercial'
+                : 'Este correo electrónico ya está registrado como socio comercial';
+            return response()->json(['errors' => ['duplicate' => [$message]]], 422);
+        }
+
+        return true;
+    }
+
+    /**
+     * Crea el registro básico del repartidor
+     */
+    private function crearRegistroBasico($datosBasicos)
+    {
+        return RepartoRegistro::create([
+            'departamento' => $datosBasicos['departamento'],
+            'vehiculo' => $datosBasicos['vehiculo'],
+            'tipo_documento' => $datosBasicos['tipo_documento'],
+            'nro_documento' => $datosBasicos['nro_documento'],
+            'nombres' => $datosBasicos['nombres'],
+            'apellidos' => $datosBasicos['apellidos'],
+            'celular' => $datosBasicos['celular'],
+            'email' => $datosBasicos['email'],
+            'mayor_edad' => $datosBasicos['mayor_edad'] === 'si' || $datosBasicos['mayor_edad'] === true,
+            'acepta_politica' => $datosBasicos['aceptaPolitica'] ?? false,
+        ]);
+    }
+
+    /**
+     * Procesa los documentos de identidad
+     */
+    private function procesarDocumentosIdentidad($registro, $datosBasicos)
+    {
+        if (isset($datosBasicos['documentoImagenFrente'])) {
+            $imgPath = $this->procesarArchivoBase64(
+                $datosBasicos['documentoImagenFrente'],
+                'documento-motorizado',
+                'documento_motorizado_frente',
+                'image/jpeg',
+                '.jpg',
+                false // No forzar extensión para imágenes
+            );
+            if ($imgPath) {
+                $registro->update(["documento_imagen_frente" => $imgPath]);
+            }
+        }
+
+        if (isset($datosBasicos['documentoImagenReverso'])) {
+            $imgPath = $this->procesarArchivoBase64(
+                $datosBasicos['documentoImagenReverso'],
+                'documento-motorizado',
+                'documento_motorizado_reverso',
+                'image/jpeg',
+                '.jpg',
+                false // No forzar extensión para imágenes
+            );
+            if ($imgPath) {
+                $registro->update(["documento_imagen_reverso" => $imgPath]);
+            }
+        }
+    }
+
+    /**
+     * Procesa los documentos adicionales
+     */
+    private function procesarDocumentosAdicionales($registro, $datosBasicos)
+    {
+        if (!isset($datosBasicos['documentosAdicionales']) || !is_array($datosBasicos['documentosAdicionales'])) {
+            return;
+        }
+
+        $documentosGuardados = [];
+
+        foreach ($datosBasicos['documentosAdicionales'] as $documento) {
+            if (!isset($documento['archivo']) || !isset($documento['nombre']) || !isset($documento['categoria'])) {
+                continue;
+            }
+
+            // Procesar el documento adicional - FORZAR PDF para documentos adicionales
+            $filePath = $this->procesarArchivoBase64(
+                $documento['archivo'],
+                'documentos-adicionales',
+                'documento_adicional',
+                'application/pdf',
+                '.pdf',
+                true // Forzar extensión .pdf
+            );
+
+            if ($filePath) {
+                // Detectar el tipo MIME real para el log
+                $base64Parts = explode(',', $documento['archivo']);
+                $mimeType = 'application/pdf'; // Valor por defecto
+
+                if (count($base64Parts) > 1 && strpos($base64Parts[0], ':') !== false) {
+                    $mimeHeader = explode(':', $base64Parts[0])[1];
+                    if (strpos($mimeHeader, ';') !== false) {
+                        $mimeType = explode(';', $mimeHeader)[0];
+                    }
+                }
+
+                // Registrar información sobre el archivo guardado
+                Log::info("Documento adicional guardado", [
+                    'categoria' => $documento['categoria'],
+                    'nombre_original' => $documento['nombre'],
+                    'mime_detectado' => $mimeType,
+                    'extension' => '.pdf', // Forzamos PDF
+                    'ruta_guardada' => $filePath
+                ]);
+
+                $documentosGuardados[] = [
+                    'ruta' => $filePath,
+                    'tipo' => $mimeType,
+                    'categoria' => $documento['categoria'],
+                    'fecha_carga' => now()->toDateTimeString()
+                ];
+            }
+        }
+
+        if (!empty($documentosGuardados)) {
+            $registro->update(['documentos_adicionales' => $documentosGuardados]);
+        }
+    }
+
+    /**
+     * Crea los datos personales del repartidor
+     */
+    private function crearDatosPersonales($registro, $datosPersonales)
+    {
+        $urlSelfie = null;
+        if (isset($datosPersonales['selfie'])) {
+            $urlSelfie = $this->procesarArchivoBase64(
+                $datosPersonales['selfie'],
+                'selfies',
+                'selfie',
+                'image/jpeg',
+                '.jpg',
+                false // No forzar extensión para imágenes
+            );
+        }
+
+        DatosPersonalesReparto::create([
+            'reparto_registro_id' => $registro->id,
+            'fecha_nacimiento' => $datosPersonales['fecha_nacimiento'],
+            'genero' => $datosPersonales['genero'],
+            'url_selfie' => $urlSelfie,
+            'ubigeo_id' => $datosPersonales['ubigeo_id']
+        ]);
+    }
+/**
+ * Detecta si un string base64 es una imagen o un PDF
+ * 
+ * @param string $base64Data Datos base64 del archivo
+ * @return string 'image' o 'pdf'
+ */
+private function detectarTipoArchivo($base64Data)
+{
+    // Verificar el encabezado base64
+    if (strpos($base64Data, 'data:image/') !== false) {
+        return 'image';
+    }
+    
+    if (strpos($base64Data, 'data:application/pdf') !== false) {
+        return 'pdf';
+    }
+    
+    // Si no hay un encabezado claro, verificar los primeros bytes del contenido
+    $partes = explode(',', $base64Data);
+    if (count($partes) === 2) {
+        $contenido = base64_decode($partes[1]);
+        
+        // Verificar si es un PDF (comienza con %PDF-)
+        if (substr($contenido, 0, 5) === '%PDF-') {
+            return 'pdf';
+        }
+        
+        // Verificar si es una imagen JPEG (comienza con JFIF o Exif)
+        if (strpos($contenido, 'JFIF') !== false || strpos($contenido, 'Exif') !== false) {
+            return 'image';
+        }
+        
+        // Verificar si es una imagen PNG (comienza con PNG)
+        if (strpos($contenido, 'PNG') !== false) {
+            return 'image';
+        }
+    }
+    
+    // Por defecto, asumir que es un PDF
+    return 'pdf';
+}
+
+/**
+ * Crea la cuenta bancaria del repartidor
+ */
+private function crearCuentaBancaria($registro, $cuentaBancaria)
+{
+    $urlImagenCuenta = null;
+    if (isset($cuentaBancaria['imagen_cuenta'])) {
+        // Detectar si es una imagen o un PDF
+        $tipoArchivo = $this->detectarTipoArchivo($cuentaBancaria['imagen_cuenta']);
+        
+        if ($tipoArchivo === 'image') {
+            // Procesar como imagen
+            $urlImagenCuenta = $this->procesarArchivoBase64(
+                $cuentaBancaria['imagen_cuenta'],
+                'cuentas_bancarias',
+                'cuenta_bancaria',
+                'image/jpeg',
+                '.jpg',
+                false // No forzar extensión para imágenes
+            );
+        } else {
+            // Procesar como PDF
+            $urlImagenCuenta = $this->procesarArchivoBase64(
+                $cuentaBancaria['imagen_cuenta'],
+                'cuentas_bancarias',
+                'cuenta_bancaria',
+                'application/pdf',
+                '.pdf',
+                true // Forzar extensión .pdf para documentos
+            );
+        }
+        
+        Log::info("Documento de cuenta bancaria procesado", [
+            'tipo_detectado' => $tipoArchivo,
+            'ruta_guardada' => $urlImagenCuenta
+        ]);
+    }
+
+    CuentaBancariaReparto::create([
+        'reparto_registro_id' => $registro->id,
+        'titular' => $cuentaBancaria['titular'],
+        'dni' => $cuentaBancaria['dni'],
+        'banco_id' => $cuentaBancaria['banco_id'],
+        'tipo_cuenta_id' => $cuentaBancaria['tipo_cuenta_id'],
+        'numero_cuenta' => $cuentaBancaria['numero_cuenta'],
+        'url_imagen_cuenta' => $urlImagenCuenta
+    ]);
+}
+
+    /**
+     * Procesa los datos del vehículo
+     */
+    private function procesarVehiculo($registro, $vehiculo)
+    {
+        if (!$vehiculo) {
+            return;
+        }
+
+        Log::info("Datos de vehículo recibidos", [
+            'registro_id' => $registro->id,
+            'placa' => $vehiculo['placa'] ?? 'NO_DEFINIDA',
+            'tiene_imagen_placa' => isset($vehiculo['placa_imagen']),
+            'tiene_imagen_licencia' => isset($vehiculo['licenciaConducir_imagen']),
+            'tiene_imagen_seguro' => isset($vehiculo['seguro_imagen']),
+            'tiene_imagen_tarjeta' => isset($vehiculo['tarjetaPropiedad_imagen']),
+            'keys_vehiculo' => array_keys($vehiculo)
+        ]);
+
+        // Procesar cada imagen individualmente
+        $imagenPlaca = isset($vehiculo['placa_imagen']) 
+            ? $this->procesarArchivoBase64(
+                $vehiculo['placa_imagen'], 
+                'placas', 
+                'placa', 
+                'image/jpeg', 
+                '.jpg',
+                false // No forzar extensión para imágenes
+            )
+            : null;
+            
+        $imagenLicencia = isset($vehiculo['licenciaConducir_imagen'])
+            ? $this->procesarArchivoBase64(
+                $vehiculo['licenciaConducir_imagen'], 
+                'licencias', 
+                'licencia', 
+                'image/jpeg', 
+                '.jpg',
+                false // No forzar extensión para imágenes
+            )
+            : null;
+            
+        $imagenSeguro = isset($vehiculo['seguro_imagen'])
+            ? $this->procesarArchivoBase64(
+                $vehiculo['seguro_imagen'], 
+                'seguros', 
+                'seguro', 
+                'application/pdf', 
+                '.pdf',
+                true // Forzar extensión .pdf para documentos
+            )
+            : null;
+            
+        $imagenTarjeta = isset($vehiculo['tarjetaPropiedad_imagen'])
+            ? $this->procesarArchivoBase64(
+                $vehiculo['tarjetaPropiedad_imagen'], 
+                'tarjetas_propiedad', 
+                'tarjeta_propiedad', 
+                'application/pdf', 
+                '.pdf',
+                true // Forzar extensión .pdf para documentos
+            )
+            : null;
+
+        // Crear registro con logging de los valores finales
+        $datosVehiculo = [
+            'reparto_registro_id' => $registro->id,
+            'placa' => $vehiculo['placa'],
+            'licencia_conducir' => $vehiculo['licenciaConducir'],
+            'seguro' => $vehiculo['seguro'],
+            'tarjeta_propiedad' => $vehiculo['tarjetaPropiedad'],
+            'imagen_placa' => $imagenPlaca,
+            'imagen_licencia' => $imagenLicencia,
+            'imagen_seguro' => $imagenSeguro,
+            'imagen_tarjeta_propiedad' => $imagenTarjeta
+        ];
+
+        Log::info("Creando registro de vehículo", [
+            'registro_id' => $registro->id,
+            'datos_vehiculo' => $datosVehiculo
+        ]);
+
+        $vehiculoCreado = RegistroVehiculo::create($datosVehiculo);
+
+        Log::info("Registro de vehículo creado", [
+            'registro_id' => $registro->id,
+            'vehiculo_id' => $vehiculoCreado->id,
+            'imagenes_guardadas' => [
+                'placa' => $imagenPlaca !== null,
+                'licencia' => $imagenLicencia !== null,
+                'seguro' => $imagenSeguro !== null,
+                'tarjeta' => $imagenTarjeta !== null
+            ]
+        ]);
+    }
+
+  /**
+ * Procesa un archivo base64 y lo guarda en el almacenamiento
+ * 
+ * @param string $base64Data Datos base64 del archivo
+ * @param string $carpeta Carpeta donde guardar el archivo
+ * @param string $prefijo Prefijo para el nombre del archivo
+ * @param string $defaultMime Tipo MIME por defecto
+ * @param string $defaultExt Extensión por defecto
+ * @param bool $forzarExtension Si debe forzar la extensión independientemente del MIME detectado
+ * @return string|null Ruta del archivo guardado o null si hay error
+ */
+private function procesarArchivoBase64(
+    $base64Data, 
+    $carpeta, 
+    $prefijo = 'documento', 
+    $defaultMime = 'application/pdf', 
+    $defaultExt = '.pdf',
+    $forzarExtension = false
+) {
+    if (!$base64Data) {
+        Log::warning("No se recibieron datos para procesar", [
+            'carpeta' => $carpeta,
+            'prefijo' => $prefijo
+        ]);
+        return null;
+    }
+
+    try {
+        // Verificar que el directorio exista y tenga permisos de escritura
+        $dirPath = Storage::disk('custom_public')->path($carpeta);
+        if (!file_exists($dirPath)) {
+            if (!mkdir($dirPath, 0755, true)) {
+                Log::error("No se pudo crear el directorio para guardar el archivo", [
+                    'carpeta' => $carpeta
+                ]);
+                return null;
+            }
+        }
+
+        // Verificar formato base64
+        if (!str_contains($base64Data, ',')) {
+            Log::error("Formato base64 inválido - no contiene coma separadora", [
+                'prefijo' => $prefijo,
+                'primeros_50_chars' => substr($base64Data, 0, 50)
+            ]);
+            return null;
+        }
+
+        $partes = explode(',', $base64Data);
+        if (count($partes) !== 2) {
+            Log::error("Formato base64 inválido - estructura incorrecta", [
+                'prefijo' => $prefijo,
+                'partes_encontradas' => count($partes)
+            ]);
+            return null;
+        }
+
+        // Detectar el tipo MIME del base64
+        $mimeType = $defaultMime;
+
+        if (strpos($partes[0], ':') !== false) {
+            $mimeHeader = explode(':', $partes[0])[1];
+            if (strpos($mimeHeader, ';') !== false) {
+                $mimeType = explode(';', $mimeHeader)[0];
+            }
+        }
+
+        // Determinar la extensión basada en el tipo MIME o forzarla
+        $extension = $defaultExt;
+        
+        // Si estamos forzando la extensión, siempre usamos la predeterminada
+        if ($forzarExtension) {
+            $extension = $defaultExt;
+        } else {
+            $extension = match ($mimeType) {
+                'application/pdf' => '.pdf',
+                'image/jpeg' => '.jpg',
+                'image/png' => '.png',
+                default => $defaultExt
+            };
+        }
+
+        // Decodificar archivo
+        $archivo = base64_decode($partes[1]);
+        if ($archivo === false) {
+            Log::error("Error al decodificar base64", [
+                'prefijo' => $prefijo
+            ]);
+            return null;
+        }
+
+        // Verificar si es un PDF (si estamos forzando extensión .pdf)
+        if ($forzarExtension && $extension === '.pdf') {
+            // Verificar si los primeros bytes corresponden a un PDF (%PDF-)
+            $isPdf = substr($archivo, 0, 5) === '%PDF-';
+            if (!$isPdf) {
+                Log::warning("El archivo no parece ser un PDF válido, pero se forzará la extensión .pdf", [
+                    'prefijo' => $prefijo,
+                    'primeros_bytes' => bin2hex(substr($archivo, 0, 10))
+                ]);
+            }
+        }
+
+        // Generar nombre de archivo único con la extensión correcta
+        $uniqueId = uniqid();
+        $fileName = "{$prefijo}_{$uniqueId}{$extension}";
+        
+        // Ruta completa dentro de la carpeta
+        $filePath = "{$carpeta}/{$fileName}";
+        
+        // Guardar el archivo directamente usando Storage
+        Storage::disk('custom_public')->put($filePath, $archivo);
+        
+        // Verificar que el archivo se haya guardado correctamente
+        if (!Storage::disk('custom_public')->exists($filePath)) {
+            Log::error("Error al guardar el archivo en el almacenamiento", [
+                'prefijo' => $prefijo,
+                'ruta' => $filePath
+            ]);
+            return null;
+        }
+
+        // Verificar si el archivo se guardó con la extensión correcta
+        $storedPath = Storage::disk('custom_public')->path($filePath);
+        $fileInfo = pathinfo($storedPath);
+        
+        if (isset($fileInfo['extension']) && $fileInfo['extension'] !== ltrim($extension, '.')) {
+            // El archivo se guardó con una extensión incorrecta, renombrarlo
+            $correctPath = $fileInfo['dirname'] . '/' . $fileInfo['filename'] . $extension;
+            rename($storedPath, $correctPath);
+            
+            // Actualizar la ruta que se devolverá
+            $filePath = $carpeta . '/' . $fileInfo['filename'] . $extension;
+            
+            Log::info("Archivo renombrado para corregir extensión", [
+                'ruta_original' => $storedPath,
+                'ruta_corregida' => $correctPath
+            ]);
+        }
+
+        Log::info("Archivo guardado exitosamente con método directo", [
+            'prefijo' => $prefijo,
+            'ruta_final' => $filePath,
+            'mime_detectado' => $mimeType,
+            'extension_forzada' => $forzarExtension,
+            'extension_final' => $extension
+        ]);
+
+        return $filePath;
+
+    } catch (\Exception $e) {
+        Log::error("Excepción al procesar archivo", [
+            'prefijo' => $prefijo,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return null;
+    }
+}
 }
