@@ -115,15 +115,33 @@ class RepartoRegistroCompletoController extends Controller
 
             // PASO 4: Procesar documentos de identidad si existen
             if (isset($datosBasicos['documentoImagenFrente'])) {
-                $imagen = base64_decode(explode(',', $datosBasicos['documentoImagenFrente'])[1]);
-                $fileName = "documento_motorizado_frente_" . uniqid() . '.jpg';
+                // Detectar el tipo MIME del base64
+                $base64Parts = explode(',', $datosBasicos['documentoImagenFrente']);
+                $mimeType = 'image/jpeg'; // Valor por defecto para documentos de identidad
+
+                if (count($base64Parts) > 1 && strpos($base64Parts[0], ':') !== false) {
+                    $mimeHeader = explode(':', $base64Parts[0])[1];
+                    if (strpos($mimeHeader, ';') !== false) {
+                        $mimeType = explode(';', $mimeHeader)[0];
+                    }
+                }
+
+                // Determinar la extensión basada en el tipo MIME
+                $extension = match ($mimeType) {
+                    'image/jpeg' => '.jpg',
+                    'image/png' => '.png',
+                    default => '.jpg'
+                };
+
+                $imagen = base64_decode($base64Parts[1]);
+                $fileName = "documento_motorizado_frente_" . uniqid() . $extension;
 
                 $tempFile = tempnam(sys_get_temp_dir(), 'doc');
                 file_put_contents($tempFile, $imagen);
                 $uploadedFile = new UploadedFile(
                     $tempFile,
                     $fileName,
-                    'image/jpeg',
+                    $mimeType,
                     null,
                     true
                 );
@@ -142,7 +160,7 @@ class RepartoRegistroCompletoController extends Controller
                 $uploadedFile = new UploadedFile(
                     $tempFile,
                     $fileName,
-                    'image/jpeg',
+                    'application/pdf',
                     null,
                     true
                 );
@@ -157,24 +175,58 @@ class RepartoRegistroCompletoController extends Controller
 
                 foreach ($datosBasicos['documentosAdicionales'] as $documento) {
                     if (isset($documento['archivo']) && isset($documento['nombre']) && isset($documento['categoria'])) {
-                        $archivo = base64_decode(explode(',', $documento['archivo'])[1]);
-                        $fileName = "documento_adicional_" . uniqid() . '.pdf';
+                        // Detectar el tipo MIME del base64
+                        $base64Parts = explode(',', $documento['archivo']);
+                        $mimeType = 'application/pdf'; // Valor por defecto
 
+                        // Extraer el tipo MIME del encabezado base64 si existe
+                        if (count($base64Parts) > 1 && strpos($base64Parts[0], ':') !== false) {
+                            $mimeHeader = explode(':', $base64Parts[0])[1];
+                            if (strpos($mimeHeader, ';') !== false) {
+                                $mimeType = explode(';', $mimeHeader)[0];
+                            }
+                        }
+
+                        // Determinar la extensión basada en el tipo MIME
+                        $extension = match ($mimeType) {
+                            'application/pdf' => '.pdf',
+                            'image/jpeg' => '.jpg',
+                            'image/png' => '.png',
+                            default => '.pdf' // Por defecto usamos PDF para documentos
+                        };
+
+                        // Decodificar el archivo
+                        $archivo = base64_decode($base64Parts[1]);
+                        $fileName = "documento_adicional_" . uniqid() . $extension;
+
+                        // Crear archivo temporal
                         $tempFile = tempnam(sys_get_temp_dir(), 'doc_add');
                         file_put_contents($tempFile, $archivo);
+
+                        // Crear el UploadedFile con el tipo MIME correcto
                         $uploadedFile = new UploadedFile(
                             $tempFile,
                             $fileName,
-                            'image/jpeg',
+                            $mimeType,
                             null,
                             true
                         );
 
+                        // Guardar el archivo
                         $filePath = $uploadedFile->store('documentos-adicionales', 'custom_public');
+
+                        // Registrar información sobre el archivo guardado
+                        Log::info("Documento adicional guardado", [
+                            'categoria' => $documento['categoria'],
+                            'nombre_original' => $documento['nombre'],
+                            'mime_detectado' => $mimeType,
+                            'extension' => $extension,
+                            'ruta_guardada' => $filePath
+                        ]);
 
                         $documentosGuardados[] = [
                             'ruta' => $filePath,
-                            'tipo' => 'application/pdf',
+                            'tipo' => $mimeType,
                             'categoria' => $documento['categoria'],
                             'fecha_carga' => now()->toDateTimeString()
                         ];
@@ -294,6 +346,24 @@ class RepartoRegistroCompletoController extends Controller
                             return null;
                         }
 
+                        // Detectar el tipo MIME del base64
+                        $mimeType = 'image/jpeg'; // Valor por defecto
+
+                        if (strpos($partes[0], ':') !== false) {
+                            $mimeHeader = explode(':', $partes[0])[1];
+                            if (strpos($mimeHeader, ';') !== false) {
+                                $mimeType = explode(';', $mimeHeader)[0];
+                            }
+                        }
+
+                        // Determinar la extensión basada en el tipo MIME
+                        $extension = match ($mimeType) {
+                            'application/pdf' => '.pdf',
+                            'image/jpeg' => '.jpg',
+                            'image/png' => '.png',
+                            default => '.jpg'
+                        };
+
                         // Decodificar imagen
                         $imagen = base64_decode($partes[1]);
                         if ($imagen === false) {
@@ -308,7 +378,8 @@ class RepartoRegistroCompletoController extends Controller
                         Log::info("Imagen decodificada exitosamente", [
                             'registro_id' => $registro->id,
                             'tipo_imagen' => $tipoImagen,
-                            'tamano_bytes' => $tamanoImagen
+                            'tamano_bytes' => $tamanoImagen,
+                            'mime_detectado' => $mimeType
                         ]);
 
                         // Verificar tamaño mínimo de imagen (1KB)
@@ -320,7 +391,7 @@ class RepartoRegistroCompletoController extends Controller
                             ]);
                         }
 
-                        $fileName = time() . '_' . Str::random(10) . '.jpg';
+                        $fileName = time() . '_' . Str::random(10) . $extension;
 
                         // Crear archivo temporal
                         $tempFile = tempnam(sys_get_temp_dir(), 'img_vehiculo');
@@ -391,7 +462,8 @@ class RepartoRegistroCompletoController extends Controller
                             'registro_id' => $registro->id,
                             'tipo_imagen' => $tipoImagen,
                             'ruta_final' => $ruta,
-                            'tamano_final' => $tamanoFinal
+                            'tamano_final' => $tamanoFinal,
+                            'extension' => $extension
                         ]);
 
                         // Limpiar archivo temporal
