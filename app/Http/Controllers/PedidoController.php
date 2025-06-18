@@ -167,9 +167,11 @@ class PedidoController extends Controller
         $pedido->save();
 
         // Registrar el tracking del pedido
+        $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+        $estado = $pedidoTracking->estado == 2 ? 2 : 4;
         PedidoTracking::create([
             'pedido_id' => $pedido->id,
-            'estado' => 4
+            'estado' => $estado
         ]);
 
         return response()->json(['status' => 'success']);
@@ -192,8 +194,35 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
-        if ($request->estado == 2) {
+        if ($request->estado == 2 && $pedido->id_motorizado == null) {
             $this->sendMotorizadosCerca();
+        }
+
+        if ($request->estado == 3 && $pedido->id_motorizado !== null) {
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $id;
+            $tracking->estado = 4;
+
+            // Buscar el último tracking creado para este pedido
+            $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
+            if ($ultimoTracking) {
+                // Sumarle un minuto al created_at del último tracking
+                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addMinute();
+                $tracking->created_at = $nuevoCreatedAt;
+                $tracking->updated_at = $nuevoCreatedAt;
+            }
+            $tracking->save();
+        }
+
+        if ($request->estado == 0) {
+            $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+            if ($cliente->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $cliente->token_fmc,
+                    'Hola ' . $cliente->nombre,
+                    'Tu pedido #' . $pedido->id . ' ha sido cancelado por el restaurante.'
+                );
+            }
         }
 
         // Retornar respuesta exitosa
@@ -483,8 +512,12 @@ class PedidoController extends Controller
     public function verificarConfirmacion($id)
     {
         $pedido = Pedido::findOrFail($id);
+        $numero_local = formatPhoneNumber(BusinessRegistration::where('id', $pedido->id_local)->first()->phone) ?? '';
+        $estadoPedido = PedidoTracking::where('pedido_id', $id)->latest()->first()->estado ?? 1;
         return response()->json([
-            'requiere_confirmacion' => $pedido->requiere_confirmacion_local
+            'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
+            'numero_local' => $numero_local,
+            'estado' => $estadoPedido,
         ]);
     }
 
