@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use App\Models\PerfilNegocio;
 use Illuminate\Support\Facades\File;
@@ -358,4 +359,181 @@ class PerfilNegocioController extends Controller
             ], 500);
         }
     }
+   
+    public function obtenerEstablecimientoActual(Request $request)
+    {
+        try {
+            // Verificar autenticación
+            if (!$request->user()) {
+                Log::error('Usuario no autenticado');
+                return response()->json(['message' => 'Usuario no autenticado'], 401);
+            }
+
+            $user = $request->user();
+            $businessRegistration = $user->businessRegistration;
+            
+            if (!$businessRegistration) {
+                return response()->json(['message' => 'No se encontró el registro de negocio'], 404);
+            }
+
+            $establecimiento = $businessRegistration->establecimiento;
+            
+            if (!$establecimiento) {
+                return response()->json(['message' => 'No se encontró el establecimiento'], 404);
+            }
+
+            // Retornar los datos del establecimiento
+            return response()->json([
+                'nombre_establecimiento' => $establecimiento->nombre_establecimiento,
+                'calle' => $establecimiento->calle,
+                'numero' => $establecimiento->numero,
+                'codigo_postal' => $establecimiento->codigo_postal,
+                'provincia' => $establecimiento->provincia,
+                'ciudad' => $establecimiento->ciudad,
+                'referencia' => $establecimiento->referencia,
+                'latitud' => $establecimiento->latitud,
+                'longitud' => $establecimiento->longitud,
+                'direccion_completa' => $establecimiento->direccion_completa,
+                'id' => $establecimiento->id,
+                'business_registration_id' => $establecimiento->business_registration_id
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerEstablecimientoActual: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener los datos del establecimiento',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar establecimiento del usuario autenticado
+     */
+    public function actualizarEstablecimiento(Request $request)
+    {
+        try {
+            // Verificar autenticación
+            if (!$request->user()) {
+                Log::error('Usuario no autenticado');
+                return response()->json(['message' => 'Usuario no autenticado'], 401);
+            }
+
+            // Validar los datos recibidos
+            $validator = \Validator::make($request->all(), [
+                'businessName' => 'required|string|min:2',
+                'street' => 'required|string|min:2',
+                'number' => 'required|string|min:1',
+                'postalCode' => 'required|string|min:5',
+                'province' => 'required|string|min:2',
+                'city' => 'required|string|min:2',
+                'reference' => 'nullable|string',
+                'coordinates' => 'required|array',
+                'coordinates.0' => 'required|numeric', // longitud
+                'coordinates.1' => 'required|numeric', // latitud
+                'fullAddress' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                Log::error('Validación fallida:', $validator->errors()->toArray());
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $user = $request->user();
+            $businessRegistration = $user->businessRegistration;
+            
+            if (!$businessRegistration) {
+                return response()->json(['message' => 'No se encontró el registro de negocio'], 404);
+            }
+
+            $establecimiento = $businessRegistration->establecimiento;
+            
+            if (!$establecimiento) {
+                return response()->json(['message' => 'No se encontró el establecimiento'], 404);
+            }
+
+            // Actualizar el establecimiento
+            $establecimiento->update([
+                'nombre_establecimiento' => $request->businessName,
+                'calle' => $request->street,
+                'numero' => $request->number,
+                'codigo_postal' => $request->postalCode,
+                'provincia' => $request->province,
+                'ciudad' => $request->city,
+                'referencia' => $request->reference,
+                'latitud' => $request->coordinates[1], // latitud
+                'longitud' => $request->coordinates[0], // longitud
+                'direccion_completa' => $request->fullAddress,
+            ]);
+
+            Log::info('Establecimiento actualizado correctamente:', [
+                'establecimiento_id' => $establecimiento->id,
+                'business_registration_id' => $businessRegistration->id
+            ]);
+
+            return response()->json([
+                'message' => 'Establecimiento actualizado correctamente',
+                'establecimiento' => [
+                    'nombre_establecimiento' => $establecimiento->nombre_establecimiento,
+                    'calle' => $establecimiento->calle,
+                    'numero' => $establecimiento->numero,
+                    'codigo_postal' => $establecimiento->codigo_postal,
+                    'provincia' => $establecimiento->provincia,
+                    'ciudad' => $establecimiento->ciudad,
+                    'referencia' => $establecimiento->referencia,
+                    'latitud' => $establecimiento->latitud,
+                    'longitud' => $establecimiento->longitud,
+                    'direccion_completa' => $establecimiento->direccion_completa,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en actualizarEstablecimiento: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al actualizar el establecimiento',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+   public function obtenerConfiguracionPOS(Request $request)
+{
+    try {
+        $businessRegistrationId = $request->user()->businessRegistration->id;
+        $businessRegistration = BusinessRegistration::find($businessRegistrationId);
+        
+        return response()->json([
+            'posToDriver' => $businessRegistration->posToDriver,
+            'entrega_documento_venta' => $businessRegistration->entrega_documento_venta,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Error al obtener configuración'], 500);
+    }
+}
+
+public function actualizarConfiguracionPOS(Request $request)
+{
+    try {
+        $request->validate([
+            'posToDriver' => 'required|integer|in:0,1,2',
+            'entrega_documento_venta' => 'required|integer|in:0,1',
+        ]);
+
+        $businessRegistrationId = $request->user()->businessRegistration->id;
+        $businessRegistration = BusinessRegistration::find($businessRegistrationId);
+        
+        $businessRegistration->update([
+            'posToDriver' => $request->posToDriver,
+            'entrega_documento_venta' => $request->entrega_documento_venta,
+        ]);
+
+        return response()->json([
+            'message' => 'Configuración actualizada correctamente',
+            'posToDriver' => $businessRegistration->posToDriver,
+            'entrega_documento_venta' => $businessRegistration->entrega_documento_venta,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Error al actualizar configuración'], 500);
+    }
+}
+
 }
