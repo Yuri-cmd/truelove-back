@@ -76,6 +76,7 @@ class SocioController extends Controller
                         'created_at' => $businessRegistration->created_at,
                         'posToDriver'=>$businessRegistration->posToDriver,
                         'entrega_documento_venta' => $businessRegistration->entrega_documento_venta
+
                     ],
                     'business' => $businessRegistration->negocio ? [
                         'nombre' => $businessRegistration->negocio->nombre,
@@ -325,8 +326,15 @@ class SocioController extends Controller
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
         }
 
+        // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
+        $pedidos = $pedidos->filter(function ($pedido) {
+            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);;
+        });
+
         // Ordenar los pedidos por el último estado del tracking de manera descendente
-        $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')->values();
+        $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')
+            ->sortByDesc('created_at')
+            ->values();
 
         return response()->json($pedidos);
     }
@@ -832,5 +840,14 @@ class SocioController extends Controller
             'message' => 'Token actualizado correctamente',
             'data' => $reparto
         ]);
+    }
+
+    public function socioEntregaDocumento($id)
+    {
+        $socio = BusinessRegistration::find($id);
+        if (!$socio) {
+            return response()->json(['status' => 'error', 'message' => 'Socio no encontrado'], 404);
+        }
+        return response()->json($socio->entrega_documento_venta);
     }
 }

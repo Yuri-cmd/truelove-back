@@ -194,7 +194,7 @@ Route::get('/distritos/{departamentoId}/{provinciaId}', [DatosPersonalesRepartoC
 Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guardar']);
 Route::get('/datos-personales/{repartoRegistroId}', [DatosPersonalesRepartoController::class, 'show']);
 Route::post('/datos-personales/{id}', [DatosPersonalesRepartoController::class, 'update']);
-
+Route::put('/repartidores/info/{id}', [BikerController::class, 'updateInfo']);
 
 // Rutas para datos bancarios
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
@@ -213,7 +213,7 @@ Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
-
+Route::get('prueba', [PedidoController::class, 'prueba']);
 
 //rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
@@ -256,6 +256,7 @@ Route::put('socio/update/verificar/confirmacion/{idPedido}', [PedidoController::
 Route::get('get/precio/delivery/{idLocal}/{idCliente}', [PedidoController::class, 'calcularPrecioDelivery']);
 Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteController::class, 'validarCodeDescuento']);
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
+Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);

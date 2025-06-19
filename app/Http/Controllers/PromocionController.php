@@ -2,12 +2,54 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
 use App\Models\Promocion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
 
 class PromocionController extends Controller
 {
+
+    private $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/promociones",
+     *     summary="Obtener promociones",
+     *     description="Devuelve una lista de promociones. Si se pasa el parámetro showAll=true, devuelve todas las promociones, de lo contrario solo las activas.",
+     *     tags={"Promociones"},
+     *     @OA\Parameter(
+     *         name="showAll",
+     *         in="query",
+     *         description="Mostrar todas las promociones (true: todas, false u omitido: solo activas)",
+     *         required=false,
+     *         @OA\Schema(
+     *             type="string",
+     *             enum={"true", "false"}
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de promociones",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="titulo", type="string", example="Promo especial"),
+     *                 @OA\Property(property="subtitulo", type="string", example="Subtitulo promo"),
+     *                 @OA\Property(property="imagen", type="string", example="http://localhost:8000/storage/imagen.jpg"),
+     *                 @OA\Property(property="estado", type="integer", example=1)
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function index(Request $request)
     {
         if ($request->showAll === 'true') {
@@ -29,12 +71,6 @@ class PromocionController extends Controller
     public function store(Request $request)
     {
         try {
-            \Log::info('Iniciando método store de Promocion', [
-                'datos_request' => $request->all(),
-                'tiene_imagen' => $request->hasFile('imagen'),
-                'file_imagen' => $request->file('imagen')
-            ]);
-
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
@@ -48,30 +84,34 @@ class PromocionController extends Controller
             $promocion->estado = $data['estado'] ?? 1;
 
             if ($request->hasFile('imagen')) {
-                $filePath = $request->file('imagen')->store('promociones-img', 'custom_public');
+                $imagePath = $request->file('imagen')->store('promociones-img', 'public');
 
                 // Guarda solo la ruta relativa a public
-                $promocion->imagen = $filePath;
-                \Log::info('Imagen subida correctamente', [
-                    'path' => $promocion->imagen
-                ]);
+                $promocion->imagen = $imagePath;
             } else {
-                \Log::info('No se envió imagen o no es válida');
                 $promocion->imagen = null;
             }
-
             $promocion->save();
 
-            \Log::info('Promocion guardada', [
-                'promocion' => $promocion->toArray()
-            ]);
+            if($promocion){
+                $clientes = Cliente::whereNotNull('token_fmc')->get();
+                foreach ($clientes as $cliente) {
+                    // Personaliza el título y subtítulo
+                    $titulo = "¡Hola {$cliente->nombre}! " . $promocion->titulo;
+                    $subtitulo = $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.";
+                
+                    // Envía la notificación y guarda el resultado
+                    $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo);
+                
+                    // Registra si hubo éxito o error
+                    if (!$resultado) {
+                        error_log("No se pudo enviar notificación a {$cliente->nombre} (ID: {$cliente->id})");
+                    }
+                }
+            }
 
             return response()->json($promocion, 201);
         } catch (\Exception $e) {
-            \Log::error('Error al guardar promoción', [
-                'mensaje' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json(['error' => 'Error procesando la solicitud: ' . $e->getMessage()], 500);
         }
     }

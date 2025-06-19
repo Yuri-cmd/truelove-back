@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\PedidoEntregadoMail;
 use App\Models\Adicional;
 use App\Models\BusinessRegistration;
+use App\Models\Chat;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\DescuentoCliente;
@@ -106,7 +107,7 @@ class PedidoController extends Controller
 
         $comercio = BusinessRegistration::find($request->id_local);
 
-        if ($comercio->token_fmc) {
+        if ($comercio->token_fmc && $comercio->activo == 1) {
             $this->firebaseService->sendNotification(
                 $comercio->token_fmc,
                 '🛒 Nuevo Pedido de ' . Cliente::where('id', $request->id_cliente)->first()->nombre,
@@ -167,9 +168,11 @@ class PedidoController extends Controller
         $pedido->save();
 
         // Registrar el tracking del pedido
+        $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+        $estado = $pedidoTracking->estado == 2 ? 2 : 4;
         PedidoTracking::create([
             'pedido_id' => $pedido->id,
-            'estado' => 4
+            'estado' => $estado
         ]);
 
         return response()->json(['status' => 'success']);
@@ -192,8 +195,43 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
-        if ($request->estado == 2) {
+        if ($request->estado == 2 && $pedido->id_motorizado == null) {
             $this->sendMotorizadosCerca();
+        }
+
+        if ($request->estado == 3 && $pedido->id_motorizado !== null) {
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $id;
+            $tracking->estado = 4;
+
+            $biker = RepartoRegistro::where('id', $pedido->id_motorizado)->first();
+            if ($biker->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $biker->token_fmc,
+                    'Hola ' . $biker->nombre,
+                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.');
+            }
+
+            // Buscar el último tracking creado para este pedido
+            $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
+            if ($ultimoTracking) {
+                // Sumarle un minuto al created_at del último tracking
+                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addMinute();
+                $tracking->created_at = $nuevoCreatedAt;
+                $tracking->updated_at = $nuevoCreatedAt;
+            }
+            $tracking->save();
+        }
+
+        if ($request->estado == 0) {
+            $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+            if ($cliente->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $cliente->token_fmc,
+                    'Hola ' . $cliente->nombre,
+                    'Tu pedido #' . $pedido->id . ' ha sido cancelado por el restaurante.'
+                );
+            }
         }
 
         // Retornar respuesta exitosa
@@ -483,8 +521,12 @@ class PedidoController extends Controller
     public function verificarConfirmacion($id)
     {
         $pedido = Pedido::findOrFail($id);
+        $numero_local = formatPhoneNumber(BusinessRegistration::where('id', $pedido->id_local)->first()->phone) ?? '';
+        $estadoPedido = PedidoTracking::where('pedido_id', $id)->latest()->first()->estado ?? 1;
         return response()->json([
-            'requiere_confirmacion' => $pedido->requiere_confirmacion_local
+            'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
+            'numero_local' => $numero_local,
+            'estado' => $estadoPedido,
         ]);
     }
 
@@ -494,5 +536,40 @@ class PedidoController extends Controller
         $pedido->requiere_confirmacion_local = 0;
         $pedido->save();
         return response()->json(true);
+    }
+
+    public function prueba()
+    {
+        $desde = Carbon::now()->subHours(2);
+        $hasta = Carbon::now();
+
+        // Buscar pedidos entregados en las últimas 2 horas
+        $pedidos = Pedido::whereBetween('created_at', [$desde, $hasta])->get();
+        foreach ($pedidos as $pedido) {
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            if ($pedidoTracking->estado == 7) {
+                $motorizado = RepartoRegistro::find($pedido->id_motorizado);
+                $negocio = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+                if (!$motorizado) continue;
+                if (!$negocio) continue;
+
+                $nombre = $motorizado->nombres;
+                $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $total = number_format($pedidoDetalles->sum('precio'), 2);
+                $direccion = $pedido->direccion ?? 'la dirección que nos brindaste';
+
+                $mensaje = "Hola soy {$nombre}, tú Driver de TRUE LOVE DELIVERY. Acabo de llegar con tu pedido de {$negocio->nombre_establecimiento}. El subtotal a pagar incluyendo el delivery sería S/{$total}.";
+
+                // Guardar en la tabla chat
+                Chat::create([
+                    'pedido_id' => $pedido->id,
+                    'sender_id' => $pedido->id_motorizado,
+                    'receiver_id' => $pedido->id_cliente,
+                    'message' => $mensaje,
+                ]);
+
+                echo("Mensaje enviado al pedido #{$pedido->id}");
+            }
+        }
     }
 }

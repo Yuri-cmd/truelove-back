@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\SendCode;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
+use App\Models\CuentaBancariaReparto;
 use App\Models\Establecimiento;
 use App\Models\HorarioAsignacion;
 use App\Models\HorarioGrupo;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class BikerController extends Controller
@@ -135,7 +137,7 @@ class BikerController extends Controller
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
-                    ->whereRaw('estado = 3')
+                    ->whereRaw('estado = 2')
                     ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
                         $sub->select(DB::raw('pedido_id, MAX(created_at)'))
                             ->from('pedido_trackings')
@@ -195,6 +197,7 @@ class BikerController extends Controller
                         $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
                         $pedido->precio_delivery = $pedido->precio_delivery;
                         $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
+                        $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
                     }
                 }
             }
@@ -237,9 +240,16 @@ class BikerController extends Controller
             return response()->json(['error' => 'Usuario no encontrado'], 404);
         }
 
+        $cuentaBancaria = CuentaBancariaReparto::where('reparto_registro_id', $repartoId)
+            ->with(['banco', 'tipoCuenta'])
+            ->first();
+
+
+
         return response()->json([
             'repartidor' => $reparto,
             'usuario' => $user,
+            'cuentaBancaria' => $cuentaBancaria,
         ]);
     }
 
@@ -363,9 +373,11 @@ class BikerController extends Controller
 
         // Contar bloques por tipo
         $bloquesTrabajo = array_filter($bloquesDelDia, function ($b) {
-            return $b['tipo'] === 'trabajo'; });
+            return $b['tipo'] === 'trabajo';
+        });
         $bloquesAlmuerzo = array_filter($bloquesDelDia, function ($b) {
-            return $b['tipo'] === 'almuerzo'; });
+            return $b['tipo'] === 'almuerzo';
+        });
 
         return response()->json([
             'puede_trabajar' => $puedeTrabajar,
@@ -477,5 +489,40 @@ class BikerController extends Controller
         $usuario->save();
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    public function updateInfo(Request $request, $id)
+    {
+        // Validar los datos de entrada
+        $validator = Validator::make($request->all(), [
+            'celular' => 'required|string|max:30',
+            'email' => 'required|email|max:255',
+            'departamento' => 'required|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errores' => $validator->errors()], 422);
+        }
+
+        try {
+            // Buscar el repartidor por ID
+            $repartidor = RepartoRegistro::findOrFail($id);
+
+            // Actualizar los datos
+            $repartidor->celular = $request->celular;
+            $repartidor->email = $request->email;
+            $repartidor->departamento = $request->departamento;
+            $repartidor->save();
+
+            return response()->json([
+                'mensaje' => 'Datos personales actualizados correctamente',
+                'repartidor' => $repartidor,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al actualizar los datos personales',
+                'details' => $e->getMessage()
+            ], 500);
+        }
     }
 }
