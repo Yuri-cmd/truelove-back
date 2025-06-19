@@ -28,8 +28,9 @@ class BusinessRegistration extends Model
         'email_verified_at' => 'datetime',
         'estado' => 'integer',
         'aprobado' => 'boolean',
-       'posToDriver' => 'integer',
-       'entrega_documento_venta' => 'integer'
+       'posToDriver' => 'integer', // puede tener valores 0 (No facilitar POS), 1 (POS estilos) y 2 (POS visa)
+        'activo' => 'boolean',
+       'entrega_documento_venta' => 'integer' //  valores 0 (No emite documentos de venta) y 1 (Si emite documentos de venta)
     ];
     public function user()
     {
