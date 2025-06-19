@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EntregaCalendario;
 use App\Models\RepartoRegistro;
 use App\Models\Role;
 use App\Models\User;
@@ -33,7 +34,8 @@ class MotorizadoController extends Controller
             $motorizado = RepartoRegistro::with([
                 'datosPersonales',
                 'datosBancarios',
-                'registroVehiculo'
+                'registroVehiculo',
+                    'entregaCalendario'
             ])->findOrFail($id);
 
             return response()->json([
@@ -81,6 +83,7 @@ class MotorizadoController extends Controller
                         'imagen_seguro' => $motorizado->registroVehiculo->imagen_seguro,
                         'imagen_tarjeta_propiedad' => $motorizado->registroVehiculo->imagen_tarjeta_propiedad
                     ] : null,
+                      'entregaCalendario' => $motorizado->entregaCalendario,
                     'aprobado' => $motorizado->aprobado,
                     'cantidad_pedidos_dias' => $motorizado->cantidad_pedidos_dias
 
@@ -274,5 +277,24 @@ class MotorizadoController extends Controller
             ], 500);
         }
     }
+    // Agregar este método al MotorizadoController
+public function getEntregaCalendarios($motorizadoId)
+{
+    try {
+        $entregas = EntregaCalendario::where('reparto_registro_id', $motorizadoId)
+            ->orderBy('fecha', 'desc')
+            ->orderBy('hora', 'desc')
+            ->get();
+
+        return response()->json($entregas);
+    } catch (\Exception $e) {
+        Log::error('Error al obtener calendario de entregas: ' . $e->getMessage());
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al obtener el calendario de entregas'
+        ], 500);
+    }
+}
+
 
 }

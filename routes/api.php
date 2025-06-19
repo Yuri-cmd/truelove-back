@@ -94,18 +94,20 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
             Route::delete('/motorizado/{id}/delete', 'delete');
             Route::post('/motorizado/{id}/actualizar-pedidos', 'actualizarCantidadPedidos');
+            Route::get('/motorizado/{id}/entrega-calendario', 'getEntregaCalendarios');
         });
-      Route::controller(HorarioController::class)->group(function () {
-    Route::get('/horarios', 'getAllHorarios');
-    Route::get('/horarios/grupales', 'getHorariosGrupales');
-    Route::get('/horarios/individuales', 'getHorariosIndividuales');
-    Route::get('/horarios/{id}', 'getHorario');
-    Route::get('/horarios/motorizado/{motorizadoId}', 'getHorarioMotorizado');
-    Route::post('/horarios', 'createHorario');
-    Route::put('/horarios/{id}', 'updateHorario');
-    Route::delete('/horarios/{id}', 'deleteHorario');
-    Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
-});
+        Route::controller(HorarioController::class)->group(function () {
+            Route::get('/horarios', 'getAllHorarios');
+            Route::get('/horarios/grupales', 'getHorariosGrupales');
+            Route::get('/horarios/individuales', 'getHorariosIndividuales');
+            Route::get('/horarios/{id}', 'getHorario');
+            Route::get('/horarios/motorizado/{motorizadoId}', 'getHorarioMotorizado');
+            Route::post('/horarios', 'createHorario');
+            Route::put('/horarios/{id}', 'updateHorario');
+            Route::delete('/horarios/{id}', 'deleteHorario');
+            Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
+        });
+        Route::put('/entrega-calendario/{id}/estado', [EntregaCalendarioController::class, 'actualizarEstado']);
         Route::controller(CuotaMotorizadoController::class)->prefix('cuotas-motorizados')->group(function () {
             Route::get('/', 'index');
             Route::post('/generar-semanal', 'generarCuotasSemanal');
@@ -317,7 +319,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
 
     Route::post('/negocio/banner', [PerfilNegocioController::class, 'actualizarBanner']);
-
+      Route::get('/establecimiento/actual', [PerfilNegocioController::class, 'obtenerEstablecimientoActual']);
+    Route::put('/establecimiento/actualizar', [PerfilNegocioController::class, 'actualizarEstablecimiento']);
+      Route::get('/negocio/pos-settings', [PerfilNegocioController::class, 'obtenerConfiguracionPOS']);
+    Route::put('/negocio/pos-settings', [PerfilNegocioController::class, 'actualizarConfiguracionPOS']);
     // categorias
 
     Route::get('/categoria/web/{id_empresa}', [CategoriaController::class, 'obtenerCategories']);

@@ -19,6 +19,7 @@ class BusinessRegistration extends Model
         'estado',
         'aprobado',
         'posToDriver',
+         'entrega_documento_venta',
         'activo',
         'token_fmc'
     ];
@@ -27,7 +28,8 @@ class BusinessRegistration extends Model
         'email_verified_at' => 'datetime',
         'estado' => 'integer',
         'aprobado' => 'boolean',
-        'posToDriver' =>'boolean'
+       'posToDriver' => 'integer',
+       'entrega_documento_venta' => 'integer'
     ];
     public function user()
     {
