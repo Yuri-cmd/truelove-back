@@ -95,8 +95,18 @@ class PromocionController extends Controller
 
             if($promocion){
                 $clientes = Cliente::whereNotNull('token_fmc')->get();
-                foreach($clientes as $cliente){
-                    $this->firebaseService->sendNotification($cliente->token_fmc, $promocion->titulo , $promocion->subtitulo);
+                foreach ($clientes as $cliente) {
+                    // Personaliza el título y subtítulo
+                    $titulo = "¡Hola {$cliente->nombre}! " . $promocion->titulo;
+                    $subtitulo = $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.";
+                
+                    // Envía la notificación y guarda el resultado
+                    $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo);
+                
+                    // Registra si hubo éxito o error
+                    if (!$resultado) {
+                        error_log("No se pudo enviar notificación a {$cliente->nombre} (ID: {$cliente->id})");
+                    }
                 }
             }
 
