@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\SendCode;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
+use App\Models\CuentaBancariaReparto;
 use App\Models\Establecimiento;
 use App\Models\HorarioAsignacion;
 use App\Models\HorarioGrupo;
@@ -238,9 +239,16 @@ class BikerController extends Controller
             return response()->json(['error' => 'Usuario no encontrado'], 404);
         }
 
+        $cuentaBancaria = CuentaBancariaReparto::where('reparto_registro_id', $repartoId)
+            ->with(['banco', 'tipoCuenta'])
+            ->first();
+        
+
+            
         return response()->json([
             'repartidor' => $reparto,
             'usuario' => $user,
+            'cuentaBancaria' => $cuentaBancaria,
         ]);
     }
 
