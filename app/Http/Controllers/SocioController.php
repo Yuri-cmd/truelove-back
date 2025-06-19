@@ -74,7 +74,7 @@ class SocioController extends Controller
                         'phone' => $businessRegistration->phone,
                         'businessType' => $businessRegistration->businessType,
                         'created_at' => $businessRegistration->created_at,
-                        'posToDriver'=>$businessRegistration->posToDriver
+                        'posToDriver' => $businessRegistration->posToDriver
                     ],
                     'business' => $businessRegistration->negocio ? [
                         'nombre' => $businessRegistration->negocio->nombre,
@@ -283,12 +283,12 @@ class SocioController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
         $local = Establecimiento::where('business_registration_id', $id)->first();
-    
+
         foreach ($pedidos as $pedido) {
             $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-    
+
             $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
             if ($motorizado) {
                 $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
@@ -297,17 +297,17 @@ class SocioController extends Controller
                 $pedido->motorizado = '';
                 $pedido->celular_motorizado = '';
             }
-    
+
             $names = array_map(function ($item) {
                 return $item['nombre'];
             }, $pedidoDetalles->toArray());
             $namesString = implode(', ', $names);
-    
+
             // Obtener el último estado del tracking
             $ultimoTracking = $pedido->trackings->first();
             $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
             $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
-    
+
             // Agregar información adicional
             $pedido->detalle = $namesString;
             $pedido->detalleArray = $pedidoDetalles;
@@ -323,17 +323,17 @@ class SocioController extends Controller
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
         }
-    
+
         // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
-        $pedidos = $pedidos->filter(function($pedido) {
-            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]); ;
+        $pedidos = $pedidos->filter(function ($pedido) {
+            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);;
         });
-    
+
         // Ordenar los pedidos por el último estado del tracking de manera descendente
         $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')
-                ->sortByDesc('created_at')
-                ->values();
-    
+            ->sortByDesc('created_at')
+            ->values();
+
         return response()->json($pedidos);
     }
 
@@ -838,5 +838,14 @@ class SocioController extends Controller
             'message' => 'Token actualizado correctamente',
             'data' => $reparto
         ]);
+    }
+
+    public function socioEntregaDocumento($id)
+    {
+        $socio = BusinessRegistration::find($id);
+        if (!$socio) {
+            return response()->json(['status' => 'error', 'message' => 'Socio no encontrado'], 404);
+        }
+        return response()->json($socio->entrega_documento_venta);
     }
 }

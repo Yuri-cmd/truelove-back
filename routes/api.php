@@ -254,6 +254,7 @@ Route::put('socio/update/verificar/confirmacion/{idPedido}', [PedidoController::
 Route::get('get/precio/delivery/{idLocal}/{idCliente}', [PedidoController::class, 'calcularPrecioDelivery']);
 Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteController::class, 'validarCodeDescuento']);
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
+Route::post('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
