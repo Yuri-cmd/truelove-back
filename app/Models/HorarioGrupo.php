@@ -15,12 +15,12 @@ class HorarioGrupo extends Model
         'descripcion',
         'tipo',
         'motorizado_individual_id',
-        'rangos'
+        // 'rangos'
     ];
 
-    protected $casts = [
-        'rangos' => 'array',
-    ];
+    // protected $casts = [
+    //     'rangos' => 'array',
+    // ];
 
     public function bloques()
     {

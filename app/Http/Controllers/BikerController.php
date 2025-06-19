@@ -195,6 +195,7 @@ class BikerController extends Controller
                         $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
                         $pedido->precio_delivery = $pedido->precio_delivery;
                         $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
+                        $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
                     }
                 }
             }
@@ -363,9 +364,11 @@ class BikerController extends Controller
 
         // Contar bloques por tipo
         $bloquesTrabajo = array_filter($bloquesDelDia, function ($b) {
-            return $b['tipo'] === 'trabajo'; });
+            return $b['tipo'] === 'trabajo';
+        });
         $bloquesAlmuerzo = array_filter($bloquesDelDia, function ($b) {
-            return $b['tipo'] === 'almuerzo'; });
+            return $b['tipo'] === 'almuerzo';
+        });
 
         return response()->json([
             'puede_trabajar' => $puedeTrabajar,

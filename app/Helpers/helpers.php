@@ -37,3 +37,17 @@ if (!function_exists('estadoPedido')) {
         }
     }
 }
+
+if (!function_exists('formatPhoneNumber')) {
+    function formatPhoneNumber($phoneNumber)
+    {
+        // Elimina espacios, guiones y paréntesis si existen
+        $numero_local = preg_replace('/[\s\-\(\)]+/', '', $phoneNumber);
+
+        // Elimina el prefijo +51 o 51
+        $numero_local = preg_replace('/^\+?51/', '', $numero_local);
+
+        // Toma solo los últimos 9 dígitos
+        return substr($numero_local, -9);
+    }
+}
