@@ -450,9 +450,9 @@ private function crearCuentaBancaria($registro, $cuentaBancaria)
                 $vehiculo['seguro_imagen'], 
                 'seguros', 
                 'seguro', 
-                'application/pdf', 
-                '.pdf',
-                true // Forzar extensión .pdf para documentos
+                'image/jpeg', 
+                '.jpg',
+                false // No forzar extensión para imágenes
             )
             : null;
             
@@ -461,9 +461,9 @@ private function crearCuentaBancaria($registro, $cuentaBancaria)
                 $vehiculo['tarjetaPropiedad_imagen'], 
                 'tarjetas_propiedad', 
                 'tarjeta_propiedad', 
-                'application/pdf', 
-                '.pdf',
-                true // Forzar extensión .pdf para documentos
+                'image/jpeg', 
+                '.jpg',
+                false // No forzar extensión para imágenes
             )
             : null;
 

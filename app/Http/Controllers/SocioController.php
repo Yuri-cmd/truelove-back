@@ -74,7 +74,9 @@ class SocioController extends Controller
                         'phone' => $businessRegistration->phone,
                         'businessType' => $businessRegistration->businessType,
                         'created_at' => $businessRegistration->created_at,
-                        'posToDriver' => $businessRegistration->posToDriver
+                        'posToDriver'=>$businessRegistration->posToDriver,
+                        'entrega_documento_venta' => $businessRegistration->entrega_documento_venta
+
                     ],
                     'business' => $businessRegistration->negocio ? [
                         'nombre' => $businessRegistration->negocio->nombre,
