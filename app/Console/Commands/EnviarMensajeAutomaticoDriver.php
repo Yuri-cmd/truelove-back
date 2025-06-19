@@ -3,11 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\Chat;
+use App\Models\Cliente;
 use App\Models\Establecimiento;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
 use App\Models\RepartoRegistro;
+use App\Services\FirebaseService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -15,6 +17,13 @@ class EnviarMensajeAutomaticoDriver extends Command
 {
     protected $signature = 'mensaje:auto-driver';
     protected $description = 'Envia mensaje automatico del driver al cliente';
+
+    private $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
 
     /**
      * Execute the console command.
@@ -41,6 +50,15 @@ class EnviarMensajeAutomaticoDriver extends Command
 
                 $mensaje = "Hola soy {$nombre}, tú Driver de TRUE LOVE DELIVERY. Acabo de llegar con tu pedido de {$negocio->nombre_establecimiento}. El subtotal a pagar incluyendo el delivery sería S/{$total}.";
 
+                $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+                if ($cliente->token_fmc) {
+                    $this->firebaseService->sendNotification(
+                        $cliente->token_fmc,
+                        'Hola ' . $cliente->nombre,
+                        $mensaje
+                    );
+                }
+                
                 // Guardar en la tabla chat
                 Chat::create([
                     'pedido_id' => $pedido->id,
