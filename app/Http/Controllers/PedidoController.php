@@ -203,6 +203,14 @@ class PedidoController extends Controller
             $tracking->pedido_id = $id;
             $tracking->estado = 4;
 
+            $biker = RepartoRegistro::where('id', $pedido->id_motorizado)->first();
+            if ($biker->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $biker->token_fmc,
+                    'Hola ' . $biker->nombre,
+                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.');
+            }
+
             // Buscar el último tracking creado para este pedido
             $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
             if ($ultimoTracking) {

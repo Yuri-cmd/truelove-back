@@ -283,12 +283,12 @@ class SocioController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
         $local = Establecimiento::where('business_registration_id', $id)->first();
-
+    
         foreach ($pedidos as $pedido) {
             $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-
+    
             $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
             if ($motorizado) {
                 $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
@@ -297,17 +297,17 @@ class SocioController extends Controller
                 $pedido->motorizado = '';
                 $pedido->celular_motorizado = '';
             }
-
+    
             $names = array_map(function ($item) {
                 return $item['nombre'];
             }, $pedidoDetalles->toArray());
             $namesString = implode(', ', $names);
-
+    
             // Obtener el último estado del tracking
             $ultimoTracking = $pedido->trackings->first();
             $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
             $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
-
+    
             // Agregar información adicional
             $pedido->detalle = $namesString;
             $pedido->detalleArray = $pedidoDetalles;
@@ -323,10 +323,17 @@ class SocioController extends Controller
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
         }
-
+    
+        // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
+        $pedidos = $pedidos->filter(function($pedido) {
+            return $pedido->ultimo_estado_tracking != 8;
+        });
+    
         // Ordenar los pedidos por el último estado del tracking de manera descendente
-        $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')->values();
-
+        $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')
+                ->sortByDesc('created_at')
+                ->values();
+    
         return response()->json($pedidos);
     }
 
