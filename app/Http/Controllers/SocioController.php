@@ -326,7 +326,7 @@ class SocioController extends Controller
     
         // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
         $pedidos = $pedidos->filter(function($pedido) {
-            return $pedido->ultimo_estado_tracking != 8;
+            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]); ;
         });
     
         // Ordenar los pedidos por el último estado del tracking de manera descendente
