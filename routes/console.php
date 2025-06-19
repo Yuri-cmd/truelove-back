@@ -11,4 +11,4 @@ Artisan::command('inspire', function () {
 
 
 Schedule::command(EnviarMensajeAutomaticoDriver::class)
-    ->everyTenMinutes();
+    ->everyMinute();

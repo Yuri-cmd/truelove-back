@@ -213,7 +213,7 @@ Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
-
+Route::get('prueba', [PedidoController::class, 'prueba']);
 
 //rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
