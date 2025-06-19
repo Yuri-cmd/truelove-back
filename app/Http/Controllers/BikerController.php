@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class BikerController extends Controller
@@ -124,7 +125,7 @@ class BikerController extends Controller
         if (!$reparto->activo) {
             return [];
         }
-        
+
         $motorizadoLocation = Location::where('motorizado_id', $idMotorizado)
             ->latest()
             ->first();
@@ -242,9 +243,9 @@ class BikerController extends Controller
         $cuentaBancaria = CuentaBancariaReparto::where('reparto_registro_id', $repartoId)
             ->with(['banco', 'tipoCuenta'])
             ->first();
-        
 
-            
+
+
         return response()->json([
             'repartidor' => $reparto,
             'usuario' => $user,
@@ -488,5 +489,40 @@ class BikerController extends Controller
         $usuario->save();
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    public function updateInfo(Request $request, $id)
+    {
+        // Validar los datos de entrada
+        $validator = Validator::make($request->all(), [
+            'celular' => 'required|string|max:30',
+            'email' => 'required|email|max:255',
+            'departamento' => 'required|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errores' => $validator->errors()], 422);
+        }
+
+        try {
+            // Buscar el repartidor por ID
+            $repartidor = RepartoRegistro::findOrFail($id);
+
+            // Actualizar los datos
+            $repartidor->celular = $request->celular;
+            $repartidor->email = $request->email;
+            $repartidor->departamento = $request->departamento;
+            $repartidor->save();
+
+            return response()->json([
+                'mensaje' => 'Datos personales actualizados correctamente',
+                'repartidor' => $repartidor,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al actualizar los datos personales',
+                'details' => $e->getMessage()
+            ], 500);
+        }
     }
 }

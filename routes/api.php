@@ -194,7 +194,7 @@ Route::get('/distritos/{departamentoId}/{provinciaId}', [DatosPersonalesRepartoC
 Route::post('/datos-personales', [DatosPersonalesRepartoController::class, 'guardar']);
 Route::get('/datos-personales/{repartoRegistroId}', [DatosPersonalesRepartoController::class, 'show']);
 Route::post('/datos-personales/{id}', [DatosPersonalesRepartoController::class, 'update']);
-
+Route::put('/repartidores/info/{id}', [BikerController::class, 'updateInfo']);
 
 // Rutas para datos bancarios
 Route::get('/bancos', [DatosBancariosRepartoController::class, 'obtenerBancos']);
