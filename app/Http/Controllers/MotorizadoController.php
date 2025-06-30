@@ -35,7 +35,7 @@ class MotorizadoController extends Controller
                 'datosPersonales',
                 'datosBancarios',
                 'registroVehiculo',
-                    'entregaCalendario'
+                'entregaCalendario'
             ])->findOrFail($id);
 
             return response()->json([
@@ -83,7 +83,7 @@ class MotorizadoController extends Controller
                         'imagen_seguro' => $motorizado->registroVehiculo->imagen_seguro,
                         'imagen_tarjeta_propiedad' => $motorizado->registroVehiculo->imagen_tarjeta_propiedad
                     ] : null,
-                      'entregaCalendario' => $motorizado->entregaCalendario,
+                    'entregaCalendario' => $motorizado->entregaCalendario,
                     'aprobado' => $motorizado->aprobado,
                     'cantidad_pedidos_dias' => $motorizado->cantidad_pedidos_dias
 
@@ -127,7 +127,9 @@ class MotorizadoController extends Controller
             }
 
             // Generar credenciales únicas
-            $username = $this->generateUniqueUsername($motorizado->nombres, $motorizado->apellidos);
+            // $username = $this->generateUniqueUsername($motorizado->nombres, $motorizado->apellidos);
+            // $password = Str::random(10);
+
             $password = Str::random(10);
 
             // Obtener el rol de motorizado
@@ -135,7 +137,7 @@ class MotorizadoController extends Controller
 
             // Crear un nuevo usuario
             $user = new User();
-            $user->usuario = $username;
+            $user->usuario = $motorizado->email; // Usar el email como usuario
             $user->name = $motorizado->nombres . ' ' . $motorizado->apellidos;
             $user->email = $motorizado->email;
             $user->password = bcrypt($password);
@@ -147,8 +149,7 @@ class MotorizadoController extends Controller
             $motorizado->save();
 
             // Enviar correo con las credenciales
-            Mail::to($motorizado->email)->send(new CredencialesMotorizado($username, $password));
-
+          Mail::to($motorizado->email)->send(new CredencialesMotorizado($motorizado, $password));
             DB::commit();
             return response()->json([
                 'status' => 'success',
@@ -278,23 +279,23 @@ class MotorizadoController extends Controller
         }
     }
     // Agregar este método al MotorizadoController
-public function getEntregaCalendarios($motorizadoId)
-{
-    try {
-        $entregas = EntregaCalendario::where('reparto_registro_id', $motorizadoId)
-            ->orderBy('fecha', 'desc')
-            ->orderBy('hora', 'desc')
-            ->get();
+    public function getEntregaCalendarios($motorizadoId)
+    {
+        try {
+            $entregas = EntregaCalendario::where('reparto_registro_id', $motorizadoId)
+                ->orderBy('fecha', 'desc')
+                ->orderBy('hora', 'desc')
+                ->get();
 
-        return response()->json($entregas);
-    } catch (\Exception $e) {
-        Log::error('Error al obtener calendario de entregas: ' . $e->getMessage());
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Error al obtener el calendario de entregas'
-        ], 500);
+            return response()->json($entregas);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener calendario de entregas: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener el calendario de entregas'
+            ], 500);
+        }
     }
-}
 
 
 }

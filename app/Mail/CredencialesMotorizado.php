@@ -12,12 +12,12 @@ class CredencialesMotorizado extends Mailable
     // aqui van las propiedades de la clase
     use Queueable, SerializesModels;
 
-    public $username;
+    // public $username;
     public $password;
 
     public function __construct($username, $password)
     {
-        $this->username = $username;
+        // $this->username = $username;
         $this->password = $password;
     }
 
