@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tus credenciales de acceso - TRUELOVE</title>
+    <title>Tu contraseña de acceso - TRUELOVE</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f6f6f6;">
     <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -21,26 +21,21 @@
                     <tr>
                         <td style="padding: 40px 30px;">
                             <h2 style="color: #333333; margin: 0 0 20px; font-size: 24px;">¡Bienvenido Motorizado TRUELOVE!</h2>
-                            <p style="color: #666666; margin: 0 0 25px; line-height: 1.6;">Has sido aprobado como motorizado. A continuación encontrarás tus credenciales de acceso a la plataforma:</p>
+                            <p style="color: #666666; margin: 0 0 25px; line-height: 1.6;">Has sido aprobado como motorizado. Para acceder a la plataforma:</p>
                             
-                            <!-- Credentials Box -->
-                            <table role="presentation" style="width: 100%; background-color: #f8f8f8; border-radius: 6px; margin-bottom: 25px;">
-                                <tr>
-                                    <td style="padding: 20px;">
-                                        <p style="margin: 0 0 10px; color: #333333;">
-                                            <strong>Usuario:</strong> 
-                                            <span style="color: #E60023;">{{ $username }}</span>
-                                        </p>
-                                        <p style="margin: 0; color: #333333;">
-                                            <strong>Contraseña:</strong> 
-                                            <span style="color: #E60023;">{{ $password }}</span>
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
+                            <!-- Instructions -->
+                            <div style="background-color: #f8f8f8; padding: 20px; border-radius: 6px; margin-bottom: 25px;">
+                                <p style="color: #333333; margin: 0 0 15px; font-size: 16px;">
+                                    Ingresa al app con tu correo y esta contraseña 
+                                </p>
+                                <p style="color: #333333; margin: 0; font-size: 16px;">
+                                    <strong>Contraseña:</strong> 
+                                    <span style="color: #E60023; font-size: 18px; font-weight: bold;">{{ $password }}</span>
+                                </p>
+                            </div>
                             
                             <p style="color: #666666; margin: 0 0 25px; padding: 15px; background-color: #fff4f4; border-radius: 6px; border-left: 4px solid #E60023;">
-                                <strong>Importante:</strong> Por razones de seguridad, te recomendamos cambiar tu contraseña después de iniciar sesión por primera vez.
+                                <strong>Importante:</strong> Usa tu correo electrónico como usuario y esta contraseña para iniciar sesión. Te recomendamos cambiar tu contraseña después del primer ingreso.
                             </p>
 
                             <!-- Additional Info -->
