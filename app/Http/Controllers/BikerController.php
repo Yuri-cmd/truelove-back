@@ -253,7 +253,6 @@ class BikerController extends Controller
         ]);
     }
 
-
     public function condiciones($id)
     {
         // Verificar si el motorizado existe
@@ -328,14 +327,27 @@ class BikerController extends Controller
         $bloqueActivo = null;
         $bloquesDelDia = [];
 
-        // CORRECCIÓN: Primero recolectar TODOS los bloques del día actual
+        // Recolectar TODOS los bloques del día actual
         foreach ($bloques as $bloque) {
-            // Asegurarse de que dia_semana sea un array
+            // Asegurarse de que dia_semana sea un array y normalizar los días
             $diasBloque = [];
             if (is_string($bloque->dia_semana)) {
                 $diasBloque = json_decode($bloque->dia_semana, true);
             } elseif (is_array($bloque->dia_semana)) {
                 $diasBloque = $bloque->dia_semana;
+            }
+            if (is_array($diasBloque)) {
+                $diasBloque = array_map(function ($d) {
+                    $d = strtolower($d);
+                    $d = strtr($d, [
+                        'á' => 'a',
+                        'é' => 'e',
+                        'í' => 'i',
+                        'ó' => 'o',
+                        'ú' => 'u'
+                    ]);
+                    return $d;
+                }, $diasBloque);
             }
 
             // Verificar si el día actual está en los días del bloque
@@ -358,12 +370,26 @@ class BikerController extends Controller
             return $a['hora_inicio'] <=> $b['hora_inicio'];
         });
 
-        // Ahora verificar si la hora actual está dentro de algún bloque
+        // Verificar si la hora actual está dentro de algún bloque, considerando los que cruzan medianoche
         foreach ($bloquesDelDia as $bloque) {
-            if ($horaActual >= $bloque['hora_inicio'] && $horaActual <= $bloque['hora_fin']) {
-                $puedeTrabajar = true;
-                $bloqueActivo = $bloque;
-                break;
+            $horaActualObj = Carbon::createFromFormat('H:i', $horaActual);
+            $horaInicioObj = Carbon::createFromFormat('H:i', $bloque['hora_inicio']);
+            $horaFinObj = Carbon::createFromFormat('H:i', $bloque['hora_fin']);
+
+            if ($horaInicioObj <= $horaFinObj) {
+                // Bloque normal, no cruza medianoche
+                if ($horaActualObj >= $horaInicioObj && $horaActualObj <= $horaFinObj) {
+                    $puedeTrabajar = true;
+                    $bloqueActivo = $bloque;
+                    break;
+                }
+            } else {
+                // Bloque que cruza medianoche, ej: 20:00 a 02:00
+                if ($horaActualObj >= $horaInicioObj || $horaActualObj <= $horaFinObj) {
+                    $puedeTrabajar = true;
+                    $bloqueActivo = $bloque;
+                    break;
+                }
             }
         }
 
@@ -418,14 +444,13 @@ class BikerController extends Controller
         ]);
     }
 
-
     private function calcularHorasTotales($horaInicio, $horaFin)
     {
         $inicio = Carbon::createFromFormat('H:i', $horaInicio);
         $fin = Carbon::createFromFormat('H:i', $horaFin);
 
-        // Si el fin es menor que el inicio, asumimos que cruza la medianoche
-        if ($fin < $inicio) {
+        // Si el fin es menor o igual que el inicio, asumimos que cruza la medianoche
+        if ($fin <= $inicio) {
             $fin->addDay();
         }
 
