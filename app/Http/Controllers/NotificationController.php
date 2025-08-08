@@ -23,7 +23,7 @@ class NotificationController extends Controller
 
         // Validar el token y obtener el usuario
         $user = Auth::guard('sanctum')->user();
-        if (!$user || !$user->hasRole('admin')) {
+        if (!$user || $user->role !== 'admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

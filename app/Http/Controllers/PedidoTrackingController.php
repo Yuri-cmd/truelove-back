@@ -2,12 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessRegistration;
+use App\Models\Cliente;
 use App\Models\Pedido;
 use App\Models\PedidoTracking;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 
 class PedidoTrackingController extends Controller
 {
+    private $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
     public function obtenerEstado($id)
     {
         $pedido = PedidoTracking::where('pedido_id', $id)->latest()->first();
@@ -37,6 +46,27 @@ class PedidoTrackingController extends Controller
             'pedido_id' => $pedido->id,
             'estado' => $request->estado
         ]);
+
+        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
+        $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
+
+        $estado = estadoPedido($request->estado);
+
+        if ($local_fmc) {
+            $this->firebaseService->sendNotification(
+                $local_fmc,
+                $estado,
+                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+            );
+        }
+
+        if ($cliente_fmc) {
+            $this->firebaseService->sendNotification(
+                $cliente_fmc,
+                $estado,
+                'El pedido #' . $pedido->id . ' ha cambiado de estado.'
+            );
+        }
 
         return response()->json(['status' => 'success']);
     }

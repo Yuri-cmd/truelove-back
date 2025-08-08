@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
+use App\Models\BusinessRegistration;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\CuentaBancariaReparto;
@@ -549,5 +550,115 @@ class BikerController extends Controller
                 'details' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function viajeActivo($idBiker)
+    {
+        $pedidos = Pedido::whereNotNull('id_local')
+            ->where('id_motorizado', $idBiker)
+            ->whereDate('created_at', Carbon::today())
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('pedido_id'))
+                    ->from('pedido_trackings')
+                    ->whereIn('estado', [2, 3, 4, 5, 6, 7])
+                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
+                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
+                            ->from('pedido_trackings')
+                            ->groupBy('pedido_id');
+                    });
+            })
+            ->get();
+        $tiene_viaje_activo = $pedidos->isNotEmpty();
+        $data = [];
+        $pedido = [];
+        if ($tiene_viaje_activo) {
+            $pedido = $pedidos->first();
+            $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+            $cliente = Cliente::find($pedido->id_cliente);
+            $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            $pedido = [
+                'id' => $pedido->id,
+                'local' => $establecimiento->nombre_establecimiento,
+                'establecimiento' => $establecimiento->nombre_establecimiento,
+                'direccionLocal' => $establecimiento->direccion_completa,
+                'direccionEntrega' => $clienteDireccion->direccion,
+                'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                'celular' => $cliente->celular,
+                'tiempoEstimado' => $pedido->tiempo_estimado,
+                'detalle' => $pedido->nota,
+                'latLocal' => $establecimiento->latitud,
+                'lonLocal' => $establecimiento->longitud,
+                'latitud' => $pedido->latitud,
+                'longitud' => $pedido->longitud,
+                'productos' => $pedido->productos,
+                'estado' => $estado->estado,
+                'tiempo' => $pedido->tiempo,
+                'nota' => $pedido->nota,
+                'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                'precioDelivery' => $pedido->precio_delivery,
+                'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
+                'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+            ];
+        }
+        $data = [
+            "tiene_viaje_activo" => $tiene_viaje_activo,
+            "pedido" => $pedido
+        ];
+
+        return response()->json($data);
+    }
+
+    public function viajesActivos($idBiker)
+    {
+        $pedidos = Pedido::whereNotNull('id_local')
+            ->where('id_motorizado', $idBiker)
+            ->whereDate('created_at', Carbon::today())
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('pedido_id'))
+                    ->from('pedido_trackings')
+                    ->whereIn('estado', [2, 3, 4, 5, 6, 7])
+                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
+                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
+                            ->from('pedido_trackings')
+                            ->groupBy('pedido_id');
+                    });
+            })
+            ->get();
+        $tiene_viaje_activo = $pedidos->isNotEmpty();
+        $data = [];
+        if ($tiene_viaje_activo) {
+            foreach ($pedidos as $pedido) {
+                $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+                $cliente = Cliente::find($pedido->id_cliente);
+                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+                $data[] = [
+                    'id' => $pedido->id,
+                    'local' => $establecimiento->nombre_establecimiento,
+                    'establecimiento' => $establecimiento->nombre_establecimiento,
+                    'direccionLocal' => $establecimiento->direccion_completa,
+                    'direccionEntrega' => $clienteDireccion->direccion,
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                    'celular' => $cliente->celular,
+                    'tiempoEstimado' => $pedido->tiempo_estimado,
+                    'detalle' => $pedido->nota,
+                    'latLocal' => $establecimiento->latitud,
+                    'lonLocal' => $establecimiento->longitud,
+                    'latitud' => $pedido->latitud,
+                    'longitud' => $pedido->longitud,
+                    'productos' => $pedido->productos,
+                    'estado' => $estado->estado,
+                    'tiempo' => $pedido->tiempo,
+                    'nota' => $pedido->nota,
+                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'precioDelivery' => $pedido->precio_delivery,
+                    'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
+                    'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+                ];
+            }
+        }
+
+        return response()->json($data);
     }
 }

@@ -11,6 +11,7 @@ use App\Models\ClienteDireccion;
 use App\Models\DescuentoCliente;
 use App\Models\Establecimiento;
 use App\Models\Menu;
+use App\Models\Negocio;
 use Illuminate\Http\Request;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
@@ -22,6 +23,7 @@ use App\Services\FirebaseService;
 use App\Services\PedidoService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class PedidoController extends Controller
 {
@@ -91,7 +93,7 @@ class PedidoController extends Controller
             ->where('codigo', $request->codigo)
             ->where('estado', 1)
             ->first();
-            
+
         if ($descuento) {
             if (($descuento->usos_disponibles - 1) == 0) {
                 $descuento->usos_disponibles = 0;
@@ -163,6 +165,11 @@ class PedidoController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
 
+        // Verificar si ya tiene un motorizado asignado
+        if ($pedido->id_motorizado) {
+            return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
+        }
+
         // Asignar el id_motorizado y guardar
         $pedido->id_motorizado = $request->id_motorizado;
         $pedido->save();
@@ -209,7 +216,8 @@ class PedidoController extends Controller
                 $this->firebaseService->sendNotification(
                     $biker->token_fmc,
                     'Hola ' . $biker->nombre,
-                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.');
+                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.'
+                );
             }
 
             // Buscar el último tracking creado para este pedido
@@ -521,11 +529,23 @@ class PedidoController extends Controller
     public function verificarConfirmacion($id)
     {
         $pedido = Pedido::findOrFail($id);
-        $numero_local = formatPhoneNumber(BusinessRegistration::where('id', $pedido->id_local)->first()->phone) ?? '';
+        $negocio = Negocio::where('business_registration_id', $pedido->id_local)->first();
+        $telefono = $negocio->numero_pago_digital ?? '';
+        $telefono = $negocio->numero_pago_digital ? formatPhoneNumber($negocio->numero_pago_digital) : formatPhoneNumber($negocio->telefono);
+        $tipoPago = 'Ninguno';
+        switch ($negocio->tipo_pago_digital) {
+            case 1:
+                $tipoPago = 'Yape';
+                break;
+            case 2:
+                $tipoPago = 'Plin';
+                break;
+        }
         $estadoPedido = PedidoTracking::where('pedido_id', $id)->latest()->first()->estado ?? 1;
         return response()->json([
             'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
-            'numero_local' => $numero_local,
+            'numero_local' => $telefono,
+            'tipo_pago_digital' => $tipoPago,
             'estado' => $estadoPedido,
         ]);
     }
@@ -568,8 +588,26 @@ class PedidoController extends Controller
                     'message' => $mensaje,
                 ]);
 
-                echo("Mensaje enviado al pedido #{$pedido->id}");
+                echo ("Mensaje enviado al pedido #{$pedido->id}");
             }
+        }
+    }
+
+    public function uploadPaymentProof(Request $request)
+    {
+        // ✅ Usa tu estructura existente
+        $pedido = Pedido::find($request->pedido_id);
+
+        if ($request->hasFile('payment_proof')) {
+            // ✅ Guarda en custom_public como tu código original
+            $fotoPath = $request->file('payment_proof')->store('comprobantes', 'custom_public');
+
+            // ✅ Obtiene la URL con Storage::url()
+            $fotoUrl = Storage::url($fotoPath);
+
+            // ✅ Guarda en pedidos.foto_pago como tu código
+            $pedido->foto_pago = $fotoUrl;
+            $pedido->save();
         }
     }
 }

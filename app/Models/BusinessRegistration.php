@@ -19,7 +19,7 @@ class BusinessRegistration extends Model
         'estado',
         'aprobado',
         'posToDriver',
-         'entrega_documento_venta',
+        'entrega_documento_venta',
         'activo',
         'token_fmc'
     ];

@@ -63,7 +63,7 @@ class PedidoService
 
         // Si es entre las 23:00 (11pm) y 4:59am, tarifa base 5
         if ($hora >= 23 || $hora < 5) {
-            $precioBase = 5;
+            $precioBase = 5.50;
         } else {
             $precioBase = 4;
         }

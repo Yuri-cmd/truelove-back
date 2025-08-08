@@ -257,6 +257,7 @@ Route::get('get/precio/delivery/{idLocal}/{idCliente}', [PedidoController::class
 Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteController::class, 'validarCodeDescuento']);
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
+Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
 
 //chat 
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
@@ -310,6 +311,8 @@ Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAu
 Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);
 Route::post('/biker/sendCode', [BikerController::class, 'sendCode']);
 Route::post('/biker/update-password', [BikerController::class, 'updatePassword']);
+Route::get('/biker/viaje-activo/{idBiker}', [BikerController::class, 'viajeActivo']);
+Route::get('/biker/viajes-activos/{idBiker}', [BikerController::class, 'viajesActivos']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
