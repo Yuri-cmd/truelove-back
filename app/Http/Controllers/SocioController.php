@@ -82,7 +82,9 @@ class SocioController extends Controller
                         'nombre' => $businessRegistration->negocio->nombre,
                         'total_sucursales' => $businessRegistration->negocio->total_sucursales,
                         'metodo_contacto' => $businessRegistration->negocio->metodo_contacto,
-                        'telefono' => $businessRegistration->negocio->telefono
+                        'telefono' => $businessRegistration->negocio->telefono,
+                        'tipo_pago_digital' => $businessRegistration->negocio->tipo_pago_digital,
+                        'numero_pago_digital' => $businessRegistration->negocio->numero_pago_digital
                     ] : null,
                     'businessData' => $businessRegistration->datosClaveNegocio ? [
                         'ruc' => $businessRegistration->datosClaveNegocio->ruc,

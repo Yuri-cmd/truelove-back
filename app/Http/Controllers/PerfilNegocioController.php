@@ -514,7 +514,7 @@ public function actualizarConfiguracionPOS(Request $request)
 {
     try {
         $request->validate([
-            'posToDriver' => 'required|integer|in:0,1,2',
+            'posToDriver' => 'required|integer|in:0,1,2,3',
             'entrega_documento_venta' => 'required|integer|in:0,1',
         ]);
 

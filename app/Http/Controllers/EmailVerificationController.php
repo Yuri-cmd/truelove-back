@@ -98,7 +98,7 @@ class EmailVerificationController extends Controller
                 'email' => 'required|email|max:255',
                 'antecedentesPenales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
                 'antecedentesPoliciales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
-              'posToDriver' => 'nullable|integer|in:0,1,2',
+              'posToDriver' => 'nullable|integer|in:0,1,2,3',
               'entrega_documento_venta' => 'nullable|integer|in:0,1,2',
             ]);
     

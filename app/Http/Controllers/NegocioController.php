@@ -30,12 +30,12 @@ class NegocioController extends Controller
             $categorias = Categoria::where('tipo_negocio_id', $tipoNegocioId)
                 ->where('activo', true)
                 ->get(['id', 'nombre']);
-            
+
             Log::info('Categorias retrieved:', [
                 'tipo_negocio_id' => $tipoNegocioId,
                 'count' => $categorias->count()
             ]);
-            
+
             return response()->json($categorias);
         } catch (\Exception $e) {
             Log::error('Error al obtener las categorias: ' . $e->getMessage());
@@ -46,7 +46,7 @@ class NegocioController extends Controller
     public function store(Request $request)
     {
         Log::info('Datos recibidos:', $request->all());
-    
+
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255',
             'tipo_negocio_id' => 'required|exists:tipos_negocios,id',
@@ -56,25 +56,27 @@ class NegocioController extends Controller
             'metodo_contacto' => 'required|in:WhatsApp,Llamada,SMS',
             'telefono' => 'required|regex:/^\+51\d{9}$/',
             'business_registration_id' => 'required|exists:business_registrations,id', // Agregar esta validación
+           'tipo_pago_digital' => 'required|integer|in:0,1,2',
+            'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
         ]);
-    
+
         if ($validator->fails()) {
             Log::error('Validación fallida:', $validator->errors()->toArray());
             return response()->json(['errors' => $validator->errors()], 422);
         }
-    
+
         DB::beginTransaction();
-    
+
         try {
             // Verificar que el registro existe y está verificado
             $businessRegistration = BusinessRegistration::where('id', $request->business_registration_id)
                 ->whereNotNull('email_verified_at')
                 ->first();
-    
+
             if (!$businessRegistration) {
                 throw new \Exception('Registro de negocio no encontrado o email no verificado');
             }
-    
+
             $negocio = Negocio::create([
                 'nombre' => $request->nombre,
                 'tipo_negocio_id' => $request->tipo_negocio_id,
@@ -86,10 +88,12 @@ class NegocioController extends Controller
                 'telefono' => $request->telefono,
                 'business_registration_id' => $request->business_registration_id,
                 'activo' => true,
+                'tipo_pago_digital' => $request->tipo_pago_digital,
+                'numero_pago_digital' => $request->numero_pago_digital,
             ]);
-    
+
             DB::commit();
-    
+
             return response()->json([
                 'mensaje' => 'Negocio registrado exitosamente',
                 'negocio' => $negocio
@@ -114,6 +118,8 @@ class NegocioController extends Controller
             'es_local_calle' => 'sometimes|boolean',
             'metodo_contacto' => 'sometimes|in:WhatsApp,Llamada,SMS',
             'telefono' => 'sometimes|regex:/^\+51\d{9}$/',
+            'tipo_pago_digital' => 'sometimes|integer|in:0,1,2',
+            'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
         ]);
 
         if ($validator->fails()) {
@@ -136,7 +142,7 @@ class NegocioController extends Controller
             return response()->json(['error' => 'Error al actualizar el negocio'], 500);
         }
     }
-    public function show($businessRegistrationId)
+public function show($businessRegistrationId)
 {
     try {
         $negocio = Negocio::where('business_registration_id', $businessRegistrationId)
@@ -146,6 +152,9 @@ class NegocioController extends Controller
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
 
+        // Convertir el número a string para el frontend
+        $negocio->tipo_pago_digital = (string) $negocio->tipo_pago_digital;
+
         return response()->json($negocio);
     } catch (\Exception $e) {
         Log::error('Error al obtener negocio: ' . $e->getMessage());
@@ -153,21 +162,22 @@ class NegocioController extends Controller
     }
 }
 
-public function checkApprovalStatus($businessRegistrationId)
-{
-    try {
-        $businessRegistration = BusinessRegistration::findOrFail($businessRegistrationId);
-        $negocio = $businessRegistration->negocio;
-        
-        return response()->json([
-            'aprobado' => $businessRegistration->aprobado,
-            'nombre_negocio' => $negocio ? $negocio->nombre : null
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error al verificar el estado de aprobación: ' . $e->getMessage());
-        return response()->json(['error' => 'Error al verificar el estado de aprobación'], 500);
+
+    public function checkApprovalStatus($businessRegistrationId)
+    {
+        try {
+            $businessRegistration = BusinessRegistration::findOrFail($businessRegistrationId);
+            $negocio = $businessRegistration->negocio;
+
+            return response()->json([
+                'aprobado' => $businessRegistration->aprobado,
+                'nombre_negocio' => $negocio ? $negocio->nombre : null
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al verificar el estado de aprobación: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al verificar el estado de aprobación'], 500);
+        }
     }
-}
 
 
 
