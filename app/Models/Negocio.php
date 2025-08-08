@@ -19,7 +19,9 @@ class Negocio extends Model
         'metodo_contacto',
         'telefono',
         'activo',
-        'business_registration_id'
+        'business_registration_id',
+        'tipo_pago_digital',
+        'numero_pago_digital'
     ];
 
     public function tipoNegocio()
