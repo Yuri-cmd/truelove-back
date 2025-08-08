@@ -301,6 +301,29 @@ class HorarioController extends Controller
         }
     }
 
+    // NUEVO: Obtener todos los motorizados activos (para edición de horarios)
+    public function getTodosMotorizados()
+    {
+        try {
+            $motorizados = RepartoRegistro::where('estado', 1)
+                ->where('aprobado', 1)
+                ->select('id', 'nombres', 'apellidos', 'celular', 'email')
+                ->orderBy('nombres')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $motorizados
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener todos los motorizados: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener todos los motorizados: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     // Función auxiliar para verificar si un horario cruza medianoche
     private function cruzaMedianoche($horaInicio, $horaFin)
     {
@@ -454,24 +477,64 @@ class HorarioController extends Controller
         }
     }
 
-    // Obtener motorizados disponibles (sin horario asignado)
-    public function getMotorizadosDisponibles()
+    // MEJORADO: Obtener motorizados disponibles (sin horario asignado) + los ya asignados al horario actual
+    public function getMotorizadosDisponibles(Request $request)
     {
         try {
-            $motorizados = RepartoRegistro::where('estado', 1)
-                ->where('aprobado', 1)
-                ->whereNotExists(function($query) {
-                    $query->select(DB::raw(1))
+            $horarioId = $request->query('horario_id'); // Parámetro opcional
+            
+            $query = RepartoRegistro::where('estado', 1)
+                ->where('aprobado', 1);
+
+            if ($horarioId) {
+                // Si estamos editando, incluir motorizados ya asignados a este horario + los disponibles
+                $query->where(function($q) use ($horarioId) {
+                    // Motorizados disponibles (sin horario)
+                    $q->whereNotExists(function($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                              ->from('horario_asignaciones')
+                              ->whereRaw('horario_asignaciones.motorizado_id = reparto_registros.id');
+                    })
+                    ->whereNotExists(function($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                              ->from('horario_grupos')
+                              ->whereRaw('horario_grupos.motorizado_individual_id = reparto_registros.id')
+                              ->where('horario_grupos.tipo', 'individual');
+                    })
+                    // O motorizados ya asignados a este horario específico
+                    ->orWhereExists(function($subQuery) use ($horarioId) {
+                        $subQuery->select(DB::raw(1))
+                              ->from('horario_asignaciones')
+                              ->whereRaw('horario_asignaciones.motorizado_id = reparto_registros.id')
+                              ->where('horario_asignaciones.grupo_id', $horarioId);
+                    })
+                    ->orWhere(function($subQuery) use ($horarioId) {
+                        $subQuery->whereExists(function($q) use ($horarioId) {
+                            $q->select(DB::raw(1))
+                              ->from('horario_grupos')
+                              ->whereRaw('horario_grupos.motorizado_individual_id = reparto_registros.id')
+                              ->where('horario_grupos.tipo', 'individual')
+                              ->where('horario_grupos.id', $horarioId);
+                        });
+                    });
+                });
+            } else {
+                // Si estamos creando, solo motorizados disponibles
+                $query->whereNotExists(function($subQuery) {
+                    $subQuery->select(DB::raw(1))
                           ->from('horario_asignaciones')
                           ->whereRaw('horario_asignaciones.motorizado_id = reparto_registros.id');
                 })
-                ->whereNotExists(function($query) {
-                    $query->select(DB::raw(1))
+                ->whereNotExists(function($subQuery) {
+                    $subQuery->select(DB::raw(1))
                           ->from('horario_grupos')
                           ->whereRaw('horario_grupos.motorizado_individual_id = reparto_registros.id')
                           ->where('horario_grupos.tipo', 'individual');
-                })
-                ->select('id', 'nombres', 'apellidos', 'celular', 'email')
+                });
+            }
+            
+            $motorizados = $query->select('id', 'nombres', 'apellidos', 'celular', 'email')
+                ->orderBy('nombres')
                 ->get();
 
             return response()->json([
