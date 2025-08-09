@@ -628,12 +628,41 @@ class PedidoController extends Controller
         }
 
         if ($request->hasFile('payment_proof')) {
-            Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
+            $file = $request->file('payment_proof');
+            Log::info('Archivo payment_proof recibido', [
+                'pedido_id' => $pedido->id,
+                'filename' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'is_valid' => $file->isValid()
+            ]);
+
+            // Validar que el archivo sea válido
+            if (!$file->isValid()) {
+                Log::error('Archivo no válido', ['pedido_id' => $pedido->id]);
+                return response()->json(['error' => 'Archivo no válido'], 400);
+            }
 
             try {
-                // Usar el disco public en lugar de custom_public
-                $fotoPath = $request->file('payment_proof')->store('comprobantes', 'public');
+                // Verificar que el directorio existe
+                $storagePath = storage_path('app/public/comprobantes');
+                if (!file_exists($storagePath)) {
+                    mkdir($storagePath, 0755, true);
+                    Log::info('Directorio creado', ['path' => $storagePath]);
+                }
+
+                // Generar nombre único para el archivo
+                $extension = $file->getClientOriginalExtension();
+                $filename = 'comprobante_' . $pedido->id . '_' . time() . '.' . $extension;
+                
+                // Guardar el archivo usando storeAs para tener más control
+                $fotoPath = $file->storeAs('comprobantes', $filename, 'public');
                 Log::info('Archivo guardado en storage', ['path' => $fotoPath]);
+
+                if (!$fotoPath) {
+                    Log::error('Error: storeAs() devolvió false');
+                    return response()->json(['error' => 'Error al guardar el archivo'], 500);
+                }
 
                 $fotoUrl = Storage::url($fotoPath);
                 Log::info('URL generada', ['url' => $fotoUrl]);
@@ -644,8 +673,11 @@ class PedidoController extends Controller
                 Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
                 return response()->json(['success' => true, 'foto_pago' => $fotoUrl]);
             } catch (\Exception $e) {
-                Log::error('Error al guardar archivo', ['error' => $e->getMessage()]);
-                return response()->json(['error' => 'Error al guardar archivo'], 500);
+                Log::error('Error al guardar archivo', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                return response()->json(['error' => 'Error al guardar archivo: ' . $e->getMessage()], 500);
             }
         } else {
             Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
