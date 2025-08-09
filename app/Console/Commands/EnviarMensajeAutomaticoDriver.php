@@ -22,6 +22,7 @@ class EnviarMensajeAutomaticoDriver extends Command
 
     public function __construct(FirebaseService $firebaseService)
     {
+        parent::__construct();
         $this->firebaseService = $firebaseService;
     }
 
