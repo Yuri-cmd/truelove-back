@@ -175,6 +175,28 @@ class PedidoController extends Controller
         $pedido->id_motorizado = $request->id_motorizado;
         $pedido->save();
 
+        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
+        $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
+
+        $estado = estadoPedido($request->estado);
+
+
+        if ($local_fmc) {
+            $this->firebaseService->sendNotification(
+                $local_fmc,
+                $estado,
+                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+            );
+        }
+
+        if ($cliente_fmc) {
+            $this->firebaseService->sendNotification(
+                $cliente_fmc,
+                $estado,
+                'El pedido #' . $pedido->id . ' ha cambiado de estado.'
+            );
+        }
+
         // Registrar el tracking del pedido
         $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
         $estado = $pedidoTracking->estado == 2 ? 2 : 4;
@@ -607,12 +629,12 @@ class PedidoController extends Controller
 
         if ($request->hasFile('payment_proof')) {
             Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
-            
+
             try {
                 // Usar el disco public en lugar de custom_public
                 $fotoPath = $request->file('payment_proof')->store('comprobantes', 'public');
                 Log::info('Archivo guardado en storage', ['path' => $fotoPath]);
-                
+
                 $fotoUrl = Storage::url($fotoPath);
                 Log::info('URL generada', ['url' => $fotoUrl]);
 
