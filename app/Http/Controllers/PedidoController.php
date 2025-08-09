@@ -22,6 +22,7 @@ use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use App\Services\PedidoService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -369,7 +370,7 @@ class PedidoController extends Controller
             $rating = Rating::where('id_pedido', $pedido->id)->first();
             $cliente = Cliente::where('id', $pedido->id_cliente)->first();
 
-            if ($rating && $cliente) {
+            if ($rating) {
                 $roundedRating = round($rating->restaurant_rating); // Redondeamos el rating a entero
                 if (isset($ratingCounts[$roundedRating])) {
                     $ratingCounts[$roundedRating]++; // Aumentamos el contador correspondiente
@@ -385,7 +386,7 @@ class PedidoController extends Controller
             }
         }
 
-        $pedidoCount = count($ratings); // Contar solo pedidos con calificación
+        $pedidoCount = $pedidos->count();
         $promedio = count($ratings) > 0 ? number_format(array_sum($ratings) / count($ratings), 1, '.', '') : "0.0";
 
         $data = [
@@ -595,19 +596,28 @@ class PedidoController extends Controller
 
     public function uploadPaymentProof(Request $request)
     {
-        // ✅ Usa tu estructura existente
+        Log::info('Iniciando uploadPaymentProof', ['pedido_id' => $request->pedido_id]);
+
         $pedido = Pedido::find($request->pedido_id);
 
-        if ($request->hasFile('payment_proof')) {
-            // ✅ Guarda en custom_public como tu código original
-            $fotoPath = $request->file('payment_proof')->store('comprobantes', 'custom_public');
+        if (!$pedido) {
+            Log::warning('Pedido no encontrado', ['pedido_id' => $request->pedido_id]);
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
 
-            // ✅ Obtiene la URL con Storage::url()
+        if ($request->hasFile('payment_proof')) {
+            Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
+            $fotoPath = $request->file('payment_proof')->store('comprobantes', 'custom_public');
             $fotoUrl = Storage::url($fotoPath);
 
-            // ✅ Guarda en pedidos.foto_pago como tu código
             $pedido->foto_pago = $fotoUrl;
             $pedido->save();
+
+            Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
+            return response()->json(['success' => true, 'foto_pago' => $fotoUrl]);
+        } else {
+            Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
+            return response()->json(['error' => 'No se recibió archivo'], 400);
         }
     }
 }
