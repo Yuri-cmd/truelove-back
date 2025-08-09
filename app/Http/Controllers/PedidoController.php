@@ -369,7 +369,7 @@ class PedidoController extends Controller
             $rating = Rating::where('id_pedido', $pedido->id)->first();
             $cliente = Cliente::where('id', $pedido->id_cliente)->first();
 
-            if ($rating) {
+            if ($rating && $cliente) {
                 $roundedRating = round($rating->restaurant_rating); // Redondeamos el rating a entero
                 if (isset($ratingCounts[$roundedRating])) {
                     $ratingCounts[$roundedRating]++; // Aumentamos el contador correspondiente
