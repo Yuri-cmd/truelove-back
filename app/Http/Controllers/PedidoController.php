@@ -596,7 +596,7 @@ class PedidoController extends Controller
 
     public function uploadPaymentProof(Request $request)
     {
-        \Log::info('Iniciando uploadPaymentProof', ['pedido_id' => $request->pedido_id]);
+        \Log::info('Iniciando uploadPaymentProof', ['data' => $request->all()]);
 
         $pedido = Pedido::find($request->pedido_id);
 
