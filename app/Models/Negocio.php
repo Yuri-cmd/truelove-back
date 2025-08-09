@@ -20,8 +20,8 @@ class Negocio extends Model
         'telefono',
         'activo',
         'business_registration_id',
-        'tipo_pago_digital',
-        'numero_pago_digital'
+        'tipo_pago_digital', // 0 ninguno ,1 yapé y 2 plin
+        'numero_pago_digital' // numero de pago digital segun el tipo
     ];
 
     public function tipoNegocio()

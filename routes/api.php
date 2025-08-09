@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/horarios/{id}', 'updateHorario');
             Route::delete('/horarios/{id}', 'deleteHorario');
             Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
+             Route::get('/horarios/motorizados/todos', 'getTodosMotorizados');
         });
         Route::put('/entrega-calendario/{id}/estado', [EntregaCalendarioController::class, 'actualizarEstado']);
         Route::controller(CuotaMotorizadoController::class)->prefix('cuotas-motorizados')->group(function () {
@@ -326,6 +327,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/establecimiento/actualizar', [PerfilNegocioController::class, 'actualizarEstablecimiento']);
       Route::get('/negocio/pos-settings', [PerfilNegocioController::class, 'obtenerConfiguracionPOS']);
     Route::put('/negocio/pos-settings', [PerfilNegocioController::class, 'actualizarConfiguracionPOS']);
+
+    Route::get('/negocio/pago-digital', [PerfilNegocioController::class, 'obtenerConfiguracionPagoDigital']);
+Route::put('/negocio/pago-digital', [PerfilNegocioController::class, 'actualizarConfiguracionPagoDigital']);
     // categorias
 
     Route::get('/categoria/web/{id_empresa}', [CategoriaController::class, 'obtenerCategories']);
