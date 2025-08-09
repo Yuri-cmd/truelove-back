@@ -64,7 +64,7 @@ class AuthAdminController extends Controller
             $businessRegistration = $user->businessRegistration;
             
             // Crear token de autenticación
-            $token = $user->createToken(env('APP_NAME'))->plainTextToken;
+            $token = $user->createToken(env('APP_NAME', 'TrueLove'))->plainTextToken;
         
             // Obtener el rol del usuario
             $roleName = $user->role ? $user->role->name : 'user';
