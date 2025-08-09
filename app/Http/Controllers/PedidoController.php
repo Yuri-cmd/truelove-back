@@ -596,27 +596,37 @@ class PedidoController extends Controller
 
     public function uploadPaymentProof(Request $request)
     {
-        \Log::info('Iniciando uploadPaymentProof', ['data' => $request->all()]);
+        Log::info('Iniciando uploadPaymentProof', ['data' => $request->all()]);
 
         $pedido = Pedido::find($request->pedido_id);
 
         if (!$pedido) {
-            \Log::warning('Pedido no encontrado', ['pedido_id' => $request->pedido_id]);
+            Log::warning('Pedido no encontrado', ['pedido_id' => $request->pedido_id]);
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
 
         if ($request->hasFile('payment_proof')) {
-            \Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
-            $fotoPath = $request->file('payment_proof')->store('comprobantes', 'custom_public');
-            $fotoUrl = Storage::url($fotoPath);
+            Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
+            
+            try {
+                // Usar el disco public en lugar de custom_public
+                $fotoPath = $request->file('payment_proof')->store('comprobantes', 'public');
+                Log::info('Archivo guardado en storage', ['path' => $fotoPath]);
+                
+                $fotoUrl = Storage::url($fotoPath);
+                Log::info('URL generada', ['url' => $fotoUrl]);
 
-            $pedido->foto_pago = $fotoUrl;
-            $pedido->save();
+                $pedido->foto_pago = $fotoUrl;
+                $pedido->save();
 
-            \Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
-            return response()->json(['success' => true, 'foto_pago' => $fotoUrl]);
+                Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
+                return response()->json(['success' => true, 'foto_pago' => $fotoUrl]);
+            } catch (\Exception $e) {
+                Log::error('Error al guardar archivo', ['error' => $e->getMessage()]);
+                return response()->json(['error' => 'Error al guardar archivo'], 500);
+            }
         } else {
-            \Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
+            Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
             return response()->json(['error' => 'No se recibió archivo'], 400);
         }
     }
