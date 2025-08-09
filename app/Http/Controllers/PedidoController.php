@@ -596,27 +596,27 @@ class PedidoController extends Controller
 
     public function uploadPaymentProof(Request $request)
     {
-        Log::info('Iniciando uploadPaymentProof', ['pedido_id' => $request->pedido_id]);
+        \Log::info('Iniciando uploadPaymentProof', ['pedido_id' => $request->pedido_id]);
 
         $pedido = Pedido::find($request->pedido_id);
 
         if (!$pedido) {
-            Log::warning('Pedido no encontrado', ['pedido_id' => $request->pedido_id]);
+            \Log::warning('Pedido no encontrado', ['pedido_id' => $request->pedido_id]);
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
 
         if ($request->hasFile('payment_proof')) {
-            Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
+            \Log::info('Archivo payment_proof recibido', ['pedido_id' => $pedido->id]);
             $fotoPath = $request->file('payment_proof')->store('comprobantes', 'custom_public');
             $fotoUrl = Storage::url($fotoPath);
 
             $pedido->foto_pago = $fotoUrl;
             $pedido->save();
 
-            Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
+            \Log::info('Comprobante guardado', ['pedido_id' => $pedido->id, 'foto_pago' => $fotoUrl]);
             return response()->json(['success' => true, 'foto_pago' => $fotoUrl]);
         } else {
-            Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
+            \Log::warning('No se recibió archivo payment_proof', ['pedido_id' => $request->pedido_id]);
             return response()->json(['error' => 'No se recibió archivo'], 400);
         }
     }
