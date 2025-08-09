@@ -385,7 +385,7 @@ class PedidoController extends Controller
             }
         }
 
-        $pedidoCount = $pedidos->count();
+        $pedidoCount = count($ratings); // Contar solo pedidos con calificación
         $promedio = count($ratings) > 0 ? number_format(array_sum($ratings) / count($ratings), 1, '.', '') : "0.0";
 
         $data = [
