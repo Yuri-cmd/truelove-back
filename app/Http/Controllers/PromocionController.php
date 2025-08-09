@@ -60,7 +60,7 @@ class PromocionController extends Controller
             ->map(function ($promocion) {
                 // Construir URL completa si solo tiene el path
                 if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
-                    $promocion->imagen = env('APP_URL') . '/storage/' . $promocion->imagen;
+                    $promocion->imagen = config('app.url') . '/storage/' . $promocion->imagen;
                 }
                 return $promocion;
             });
@@ -122,7 +122,7 @@ class PromocionController extends Controller
 
         // Construir URL completa para la respuesta
         if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
-            $promocion->imagen = env('APP_URL') . '/storage/' . $promocion->imagen;
+            $promocion->imagen = config('app.url') . '/storage/' . $promocion->imagen;
         }
 
         return response()->json($promocion);

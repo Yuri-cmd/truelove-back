@@ -326,7 +326,7 @@ class SocioController extends Controller
             $pedido->nota = $pedido->nota ?? 'Sin nota';
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
-            $pedido->foto_pago = env('APP_URL') . $pedido->foto_pago ?? '';
+            $pedido->foto_pago = config('app.url') . $pedido->foto_pago ?? '';
         }
 
         // Filtrar los pedidos cuyo último estado de tracking es diferente de 8

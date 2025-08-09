@@ -17,7 +17,7 @@ class BannerController extends Controller
         $banners = Banner::where('estado', 1)->get()->map(function ($banner) {
             // Construir URL completa si solo tiene el path
             if ($banner->url_imagen && !str_starts_with($banner->url_imagen, 'http')) {
-                $banner->url_imagen = env('APP_URL') . '/storage/' . $banner->url_imagen;
+                $banner->url_imagen = config('app.url') . '/storage/' . $banner->url_imagen;
             }
             return $banner;
         });
@@ -31,7 +31,7 @@ class BannerController extends Controller
         
         // Construir URL completa para la respuesta
         if ($banner->url_imagen && !str_starts_with($banner->url_imagen, 'http')) {
-            $banner->url_imagen = env('APP_URL') . '/storage/' . $banner->url_imagen;
+            $banner->url_imagen = config('app.url') . '/storage/' . $banner->url_imagen;
         }
         
         return response()->json($banner);

@@ -308,7 +308,7 @@ class PedidoController extends Controller
                     'fecha_entrega' => Carbon::parse($pedidoTracking->created_at)->format('d/m/Y'),
                     'hora_entrega' => Carbon::parse($pedidoTracking->created_at)->format('H:i'),
                     'local' => $local->nombre_establecimiento,
-                    'logo' => $logo->ruta_logo ? env('APP_URL') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
+                    'logo' => $logo->ruta_logo ? config('app.url') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
                     'total' => $total,
                     'cantidad' => count($pedidoDetalles),
                     'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
@@ -353,7 +353,7 @@ class PedidoController extends Controller
             'id' => $motorizado->id,
             'nombre' => $motorizado->nombres . ' ' . $motorizado->apellidos,
             'celular' => $motorizado->celular,
-            'foto' => env('APP_URL') . '/' . $motorizado->ruta_foto,
+            'foto' => config('app.url') . '/' . $motorizado->ruta_foto,
             'pedidoCount' => $pedidoCount,
             'rating' => $promedio,
         ]);

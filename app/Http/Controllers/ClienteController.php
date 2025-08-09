@@ -277,7 +277,7 @@ class ClienteController extends Controller
                 $profile->direccion = null;
             }
 
-            $profile->foto_perfil = $profile->foto_perfil ? env('APP_URL') . "/storage/{$profile->foto_perfil}" : '';
+            $profile->foto_perfil = $profile->foto_perfil ? config('app.url') . "/storage/{$profile->foto_perfil}" : '';
 
             return response()->json([
                 'message' => 'Perfil encontrado',
