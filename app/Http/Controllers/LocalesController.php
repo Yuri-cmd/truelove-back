@@ -63,39 +63,62 @@ class LocalesController extends Controller
 
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false)
     {
-        $radio = 50;
-        $query = DB::table('business_registrations')
-            ->select(
-                'business_registrations.*',
-                'perfiles_negocio.ruta_logo',
-                DB::raw("(6371 * acos(
-            cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
-            cos(radians(establecimientos.longitud) - radians($lng)) +
-            sin(radians($lat)) * sin(radians(establecimientos.latitud))
-        )) AS distancia")
-            )
-            ->join('establecimientos', 'business_registrations.id', '=', 'establecimientos.business_registration_id')
-            ->leftJoin('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
-            ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id');
+        $radio = 10;
+        $where = [];
 
+        // Filtros dinámicos
         if ($category) {
-            $query->where('business_registrations.businessType', $category);
+            $where[] = "business_registrations.businessType = '$category'";
         }
 
         if ($term) {
-            $query->where('establecimientos.nombre_establecimiento', 'like', '%' . $term . '%');
+            $where[] = "establecimientos.nombre_establecimiento LIKE '%$term%'";
         }
 
-        if ($radio) {
-            $query->having('distancia', '<=', $radio);
-        }
+        // Condición para la distancia (filtrada antes del LIMIT)
+        $where[] = "(6371 * acos(
+                    cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
+                    cos(radians(establecimientos.longitud) - radians($lng)) +
+                    sin(radians($lat)) * sin(radians(establecimientos.latitud))
+                )) <= $radio";
 
-        if ($category) {
-            $query->take(10);
-        }
+        // Armamos el WHERE final
+        $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        $locales = $query->get();
+        $query = DB::select("SELECT 
+                business_registrations.id AS business_registration_id,
+                establecimientos.nombre_establecimiento,
+                perfiles_negocio.ruta_logo,
+                establecimientos.calle,
+                establecimientos.numero,
+                establecimientos.codigo_postal,
+                establecimientos.provincia,
+                establecimientos.ciudad,
+                establecimientos.referencia,
+                establecimientos.latitud,
+                establecimientos.longitud,
+                establecimientos.direccion_completa,
+                perfiles_negocio.banner,
+                perfiles_negocio.foto_perfil,
+                business_registrations.businessType,
+                business_registrations.activo,
+                local_priorities.prioridad,
+                (6371 * acos(
+                    cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
+                    cos(radians(establecimientos.longitud) - radians($lng)) +
+                    sin(radians($lat)) * sin(radians(establecimientos.latitud))
+                )) AS distancia
+            FROM business_registrations
+            INNER JOIN establecimientos 
+                ON business_registrations.id = establecimientos.business_registration_id
+            LEFT JOIN perfiles_negocio 
+                ON business_registrations.id = perfiles_negocio.business_registration_id
+            LEFT JOIN local_priorities 
+                ON establecimientos.id = local_priorities.establecimiento_id
+            $whereSql
+            ORDER BY local_priorities.prioridad DESC, distancia ASC
+            LIMIT 10");
 
-        return $locales;
+        return $query;
     }
 }
