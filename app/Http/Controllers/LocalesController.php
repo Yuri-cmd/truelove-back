@@ -86,38 +86,38 @@ class LocalesController extends Controller
         $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $query = DB::select("SELECT 
-                business_registrations.id AS business_registration_id,
-                establecimientos.nombre_establecimiento,
-                perfiles_negocio.ruta_logo,
-                establecimientos.calle,
-                establecimientos.numero,
-                establecimientos.codigo_postal,
-                establecimientos.provincia,
-                establecimientos.ciudad,
-                establecimientos.referencia,
-                establecimientos.latitud,
-                establecimientos.longitud,
-                establecimientos.direccion_completa,
-                perfiles_negocio.banner,
-                perfiles_negocio.foto_perfil,
-                business_registrations.businessType,
-                business_registrations.activo,
-                local_priorities.prioridad,
-                (6371 * acos(
-                    cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
-                    cos(radians(establecimientos.longitud) - radians($lng)) +
-                    sin(radians($lat)) * sin(radians(establecimientos.latitud))
-                )) AS distancia
-            FROM business_registrations
-            INNER JOIN establecimientos 
-                ON business_registrations.id = establecimientos.business_registration_id
-            LEFT JOIN perfiles_negocio 
-                ON business_registrations.id = perfiles_negocio.business_registration_id
-            LEFT JOIN local_priorities 
-                ON establecimientos.id = local_priorities.establecimiento_id
-            $whereSql
-            ORDER BY local_priorities.prioridad DESC, distancia ASC
-            LIMIT 10");
+            business_registrations.id AS business_registration_id,
+            establecimientos.nombre_establecimiento,
+            perfiles_negocio.ruta_logo,
+            establecimientos.calle,
+            establecimientos.numero,
+            establecimientos.codigo_postal,
+            establecimientos.provincia,
+            establecimientos.ciudad,
+            establecimientos.referencia,
+            establecimientos.latitud,
+            establecimientos.longitud,
+            establecimientos.direccion_completa,
+            perfiles_negocio.banner,
+            perfiles_negocio.foto_perfil,
+            business_registrations.businessType,
+            CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
+            local_priorities.prioridad,
+            (6371 * acos(
+                cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
+                cos(radians(establecimientos.longitud) - radians($lng)) +
+                sin(radians($lat)) * sin(radians(establecimientos.latitud))
+            )) AS distancia
+        FROM business_registrations
+        INNER JOIN establecimientos 
+            ON business_registrations.id = establecimientos.business_registration_id
+        LEFT JOIN perfiles_negocio 
+            ON business_registrations.id = perfiles_negocio.business_registration_id
+        LEFT JOIN local_priorities 
+            ON establecimientos.id = local_priorities.establecimiento_id
+        $whereSql
+        ORDER BY local_priorities.prioridad DESC, distancia ASC
+        LIMIT 10");
 
         return $query;
     }
