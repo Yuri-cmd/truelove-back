@@ -21,7 +21,7 @@ class RevisarDatosController extends Controller
             
             if ($token) {
                 // Decodificar el token para obtener el registration_id
-                $decoded = JWT::decode($token, new Key(config('app.jwt_secret'), 'HS256'));
+                $decoded = JWT::decode($token, new Key(env('JWT_SECRET'), 'HS256'));
                 $registrationId = $decoded->registration_id;
                 
                 $businessRegistration = BusinessRegistration::find($registrationId);
