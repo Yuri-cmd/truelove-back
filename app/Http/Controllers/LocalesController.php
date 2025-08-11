@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BusinessRegistration;
 use App\Models\ClienteDireccion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LocalesController extends Controller
 {
@@ -62,14 +63,17 @@ class LocalesController extends Controller
 
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false)
     {
-        $radio = 10;
-        $query = BusinessRegistration::with(['establecimiento', 'perfil'])
-            ->selectRaw("
-            *,
-            perfiles_negocio.ruta_logo, 
-            (6371 * acos(cos(radians(?)) * cos(radians(establecimientos.latitud)) * 
-            cos(radians(establecimientos.longitud) - radians(?)) + 
-            sin(radians(?)) * sin(radians(establecimientos.latitud)))) AS distancia", [$lat, $lng, $lat])
+        $radio = 50;
+        $query = DB::table('business_registrations')
+            ->select(
+                'business_registrations.*',
+                'perfiles_negocio.ruta_logo',
+                DB::raw("(6371 * acos(
+            cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
+            cos(radians(establecimientos.longitud) - radians($lng)) +
+            sin(radians($lat)) * sin(radians(establecimientos.latitud))
+        )) AS distancia")
+            )
             ->join('establecimientos', 'business_registrations.id', '=', 'establecimientos.business_registration_id')
             ->leftJoin('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
             ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id');
@@ -82,7 +86,9 @@ class LocalesController extends Controller
             $query->where('establecimientos.nombre_establecimiento', 'like', '%' . $term . '%');
         }
 
-        $query->having('distancia', '<=', $radio);
+        if ($radio) {
+            $query->having('distancia', '<=', $radio);
+        }
 
         if ($category) {
             $query->take(10);
