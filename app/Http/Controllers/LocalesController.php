@@ -62,7 +62,7 @@ class LocalesController extends Controller
 
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false)
     {
-        $radio = 50;
+        $radio = 10;
         $query = BusinessRegistration::with(['establecimiento', 'perfil'])
             ->selectRaw("
             *,
@@ -71,7 +71,7 @@ class LocalesController extends Controller
             cos(radians(establecimientos.longitud) - radians(?)) + 
             sin(radians(?)) * sin(radians(establecimientos.latitud)))) AS distancia", [$lat, $lng, $lat])
             ->join('establecimientos', 'business_registrations.id', '=', 'establecimientos.business_registration_id')
-            ->join('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
+            ->leftJoin('perfiles_negocio', 'business_registrations.id', '=', 'perfiles_negocio.business_registration_id')
             ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id');
 
         if ($category) {
