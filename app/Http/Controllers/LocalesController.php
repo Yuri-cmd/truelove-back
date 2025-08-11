@@ -62,7 +62,7 @@ class LocalesController extends Controller
 
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false)
     {
-        $radio = 10;
+        $radio = 50;
         $query = BusinessRegistration::with(['establecimiento', 'perfil'])
             ->selectRaw("
             *,
