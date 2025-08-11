@@ -105,6 +105,8 @@ return [
         ),
     ],
 
+    'JWT_SECRET' => env('JWT_SECRET', 'P8zs3vF2xR9tN7yJ4mQ6bK1hG5wC0lA'),
+
     /*
     |--------------------------------------------------------------------------
     | Maintenance Mode Driver
