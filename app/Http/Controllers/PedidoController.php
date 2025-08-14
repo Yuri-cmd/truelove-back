@@ -292,8 +292,8 @@ class PedidoController extends Controller
         $pedidos = Pedido::where('id_cliente', $idCliente)->get();
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if ($pedidoTracking) {
-                $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+            $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+            if ($pedidoTracking && $local) {
                 $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $total = $pedidoDetalles->sum('precio');
@@ -654,7 +654,7 @@ class PedidoController extends Controller
                 // Generar nombre único para el archivo
                 $extension = $file->getClientOriginalExtension();
                 $filename = 'comprobante_' . $pedido->id . '_' . time() . '.' . $extension;
-                
+
                 // Guardar el archivo usando storeAs para tener más control
                 $fotoPath = $file->storeAs('comprobantes', $filename, 'public');
                 Log::info('Archivo guardado en storage', ['path' => $fotoPath]);
