@@ -179,13 +179,14 @@ class PedidoController extends Controller
         $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
 
         $estado = estadoPedido($request->estado);
-
+        $mensajeLocal = mensajeNotificacionPedido($request->estado, $pedido->id, 'local');
+        $mensajeCliente = mensajeNotificacionPedido($request->estado, $pedido->id, 'cliente');
 
         if ($local_fmc) {
             $this->firebaseService->sendNotification(
                 $local_fmc,
                 $estado,
-                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+                $mensajeLocal
             );
         }
 
@@ -193,7 +194,7 @@ class PedidoController extends Controller
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
                 $estado,
-                'El pedido #' . $pedido->id . ' ha cambiado de estado.'
+                $mensajeCliente
             );
         }
 

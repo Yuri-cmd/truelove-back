@@ -50,21 +50,23 @@ class PedidoTrackingController extends Controller
         $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
         $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
 
-        $estado = estadoPedido($request->estado);
+        $estadoTitulo = estadoPedido($request->estado);
+        $mensajeLocal = mensajeNotificacionPedido($request->estado, $pedido->id, 'local');
+        $mensajeCliente = mensajeNotificacionPedido($request->estado, $pedido->id, 'cliente');
 
         if ($local_fmc) {
             $this->firebaseService->sendNotification(
                 $local_fmc,
-                $estado,
-                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+                $estadoTitulo,
+                $mensajeLocal
             );
         }
 
         if ($cliente_fmc) {
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
-                $estado,
-                'El pedido #' . $pedido->id . ' ha cambiado de estado.'
+                $estadoTitulo,
+                $mensajeCliente
             );
         }
 
