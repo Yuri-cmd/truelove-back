@@ -123,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas para socios (accesibles por usuarios con rol 'negocio')
     Route::middleware('role:negocio')->group(function () {
+        Route::get('/socio/perfil', [SocioController::class, 'getAuthenticatedSocioDetails']);
         Route::controller(SocioController::class)->group(function () {
             Route::get('/socio/pedidos/{id}', 'getPedidos');
             Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
