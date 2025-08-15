@@ -853,4 +853,24 @@ class SocioController extends Controller
         }
         return response()->json($socio->entrega_documento_venta);
     }
+
+    public function getAuthenticatedSocioDetails(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['status' => 'error', 'message' => 'Usuario no autenticado.'], 401);
+            }
+
+            $businessRegistration = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            return $this->getDetails($businessRegistration->id);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener detalles del socio autenticado: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener la información del socio.'
+            ], 500);
+        }
+    }
 }

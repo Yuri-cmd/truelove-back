@@ -58,6 +58,7 @@ class NegocioController extends Controller
             'business_registration_id' => 'required|exists:business_registrations,id', // Agregar esta validación
            'tipo_pago_digital' => 'required|integer|in:0,1,2',
             'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
+            'nombre_titular_pago_digital' => 'nullable|string|min:2|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -90,6 +91,7 @@ class NegocioController extends Controller
                 'activo' => true,
                 'tipo_pago_digital' => $request->tipo_pago_digital,
                 'numero_pago_digital' => $request->numero_pago_digital,
+                'nombre_titular_pago_digital' => $request->nombre_titular_pago_digital,
             ]);
 
             DB::commit();
@@ -120,6 +122,7 @@ class NegocioController extends Controller
             'telefono' => 'sometimes|regex:/^\+51\d{9}$/',
             'tipo_pago_digital' => 'sometimes|integer|in:0,1,2',
             'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
+            'nombre_titular_pago_digital' => 'nullable|string|min:2|max:255',
         ]);
 
         if ($validator->fails()) {
