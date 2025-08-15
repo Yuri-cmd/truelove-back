@@ -570,6 +570,7 @@ class PedidoController extends Controller
             'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
             'numero_local' => $telefono,
             'tipo_pago_digital' => $tipoPago,
+            'titular' => $negocio->nombre_titular_pago_digital ?? '',
             'estado' => $estadoPedido,
         ]);
     }
