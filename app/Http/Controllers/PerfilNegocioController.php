@@ -269,6 +269,40 @@ class PerfilNegocioController extends Controller
             ], 500);
         }
     }
+
+    public function eliminarHorario(Request $request, $id)
+    {
+        try {
+            if (!$request->user()) {
+                Log::error('Usuario no autenticado');
+                return response()->json(['message' => 'Usuario no autenticado'], 401);
+            }
+
+            $businessRegistrationId = $request->user()->businessRegistration->id;
+
+            // Buscar el horario por ID y asegurarse de que pertenece al negocio del usuario autenticado
+            $horario = \App\Models\HorarioNegocio::where('id', $id)
+                                                ->whereHas('perfilNegocio', function ($query) use ($businessRegistrationId) {
+                                                    $query->where('business_registration_id', $businessRegistrationId);
+                                                })
+                                                ->first();
+
+            if (!$horario) {
+                return response()->json(['message' => 'Horario no encontrado o no pertenece a este negocio'], 404);
+            }
+
+            $horario->delete();
+
+            return response()->json(['message' => 'Horario eliminado correctamente'], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar horario: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al eliminar el horario',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     
     public function actualizarFotoPerfil(Request $request)
     {
