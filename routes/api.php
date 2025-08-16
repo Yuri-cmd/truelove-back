@@ -121,14 +121,23 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
-    // Rutas para socios (accesibles por usuarios con rol 'negocio')
-    Route::middleware('role:negocio')->group(function () {
-        Route::get('/socio/perfil', [SocioController::class, 'getAuthenticatedSocioDetails']);
-        Route::controller(SocioController::class)->group(function () {
-            Route::get('/socio/pedidos/{id}', 'getPedidos');
-            Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
-        });
+   // Rutas para socios (accesibles por usuarios con rol 'negocio')
+Route::middleware('role:negocio')->group(function () {
+    Route::get('/socio/perfil', [SocioController::class, 'getAuthenticatedSocioDetails']);
+    Route::put('/socio/personal-info', [SocioController::class, 'actualizarInformaciónPersonal']);
+    Route::put('/socio/business-info', [SocioController::class, 'actualizarInformaciónNegocio']);
+    Route::put('/socio/establishment', [SocioController::class, 'actualizarEstablecimiento']);
+    Route::put('/socio/business-key-info', [SocioController::class, 'actualizarDatosClaveNegocio']);
+    Route::put('/socio/bank-data', [SocioController::class, 'actualizarDatosBancarios']);
+      Route::post('/socio/bank-account', [SocioController::class, 'actualizarCuentaBancaria']); 
+       Route::put('/socio/change-password', [SocioController::class, 'changePassword']);
+
+    Route::controller(SocioController::class)->group(function () {
+        Route::get('/socio/pedidos/{id}', 'getPedidos');
+        Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
     });
+});
+
     // Rutas para motorizados
     Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
         Route::controller(MotorizadoController::class)->group(function () {
@@ -318,7 +327,6 @@ Route::get('/biker/viajes-activos/{idBiker}', [BikerController::class, 'viajesAc
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
-    Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
     Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
@@ -404,6 +412,8 @@ Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
     Route::post('/negocio/horarios', [PerfilNegocioController::class, 'guardarHorario']);
+    Route::put('/negocio/horarios/{id}', [PerfilNegocioController::class, 'guardarHorario']);
+    Route::delete('/negocio/horarios/{id}', [PerfilNegocioController::class, 'eliminarHorario']);
     Route::get('/negocio/logo', [PerfilNegocioController::class, 'obtenerLogo']);
     Route::post('/negocio/foto-perfil', [PerfilNegocioController::class, 'actualizarFotoPerfil']);
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
@@ -461,3 +471,4 @@ Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::cl
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
 
 
+ 

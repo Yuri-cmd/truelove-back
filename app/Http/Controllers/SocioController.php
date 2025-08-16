@@ -23,6 +23,7 @@ use App\Models\RepartoRegistro;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage; // <-- Importación añadida
 
 class SocioController extends Controller
 {
@@ -74,7 +75,7 @@ class SocioController extends Controller
                         'phone' => $businessRegistration->phone,
                         'businessType' => $businessRegistration->businessType,
                         'created_at' => $businessRegistration->created_at,
-                        'posToDriver'=>$businessRegistration->posToDriver,
+                        'posToDriver' => $businessRegistration->posToDriver,
                         'entrega_documento_venta' => $businessRegistration->entrega_documento_venta
 
                     ],
@@ -84,7 +85,8 @@ class SocioController extends Controller
                         'metodo_contacto' => $businessRegistration->negocio->metodo_contacto,
                         'telefono' => $businessRegistration->negocio->telefono,
                         'tipo_pago_digital' => $businessRegistration->negocio->tipo_pago_digital,
-                        'numero_pago_digital' => $businessRegistration->negocio->numero_pago_digital
+                        'numero_pago_digital' => $businessRegistration->negocio->numero_pago_digital,
+                        'nombre_titular_pago_digital' => $businessRegistration->negocio->nombre_titular_pago_digital
                     ] : null,
                     'businessData' => $businessRegistration->datosClaveNegocio ? [
                         'ruc' => $businessRegistration->datosClaveNegocio->ruc,
@@ -331,7 +333,8 @@ class SocioController extends Controller
 
         // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
         $pedidos = $pedidos->filter(function ($pedido) {
-            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);;
+            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
+            ;
         });
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente
@@ -873,4 +876,252 @@ class SocioController extends Controller
             ], 500);
         }
     }
+    public function actualizarInformaciónPersonal(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'lastName' => 'required|string|max:255',
+                'phone' => 'required|string|max:20',
+                'posToDriver' => 'integer|in:0,1,2,3',
+                'entrega_documento_venta' => 'integer|in:0,1'
+            ]);
+
+            $socio->update($request->only(['name', 'lastName', 'phone', 'posToDriver', 'entrega_documento_venta']));
+
+            return response()->json(['status' => 'success', 'message' => 'Información personal actualizada correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar información personal: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar la información'], 500);
+        }
+    }
+    public function actualizarInformaciónNegocio(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'total_sucursales' => 'required|integer|min:1',
+                'metodo_contacto' => 'required|string|max:50',
+                'telefono' => 'required|string|max:20',
+                'tipo_pago_digital' => 'integer|in:0,1,2',
+                'numero_pago_digital' => 'nullable|string|max:20',
+                'nombre_titular_pago_digital' => 'nullable|string|max:255'
+            ]);
+
+            if ($socio->negocio) {
+                $socio->negocio->update($request->only([
+                    'nombre',
+                    'total_sucursales',
+                    'metodo_contacto',
+                    'telefono',
+                    'tipo_pago_digital',
+                    'numero_pago_digital',
+                    'nombre_titular_pago_digital'
+                ]));
+            }
+
+            return response()->json(['status' => 'success', 'message' => 'Datos del negocio actualizados correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar datos del negocio: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar los datos del negocio'], 500);
+        }
+    }
+    public function actualizarEstablecimiento(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'nombre_establecimiento' => 'required|string|max:255',
+                'calle' => 'required|string|max:255',
+                'numero' => 'required|string|max:10',
+                'codigo_postal' => 'required|string|max:10',
+                'provincia' => 'required|string|max:100',
+                'ciudad' => 'required|string|max:100',
+                'referencia' => 'nullable|string|max:255',
+                'latitud' => 'nullable|numeric',
+                'longitud' => 'nullable|numeric'
+            ]);
+
+            if ($socio->establecimiento) {
+                $direccion_completa = $request->calle . ' ' . $request->numero . ', ' . $request->ciudad;
+
+                $socio->establecimiento->update(array_merge(
+                    $request->only(['nombre_establecimiento', 'calle', 'numero', 'codigo_postal', 'provincia', 'ciudad', 'referencia', 'latitud', 'longitud']),
+                    ['direccion_completa' => $direccion_completa]
+                ));
+            }
+
+            return response()->json(['status' => 'success', 'message' => 'Establecimiento actualizado correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar establecimiento: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar el establecimiento'], 500);
+        }
+    }
+
+    public function actualizarDatosClaveNegocio(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'ruc' => 'required|string|max:20',
+                'razon_social' => 'required|string|max:255',
+            ]);
+
+            if ($socio->datosClaveNegocio) {
+                $socio->datosClaveNegocio->update($request->only([
+                    'ruc',
+                    'razon_social'
+                ]));
+            }
+
+            return response()->json(['status' => 'success', 'message' => 'Datos clave del negocio actualizados correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar datos clave del negocio: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar los datos clave del negocio'], 500);
+        }
+    }
+
+    public function actualizarDatosBancarios(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'titular_cuenta' => 'required|string|max:255',
+                'numero_cuenta' => 'required|string|max:30',
+                'nombre_banco' => 'required|string|max:100',
+                'tipo_cuenta' => 'required|string|max:50',
+                'documento_titular' => 'required|string|max:20',
+                'codigo_cci' => 'nullable|string|max:30'
+            ]);
+
+            // Verificar si ya tiene datos bancarios
+            if (!$socio->datosBancarios) {
+                // Crear nuevos datos bancarios
+                $socio->datosBancarios()->create($request->only([
+                    'titular_cuenta',
+                    'numero_cuenta',
+                    'nombre_banco',
+                    'tipo_cuenta',
+                    'documento_titular',
+                    'codigo_cci'
+                ]));
+            } else {
+                // Actualizar datos bancarios existentes
+                $socio->datosBancarios->update($request->only([
+                    'titular_cuenta',
+                    'numero_cuenta',
+                    'nombre_banco',
+                    'tipo_cuenta',
+                    'documento_titular',
+                    'codigo_cci'
+                ]));
+            }
+
+            return response()->json(['status' => 'success', 'message' => 'Datos bancarios actualizados correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar datos bancarios: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar los datos bancarios: ' . $e->getMessage()], 500);
+        }
+    }
+
+
+    public function actualizarCuentaBancaria(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
+
+            $validated = $request->validate([
+                'titular_cuenta' => 'required|string|max:255',
+                'dni' => 'required|string|max:20',
+                'banco_id' => 'required|integer|exists:bancos,id',
+                'tipo_cuenta_id' => 'required|integer|exists:tipos_cuenta_bancaria,id',
+                'numero_cuenta' => 'required|string|max:30',
+                'imagenes_cuenta.*' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:10240'
+            ]);
+
+            $cuentaData = $request->except(['imagenes_cuenta', '_method']);
+
+            if ($request->hasFile('imagenes_cuenta')) {
+                // Eliminar archivos antiguos si existen
+                if ($socio->cuentaBancaria && $socio->cuentaBancaria->imagenes_cuenta) {
+                    $imagenesCuenta = $socio->cuentaBancaria->imagenes_cuenta;
+                    $rutasAntiguas = is_string($imagenesCuenta) ? json_decode($imagenesCuenta, true) : (is_array($imagenesCuenta) ? $imagenesCuenta : []);
+                    if (is_array($rutasAntiguas)) {
+                        foreach ($rutasAntiguas as $ruta) {
+                            Storage::disk('custom_public')->delete($ruta);
+                        }
+                    }
+                }
+
+                // Guardar nuevos archivos
+                $imagenesRutas = [];
+                foreach ($request->file('imagenes_cuenta') as $archivo) {
+                    $nombreArchivo = time() . '_' . Str::random(10) . '.' . $archivo->getClientOriginalExtension();
+                    $rutaArchivo = $archivo->storeAs('cuentas_bancarias_socios', $nombreArchivo, 'custom_public');
+                    $imagenesRutas[] = $rutaArchivo;
+                }
+                $cuentaData['imagenes_cuenta'] = json_encode($imagenesRutas);
+            }
+
+            // Actualizar o crear cuenta bancaria
+            if ($socio->cuentaBancaria) {
+                $socio->cuentaBancaria->update($cuentaData);
+            } else {
+                // Asegurarse de que el business_registration_id está presente para la creación
+                $cuentaData['business_registration_id'] = $socio->id;
+                $socio->cuentaBancaria()->create($cuentaData);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Cuenta bancaria actualizada correctamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación al actualizar cuenta bancaria:', $e->errors());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar cuenta bancaria: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar la cuenta bancaria: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8',
+        ]);
+
+        $usuario = $request->user();
+
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no autenticado'], 401);
+        }
+
+        $usuario->password = Hash::make($request->password);
+        $usuario->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
 }
