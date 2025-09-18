@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
+use App\Models\KilometrosTarifa;
 use App\Models\Location;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
@@ -58,20 +59,43 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm)
     {
-        // Obtener la hora actual (0-23)
-        $hora = (int)date('G');
+        // Obtener configuración activa desde la base de datos
+        $config = KilometrosTarifa::getConfiguracionActiva();
 
-        // Si es entre las 23:00 (11pm) y 4:59am, tarifa base 5
-        if ($hora >= 23 || $hora < 5) {
-            $precioBase = 5.50;
+        // Si no hay configuración activa, usar valores por defecto (fallback)
+        if (!$config) {
+            // Obtener la hora actual (0-23)
+            $hora = (int)date('G');
+
+            // Si es entre las 23:00 (11pm) y 4:59am, tarifa base 5.50
+            if ($hora >= 23 || $hora < 5) {
+                $precioBase = 5.50;
+            } else {
+                $precioBase = 4.00;
+            }
+
+            $precioMax = 10.00;
+            $distanciaMax = 10.00;
+            $distanciaMin = 1.00;
         } else {
-            $precioBase = 4;
+            // Usar configuración de la base de datos
+            // Obtener la hora actual (0-23)
+            $hora = (int)date('G');
+
+            // Si es entre las 23:00 (11pm) y 4:59am, usar tarifa nocturna
+            if ($hora >= 23 || $hora < 5) {
+                $precioBase = $config->precio_base_nocturno;
+            } else {
+                $precioBase = $config->precio_base_diurno;
+            }
+
+            $precioMax = $config->precio_maximo;
+            $distanciaMax = $config->distancia_maxima;
+            $distanciaMin = $config->distancia_minima;
         }
 
-        $precioMax = 10;
-        $distanciaMax = 10; // km
-
-        if ($distanciaKm <= 1) {
+        // Aplicar lógica de cálculo
+        if ($distanciaKm <= $distanciaMin) {
             return $precioBase;
         }
 
@@ -80,7 +104,7 @@ class PedidoService
         }
 
         // Tarifa proporcional entre base y máxima
-        $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - 1)) * ($distanciaKm - 1);
+        $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - $distanciaMin)) * ($distanciaKm - $distanciaMin);
 
         // Redondear hacia abajo en múltiplos de 0.5
         return floor($precio * 2) / 2;

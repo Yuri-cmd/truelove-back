@@ -44,6 +44,7 @@ use App\Http\Controllers\PedidoTrackingController;
 use App\Http\Controllers\PromocionController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\TipoNegocioController;
+use App\Http\Controllers\KilometrosTarifaController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -118,6 +119,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/motorizados-aprobados', 'getMotorizadosAprobados');
             Route::put('/{id}', 'update');
             Route::delete('/{id}', 'destroy');
+        });
+
+        // Rutas para Kilómetros Tarifa
+        Route::controller(KilometrosTarifaController::class)->prefix('kilometros-tarifa')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/activa', 'getActiva');
+            Route::get('/{id}', 'show');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+            Route::post('/{id}/activar', 'activar');
         });
     });
 
