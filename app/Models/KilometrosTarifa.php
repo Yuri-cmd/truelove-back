@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class KilometrosTarifa extends Model
+{
+    use HasFactory;
+
+    protected $table = 'kilometros_tarifa';
+
+    protected $fillable = [
+        'precio_base_diurno',
+        'precio_base_nocturno',
+        'precio_maximo',
+        'distancia_maxima',
+        'distancia_minima',
+        'activo',
+        'nombre',
+        'descripcion'
+    ];
+
+    protected $casts = [
+        'precio_base_diurno' => 'decimal:2',
+        'precio_base_nocturno' => 'decimal:2',
+        'precio_maximo' => 'decimal:2',
+        'distancia_maxima' => 'decimal:2',
+        'distancia_minima' => 'decimal:2',
+        'activo' => 'boolean'
+    ];
+
+    // Scope para obtener solo configuraciones activas
+    public function scopeActivo($query)
+    {
+        return $query->where('activo', true);
+    }
+
+    // Método estático para obtener la configuración activa
+    public static function getConfiguracionActiva()
+    {
+        return static::where('activo', true)->first();
+    }
+
+    // Método para activar esta configuración y desactivar las demás
+    public function activar()
+    {
+        // Desactivar todas las demás configuraciones
+        static::where('id', '!=', $this->id)->update(['activo' => false]);
+
+        // Activar esta configuración
+        $this->update(['activo' => true]);
+
+        return $this;
+    }
+}
