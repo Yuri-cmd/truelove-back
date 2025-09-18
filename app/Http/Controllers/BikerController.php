@@ -659,7 +659,8 @@ class BikerController extends Controller
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
                     'productosList' => $productosList,
                     'productos' => implode(', ', $productosList->toArray()),
-                    'actualizado' => $pedido->updated_at
+                    'actualizado' => $pedido->updated_at,
+                    'descuento' => $pedido->descuento
                 ];
             }
         }
