@@ -6,7 +6,7 @@ use App\Models\BusinessRegistration;
 use Illuminate\Http\Request;
 use App\Models\PerfilNegocio;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
+// use Illuminate\Support\Facades\Log;
 
 class PerfilNegocioController extends Controller
 {
@@ -14,20 +14,20 @@ class PerfilNegocioController extends Controller
     {
         try {
             // Debug para ver qué token está llegando
-            Log::info('Token recibido:', [
-                'token' => $request->header('Authorization')
-            ]);
+            // Log::info('Token recibido:', [
+            //     'token' => $request->header('Authorization')
+            // ]);
     
             // Verificar autenticación
             if (!$request->user()) {
-                Log::error('Usuario no autenticado');
+                // Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
     
             // Debug para ver el usuario autenticado
-            Log::info('Usuario autenticado:', [
-                'user_id' => $request->user()->id
-            ]);
+            // Log::info('Usuario autenticado:', [
+            //     'user_id' => $request->user()->id
+            // ]);
     
             // Validar el archivo
             $request->validate([
@@ -70,9 +70,9 @@ class PerfilNegocioController extends Controller
             $logoUrl = url($rutaRelativa);
     
             // Debug para ver la URL generada
-            Log::info('URL del logo generada:', [
-                'url' => $logoUrl
-            ]);
+            // Log::info('URL del logo generada:', [
+            //     'url' => $logoUrl
+            // ]);
     
             return response()->json([
                 'success' => true,
@@ -81,7 +81,7 @@ class PerfilNegocioController extends Controller
             ]);
     
         } catch (\Exception $e) {
-            Log::error('Error en actualizarLogo: ' . $e->getMessage());
+            // Log::error('Error en actualizarLogo: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error interno del servidor',
                 'error' => $e->getMessage()
@@ -94,7 +94,7 @@ class PerfilNegocioController extends Controller
     try {
         // Verificar autenticación
         if (!$request->user()) {
-            \Log::error('Usuario no autenticado');
+            // \Log::error('Usuario no autenticado');
             return response()->json(['message' => 'Usuario no autenticado'], 401);
         }
 
@@ -175,10 +175,10 @@ class PerfilNegocioController extends Controller
         ]);
 
     } catch (\Exception $e) {
-        \Log::error('Error en actualizarBanner: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'request_data' => $request->except(['banner'])
-        ]);
+        // \Log::error('Error en actualizarBanner: ' . $e->getMessage(), [
+        //     'trace' => $e->getTraceAsString(),
+        //     'request_data' => $request->except(['banner'])
+        // ]);
         
         return response()->json([
             'message' => 'Error interno del servidor',
@@ -211,7 +211,7 @@ class PerfilNegocioController extends Controller
     
             return response()->json($perfil);
         } catch (\Exception $e) {
-            Log::error('Error en obtenerPerfil: ' . $e->getMessage());
+            // Log::error('Error en obtenerPerfil: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener el perfil',
                 'error' => $e->getMessage()
@@ -262,7 +262,7 @@ class PerfilNegocioController extends Controller
             return response()->json($horario);
 
         } catch (\Exception $e) {
-            Log::error('Error en guardarHorario: ' . $e->getMessage());
+            // Log::error('Error en guardarHorario: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al guardar el horario',
                 'error' => $e->getMessage()
@@ -274,7 +274,7 @@ class PerfilNegocioController extends Controller
     {
         try {
             if (!$request->user()) {
-                Log::error('Usuario no autenticado');
+                // Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
 
@@ -296,7 +296,7 @@ class PerfilNegocioController extends Controller
             return response()->json(['message' => 'Horario eliminado correctamente'], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar horario: ' . $e->getMessage());
+            // Log::error('Error al eliminar horario: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al eliminar el horario',
                 'error' => $e->getMessage()
@@ -349,7 +349,7 @@ class PerfilNegocioController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error en actualizarFotoPerfil: ' . $e->getMessage());
+            // Log::error('Error en actualizarFotoPerfil: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error interno del servidor',
                 'error' => $e->getMessage()
@@ -367,10 +367,10 @@ class PerfilNegocioController extends Controller
             $perfil = $businessRegistration->perfilNegocio;
 
             // Debug para ver qué contiene el perfil
-            Log::info('Perfil del negocio:', [
-                'perfil' => $perfil,
-                'foto_perfil' => $perfil ? $perfil->foto_perfil : null
-            ]);
+            // Log::info('Perfil del negocio:', [
+            //     'perfil' => $perfil,
+            //     'foto_perfil' => $perfil ? $perfil->foto_perfil : null
+            // ]);
 
             $datos = [
                 'nombre' => $businessRegistration->name . ' ' . $businessRegistration->lastName,
@@ -386,7 +386,7 @@ class PerfilNegocioController extends Controller
             return response()->json($datos);
 
         } catch (\Exception $e) {
-            Log::error('Error en obtenerDatosNegocio: ' . $e->getMessage());
+            // Log::error('Error en obtenerDatosNegocio: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener los datos del negocio',
                 'error' => $e->getMessage()
@@ -399,7 +399,7 @@ class PerfilNegocioController extends Controller
         try {
             // Verificar autenticación
             if (!$request->user()) {
-                Log::error('Usuario no autenticado');
+                // Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
 
@@ -433,7 +433,7 @@ class PerfilNegocioController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error en obtenerEstablecimientoActual: ' . $e->getMessage());
+            // Log::error('Error en obtenerEstablecimientoActual: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener los datos del establecimiento',
                 'error' => $e->getMessage()
@@ -449,7 +449,7 @@ class PerfilNegocioController extends Controller
         try {
             // Verificar autenticación
             if (!$request->user()) {
-                Log::error('Usuario no autenticado');
+                // Log::error('Usuario no autenticado');
                 return response()->json(['message' => 'Usuario no autenticado'], 401);
             }
 
@@ -469,7 +469,7 @@ class PerfilNegocioController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::error('Validación fallida:', $validator->errors()->toArray());
+                // Log::error('Validación fallida:', $validator->errors()->toArray());
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
@@ -500,10 +500,10 @@ class PerfilNegocioController extends Controller
                 'direccion_completa' => $request->fullAddress,
             ]);
 
-            Log::info('Establecimiento actualizado correctamente:', [
-                'establecimiento_id' => $establecimiento->id,
-                'business_registration_id' => $businessRegistration->id
-            ]);
+            // Log::info('Establecimiento actualizado correctamente:', [
+            //     'establecimiento_id' => $establecimiento->id,
+            //     'business_registration_id' => $businessRegistration->id
+            // ]);
 
             return response()->json([
                 'message' => 'Establecimiento actualizado correctamente',
@@ -522,7 +522,7 @@ class PerfilNegocioController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error en actualizarEstablecimiento: ' . $e->getMessage());
+            // Log::error('Error en actualizarEstablecimiento: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al actualizar el establecimiento',
                 'error' => $e->getMessage()
@@ -584,7 +584,7 @@ public function obtenerConfiguracionPagoDigital(Request $request)
             'numero_pago_digital' => $negocio->numero_pago_digital,
         ]);
     } catch (\Exception $e) {
-        Log::error('Error al obtener configuración de pago digital: ' . $e->getMessage());
+        // Log::error('Error al obtener configuración de pago digital: ' . $e->getMessage());
         return response()->json(['message' => 'Error al obtener configuración'], 500);
     }
 }
@@ -615,7 +615,7 @@ public function actualizarConfiguracionPagoDigital(Request $request)
             'numero_pago_digital' => $negocio->numero_pago_digital,
         ]);
     } catch (\Exception $e) {
-        Log::error('Error al actualizar configuración de pago digital: ' . $e->getMessage());
+        // Log::error('Error al actualizar configuración de pago digital: ' . $e->getMessage());
         return response()->json(['message' => 'Error al actualizar configuración'], 500);
     }
 }

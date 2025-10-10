@@ -45,6 +45,7 @@ use App\Http\Controllers\PromocionController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\TipoNegocioController;
 use App\Http\Controllers\KilometrosTarifaController;
+use App\Http\Controllers\CuotaSocioController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -107,7 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/horarios/{id}', 'updateHorario');
             Route::delete('/horarios/{id}', 'deleteHorario');
             Route::get('/horarios/motorizados/disponibles', 'getMotorizadosDisponibles');
-             Route::get('/horarios/motorizados/todos', 'getTodosMotorizados');
+            Route::get('/horarios/motorizados/todos', 'getTodosMotorizados');
         });
         Route::put('/entrega-calendario/{id}/estado', [EntregaCalendarioController::class, 'actualizarEstado']);
         Route::controller(CuotaMotorizadoController::class)->prefix('cuotas-motorizados')->group(function () {
@@ -131,24 +132,57 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', 'destroy');
             Route::post('/{id}/activar', 'activar');
         });
+
+        Route::controller(CuotaSocioController::class)->prefix('cuotas-socios')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+            Route::get('/activa', 'getActiva');
+            Route::get('/estadisticas', 'estadisticas');
+
+            // Gestión de pagos/comprobantes
+            Route::get('/pagos', 'getPagos');
+            Route::put('/pagos/{id}/aprobar', 'aprobarPago');
+            Route::put('/pagos/{id}/rechazar', 'rechazarPago');
+
+            // Gestión de asignación de cuotas y períodos
+            Route::post('/asignar-cuota', 'asignarCuotaASocio');
+            Route::delete('/remover-cuota/{socioId}', 'removerCuotaDeSocio');
+            Route::get('/periodos/{socioId}', 'verPeriodosDeSocio');
+            Route::get('/estado-pagos/{socioId}', 'getEstadoPagosSocio');
+
+            // IMPORTANTE: Esta ruta debe ir al final para evitar conflictos
+            Route::get('/{id}', 'show');
+        });
     });
 
-   // Rutas para socios (accesibles por usuarios con rol 'negocio')
-Route::middleware('role:negocio')->group(function () {
-    Route::get('/socio/perfil', [SocioController::class, 'getAuthenticatedSocioDetails']);
-    Route::put('/socio/personal-info', [SocioController::class, 'actualizarInformaciónPersonal']);
-    Route::put('/socio/business-info', [SocioController::class, 'actualizarInformaciónNegocio']);
-    Route::put('/socio/establishment', [SocioController::class, 'actualizarEstablecimiento']);
-    Route::put('/socio/business-key-info', [SocioController::class, 'actualizarDatosClaveNegocio']);
-    Route::put('/socio/bank-data', [SocioController::class, 'actualizarDatosBancarios']);
-      Route::post('/socio/bank-account', [SocioController::class, 'actualizarCuentaBancaria']); 
-       Route::put('/socio/change-password', [SocioController::class, 'changePassword']);
+    // Rutas para socios (accesibles por usuarios con rol 'negocio')
+    Route::middleware('role:negocio')->group(function () {
+        Route::get('/socio/perfil', [SocioController::class, 'getAuthenticatedSocioDetails']);
+        Route::put('/socio/personal-info', [SocioController::class, 'actualizarInformaciónPersonal']);
+        Route::put('/socio/business-info', [SocioController::class, 'actualizarInformaciónNegocio']);
+        Route::put('/socio/establishment', [SocioController::class, 'actualizarEstablecimiento']);
+        Route::put('/socio/business-key-info', [SocioController::class, 'actualizarDatosClaveNegocio']);
+        Route::put('/socio/bank-data', [SocioController::class, 'actualizarDatosBancarios']);
+        Route::post('/socio/bank-account', [SocioController::class, 'actualizarCuentaBancaria']);
+        Route::put('/socio/change-password', [SocioController::class, 'changePassword']);
 
-    Route::controller(SocioController::class)->group(function () {
-        Route::get('/socio/pedidos/{id}', 'getPedidos');
-        Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
+        Route::controller(SocioController::class)->group(function () {
+            Route::get('/socio/pedidos/{id}', 'getPedidos');
+            Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
+        });
+
+        Route::get('/socio/cuota-activa', [CuotaSocioController::class, 'getCuotaActiva']);
+        Route::post('/socio/subir-comprobante', [CuotaSocioController::class, 'subirComprobante']);
+        Route::get('/socio/mis-pagos', [CuotaSocioController::class, 'misPagos']);
+
+        // Rutas de períodos para socios
+        Route::get('/socio/mi-periodo-actual', [CuotaSocioController::class, 'miPeriodoActual']);
+        Route::get('/socio/mis-periodos', [CuotaSocioController::class, 'misPeriodos']);
+        Route::get('/socio/verificar-acceso', [CuotaSocioController::class, 'verificarAcceso']);
+        Route::post('/socio/subir-comprobante-periodo', [CuotaSocioController::class, 'subirComprobantePeriodo']);
     });
-});
 
     // Rutas para motorizados
     Route::middleware('role:motorizado')->prefix('motorizado')->group(function () {
@@ -344,13 +378,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/negocio/datos', [PerfilNegocioController::class, 'obtenerDatosNegocio']);
 
     Route::post('/negocio/banner', [PerfilNegocioController::class, 'actualizarBanner']);
-      Route::get('/establecimiento/actual', [PerfilNegocioController::class, 'obtenerEstablecimientoActual']);
+    Route::get('/establecimiento/actual', [PerfilNegocioController::class, 'obtenerEstablecimientoActual']);
     Route::put('/establecimiento/actualizar', [PerfilNegocioController::class, 'actualizarEstablecimiento']);
-      Route::get('/negocio/pos-settings', [PerfilNegocioController::class, 'obtenerConfiguracionPOS']);
+    Route::get('/negocio/pos-settings', [PerfilNegocioController::class, 'obtenerConfiguracionPOS']);
     Route::put('/negocio/pos-settings', [PerfilNegocioController::class, 'actualizarConfiguracionPOS']);
 
     Route::get('/negocio/pago-digital', [PerfilNegocioController::class, 'obtenerConfiguracionPagoDigital']);
-Route::put('/negocio/pago-digital', [PerfilNegocioController::class, 'actualizarConfiguracionPagoDigital']);
+    Route::put('/negocio/pago-digital', [PerfilNegocioController::class, 'actualizarConfiguracionPagoDigital']);
     // categorias
 
     Route::get('/categoria/web/{id_empresa}', [CategoriaController::class, 'obtenerCategories']);
@@ -483,4 +517,3 @@ Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::cl
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
 
 
- 

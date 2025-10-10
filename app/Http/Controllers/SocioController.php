@@ -76,7 +76,9 @@ class SocioController extends Controller
                         'businessType' => $businessRegistration->businessType,
                         'created_at' => $businessRegistration->created_at,
                         'posToDriver' => $businessRegistration->posToDriver,
-                        'entrega_documento_venta' => $businessRegistration->entrega_documento_venta
+                        'entrega_documento_venta' => $businessRegistration->entrega_documento_venta,
+                        'cuota_socio_id' => $businessRegistration->cuota_socio_id,
+                        'fecha_asignacion_cuota' => $businessRegistration->fecha_asignacion_cuota
 
                     ],
                     'business' => $businessRegistration->negocio ? [
@@ -246,33 +248,68 @@ class SocioController extends Controller
     }
 
 
-    public function login(Request $request)
-    {
-        // Buscar el reparto_registro
-        $user = User::where('usuario', $request->usuario)
-            ->where('estado', 1) // Estado debe ser 1
-            ->first();
+public function login(Request $request)
+{
+    // Buscar el usuario
+    $user = User::where('usuario', $request->usuario)
+        ->where('estado', 1)
+        ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['status' => 'error', 'message' => 'Credenciales incorrectas'], 401);
-        }
-
-        // Si todo está bien, devolver el usuario y token
-        $socio = BusinessRegistration::where('user_id', $user->id)
-            ->where('estado', 1) // Estado debe ser 1
-            ->where('aprobado', 1) // Aprobación debe ser 1
-            ->first();
-
-
-        // Asumiendo que usas Sanctum o Passport para autenticación con tokens
+    if (!$user || !Hash::check($request->password, $user->password)) {
         return response()->json([
-            'status' => 'success',
-            'message' => 'Inicio de sesión exitoso',
-            'user' => $user,
-            'socio' => $socio,
-            'token' => $user->createToken('your-app-name')->plainTextToken,
-        ]);
+            'status' => 'error', 
+            'message' => 'Credenciales incorrectas'
+        ], 401);
     }
+
+    // Buscar el socio
+    $socio = BusinessRegistration::where('user_id', $user->id)
+        ->where('estado', 1)
+        ->where('aprobado', 1)
+        ->first();
+
+    if (!$socio) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'No tienes un registro de socio aprobado'
+        ], 403);
+    }
+
+    // Verificar estado de cuotas del socio
+    $periodoCuotaService = app(\App\Services\PeriodoCuotaService::class);
+    $estadoCuota = $periodoCuotaService->verificarAccesoSocio($socio->id);
+
+    // 🔴 BLOQUEAR LOGIN SI TIENE CUOTAS VENCIDAS
+    if (!$estadoCuota['puede_acceder']) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $estadoCuota['mensaje'],
+            'motivo' => $estadoCuota['motivo'],
+            'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
+            'alerta' => 'critico'
+        ], 403); // 403 Forbidden - No tiene permiso para acceder
+    }
+
+    // ✅ Solo crear token si PUEDE acceder
+    $token = $user->createToken('your-app-name')->plainTextToken;
+
+    // Respuesta exitosa
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Inicio de sesión exitoso',
+        'user' => $user,
+        'socio' => $socio,
+        'token' => $token,
+        'estado_cuota' => [
+            'puede_acceder' => true,
+            'motivo' => $estadoCuota['motivo'],
+            'mensaje' => $estadoCuota['mensaje'],
+            'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
+            'alerta' => $estadoCuota['motivo'] === 'proximo_vencimiento' ? 'advertencia' : null
+        ]
+    ]);
+}
+
 
     public function getPedidos($id)
     {
