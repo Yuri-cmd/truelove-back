@@ -89,6 +89,8 @@ class PedidoController extends Controller
 
         $pedido->requiere_confirmacion_local = $requiereConfirmacion;
 
+        $pedido->tipo_pedido = $request->tipo_entrega == 'delivery' ? 0 : 1;
+
         //descontar uso del cupon
         $descuento = DescuentoCliente::where('id_cliente', $request->id_cliente)
             ->where('codigo', $request->codigo)
@@ -226,11 +228,11 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
-        if ($request->estado == 2 && $pedido->id_motorizado == null) {
+        if ($request->estado == 2 && $pedido->id_motorizado == null && $pedido->tipo_entrega == 0) {
             $this->sendMotorizadosCerca();
         }
 
-        if ($request->estado == 3 && $pedido->id_motorizado !== null) {
+        if ($request->estado == 3 && $pedido->id_motorizado !== null && $pedido->tipo_entrega == 0) {
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 4;
@@ -241,6 +243,31 @@ class PedidoController extends Controller
                     $biker->token_fmc,
                     'Hola ' . $biker->nombre,
                     'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.'
+                );
+            }
+
+            // Buscar el último tracking creado para este pedido
+            $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
+            if ($ultimoTracking) {
+                // Sumarle un minuto al created_at del último tracking
+                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addMinute();
+                $tracking->created_at = $nuevoCreatedAt;
+                $tracking->updated_at = $nuevoCreatedAt;
+            }
+            $tracking->save();
+        }
+
+        if($request->estado == 3 && $pedido->tipo_entrega == 1){
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $id;
+            $tracking->estado = 9;
+
+             $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+            if ($cliente->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $cliente->token_fmc,
+                    'Hola ' . $cliente->nombre,
+                    'El restaurante termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.'
                 );
             }
 

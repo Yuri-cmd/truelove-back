@@ -86,6 +86,9 @@ if (!function_exists('estadoPedido')) {
             case '8':
                 return 'Pedido entregado';
                 break;
+            case '9':
+                return 'Pedido listo para recoger';
+                break;
             default:
                 # code...
                 break;
