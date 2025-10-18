@@ -25,8 +25,7 @@ class PedidoTrackingController extends Controller
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
         $tiempo = Pedido::find($id)->tiempo;
-        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-
+        $local = Establecimiento::where('business_registration_id', Pedido::find($id)->id_local)->first();
         return response()->json([
             'id' => $id,
             'estado' => $pedido->estado,
