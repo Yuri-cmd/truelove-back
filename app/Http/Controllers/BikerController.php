@@ -139,7 +139,7 @@ class BikerController extends Controller
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
-                    ->whereRaw('estado = 2')
+                    ->whereRaw('estado = 2 or estado = 3')
                     ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
                         $sub->select(DB::raw('pedido_id, MAX(created_at)'))
                             ->from('pedido_trackings')
