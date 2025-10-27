@@ -228,11 +228,11 @@ class PedidoController extends Controller
         $tracking->estado = $request->estado;
         $tracking->save();
 
-        if ($request->estado == 2 && $pedido->id_motorizado == null && $pedido->tipo_entrega == 0) {
+        if ($request->estado == 2 && $pedido->id_motorizado == null && $pedido->tipo_entrega == '0') {
             $this->sendMotorizadosCerca();
         }
 
-        if ($request->estado == 3 && $pedido->id_motorizado !== null && $pedido->tipo_entrega == 0) {
+        if ($request->estado == 3 && $pedido->id_motorizado !== null && $pedido->tipo_entrega == '0') {
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 4;
@@ -257,7 +257,7 @@ class PedidoController extends Controller
             $tracking->save();
         }
 
-        if($request->estado == 3 && $pedido->tipo_entrega == 1){
+        if($request->estado == 3 && $pedido->tipo_entrega == '1'){
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 9;
