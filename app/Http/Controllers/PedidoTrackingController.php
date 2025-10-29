@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BusinessRegistration;
 use App\Models\Cliente;
 use App\Models\Establecimiento;
+use App\Models\Negocio;
 use App\Models\Pedido;
 use App\Models\PedidoTracking;
 use App\Services\FirebaseService;
@@ -26,12 +27,16 @@ class PedidoTrackingController extends Controller
         }
         $tiempo = Pedido::find($id)->tiempo;
         $local = Establecimiento::where('business_registration_id', Pedido::find($id)->id_local)->first();
+        $negocio = Negocio::where('business_registration_id', Pedido::find($id)->id_local)->first();
         return response()->json([
             'id' => $id,
             'estado' => $pedido->estado,
             'tiempo' => $tiempo ?? 0,
             'tieneMotorizado' => Pedido::find($id)->id_motorizado ? true : false,
             'direccionLocal' => $local ? $local->direccion_completa : null,
+            'lat' => $local ? $local->latitud : null,
+            'lon' => $local ? $local->longitud : null,
+            'telefono' => $local ? $negocio->telefono : null,
         ]);
     }
 
