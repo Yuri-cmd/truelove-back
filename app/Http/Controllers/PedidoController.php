@@ -154,7 +154,7 @@ class PedidoController extends Controller
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
         foreach ($motorizadosToken as $token) {
             if ($token) {
-                $this->firebaseService->sendNotification($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+                $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
             }
         }
     }
