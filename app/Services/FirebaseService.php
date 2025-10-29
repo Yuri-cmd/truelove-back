@@ -94,4 +94,56 @@ class FirebaseService
             return null;
         }
     }
+
+    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $data = [])
+    {
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            return null;
+        }
+
+        $headers = [
+            'Authorization' => 'Bearer ' . $accessToken,
+            'Content-Type' => 'application/json',
+        ];
+
+        $payload = [
+            "message" => [
+                "token" => $token,
+                "notification" => [
+                    "title" => $title,
+                    "body" => $body
+                ],
+                "data" => array_merge($data, [
+                    'sound' => $soundFile,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ]),
+                "android" => [
+                    "notification" => [
+                        "sound" => $soundFile,
+                        "channel_id" => "pedidos_channel"
+                    ]
+                ],
+                "apns" => [
+                    "payload" => [
+                        "aps" => [
+                            "sound" => $soundFile . ".caf"
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
+
+        try {
+            $response = Http::withHeaders($headers)->post($url, $payload);
+            Log::info("Respuesta de Firebase con sonido personalizado: " . $response->body());
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error("🔥 Error enviando notificación con sonido: " . $e->getMessage());
+            return null;
+        }
+    }
 }

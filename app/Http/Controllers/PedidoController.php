@@ -113,10 +113,11 @@ class PedidoController extends Controller
         $comercio = BusinessRegistration::find($request->id_local);
 
         if ($comercio->token_fmc && $comercio->activo == 1) {
-            $this->firebaseService->sendNotification(
+            $this->firebaseService->sendNotificationWithSound(
                 $comercio->token_fmc,
                 '🛒 Nuevo Pedido de ' . Cliente::where('id', $request->id_cliente)->first()->nombre,
-                'El pedido #' . $pedido->id . ' ya está disponible para procesar.'
+                'El pedido #' . $pedido->id . ' ya está disponible para procesar.',
+                'nuevo_pedido' // Sonido personalizado para nuevos pedidos
             );
         }
 
