@@ -20,7 +20,9 @@ class CuotaSocio extends Model
         'banco',
         'metodos_pago_disponibles',
         'estado',
-        'descripcion'
+        'descripcion',
+        'dia_pago', // Día del mes para realizar el pago (1-31)
+        'dia_pago_nota' // Notas explicativas sobre el día de pago
     ];
 
     protected $casts = [
@@ -47,4 +49,82 @@ class CuotaSocio extends Model
 
     // Scope removido: vigente() ya no aplica porque las fechas están en los períodos
     // La vigencia se determina cuando se asigna la cuota al socio
+
+    /**
+     * Obtiene el día de pago, usando un fallback si no está definido
+     */
+    public function getDiaPagoAttribute($value)
+    {
+        return $value ?? 1; // Fallback al día 1 si no está definido
+    }
+
+    /**
+     * Calcula los días restantes hasta el próximo día de pago
+     */
+    public function diasHastaPago()
+    {
+        if (!$this->dia_pago) {
+            return null;
+        }
+
+        $hoy = Carbon::now();
+        $diaPago = $this->dia_pago;
+        
+        // Obtener el próximo día de pago
+        $proximoPago = Carbon::create($hoy->year, $hoy->month, min($diaPago, $hoy->daysInMonth));
+        
+        // Si ya pasó este mes, ir al siguiente
+        if ($proximoPago->lt($hoy)) {
+            $proximoPago = $proximoPago->addMonth();
+            // Ajustar para meses con menos días
+            $proximoPago->day = min($diaPago, $proximoPago->daysInMonth);
+        }
+        
+        return $hoy->diffInDays($proximoPago, false);
+    }
+
+    /**
+     * Obtiene la próxima fecha de pago
+     */
+    public function getProximaFechaPago()
+    {
+        if (!$this->dia_pago) {
+            return null;
+        }
+
+        $hoy = Carbon::now();
+        $diaPago = $this->dia_pago;
+        
+        // Obtener el próximo día de pago
+        $proximoPago = Carbon::create($hoy->year, $hoy->month, min($diaPago, $hoy->daysInMonth));
+        
+        // Si ya pasó este mes, ir al siguiente
+        if ($proximoPago->lt($hoy)) {
+            $proximoPago = $proximoPago->addMonth();
+            // Ajustar para meses con menos días
+            $proximoPago->day = min($diaPago, $proximoPago->daysInMonth);
+        }
+        
+        return $proximoPago;
+    }
+
+    /**
+     * Verifica si necesita mostrar nota explicativa para días > 28
+     */
+    public function necesitaNotaExplicativa()
+    {
+        return $this->dia_pago && $this->dia_pago > 28;
+    }
+
+    /**
+     * Obtiene la nota explicativa automática para días > 28
+     */
+    public function getNotaExplicativaAutomatica()
+    {
+        if (!$this->necesitaNotaExplicativa()) {
+            return null;
+        }
+
+        return "En meses con menos de {$this->dia_pago} días, el pago se realizará el último día del mes.";
+    }
 }

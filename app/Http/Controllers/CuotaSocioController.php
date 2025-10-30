@@ -371,11 +371,29 @@ class CuotaSocioController extends Controller
             'socio_id' => 'required|exists:business_registrations,id',
             'cuota_socio_id' => 'required|exists:cuotas_socios,id',
             'cantidad_periodos' => 'nullable|integer|min:1|max:24', // Máx 24 períodos (2 años)
-            'fecha_inicio' => 'nullable|date' // Fecha de inicio personalizada
+            'fecha_inicio' => 'nullable|date', // Fecha de inicio personalizada
+            'dia_pago' => 'nullable|integer|min:1|max:31' // Día del mes para realizar el pago
         ]);
 
         $socio = BusinessRegistration::findOrFail($validated['socio_id']);
         $cuota = CuotaSocio::findOrFail($validated['cuota_socio_id']);
+
+        // Si se especifica día de pago, actualizar la cuota
+        if (isset($validated['dia_pago'])) {
+            $cuota->update([
+                'dia_pago' => $validated['dia_pago'],
+                'dia_pago_nota' => $cuota->necesitaNotaExplicativa() ? $cuota->getNotaExplicativaAutomatica() : null
+            ]);
+        } else {
+            // Si no se especifica día de pago, usar el día de la fecha de inicio
+            $fechaInicio = $validated['fecha_inicio'] ?? now();
+            $diaPago = Carbon::parse($fechaInicio)->day;
+            
+            $cuota->update([
+                'dia_pago' => $diaPago,
+                'dia_pago_nota' => $diaPago > 28 ? "En meses con menos de {$diaPago} días, el pago se realizará el último día del mes." : null
+            ]);
+        }
 
         // Asignar cuota al socio
         $socio->update([
@@ -701,5 +719,64 @@ class CuotaSocioController extends Controller
                 'dias_vencimiento' => $diasVencimiento
             ]
         ]);
+    }
+
+    /**
+     * PUT /admin/cuotas-socios/{id}/actualizar-dia-pago
+     * Actualizar día de pago de una cuota específica
+     */
+    public function actualizarDiaPago(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'dia_pago' => 'required|integer|min:1|max:31',
+            'dia_pago_nota' => 'nullable|string|max:500'
+        ]);
+
+        $cuota = CuotaSocio::findOrFail($id);
+
+        // Actualizar día de pago
+        $cuota->update([
+            'dia_pago' => $validated['dia_pago'],
+            'dia_pago_nota' => $validated['dia_pago_nota'] ?? 
+                ($validated['dia_pago'] > 28 ? "En meses con menos de {$validated['dia_pago']} días, el pago se realizará el último día del mes." : null)
+        ]);
+
+        // Opcional: Recalcular períodos futuros pendientes si es necesario
+        // Esto podría ser útil si quieres ajustar las fechas de vencimiento de períodos futuros
+        $this->recalcularPeriodosFuturos($cuota->id, $validated['dia_pago']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Día de pago actualizado exitosamente',
+            'data' => $cuota->fresh()
+        ]);
+    }
+
+    /**
+     * Método privado para recalcular períodos futuros cuando se cambia el día de pago
+     */
+    private function recalcularPeriodosFuturos($cuotaId, $nuevoDiaPago)
+    {
+        // Obtener todos los socios que tienen esta cuota asignada
+        $socios = BusinessRegistration::where('cuota_socio_id', $cuotaId)->get();
+
+        foreach ($socios as $socio) {
+            // Obtener períodos futuros pendientes
+            $periodosPendientes = PeriodoCuotaSocio::where('socio_id', $socio->id)
+                ->where('cuota_socio_id', $cuotaId)
+                ->whereIn('estado', ['pendiente'])
+                ->where('fecha_vencimiento', '>', now())
+                ->get();
+
+            foreach ($periodosPendientes as $periodo) {
+                // Recalcular fecha de vencimiento basada en el nuevo día de pago
+                $fechaVencimiento = Carbon::parse($periodo->periodo_inicio);
+                $fechaVencimiento->day = min($nuevoDiaPago, $fechaVencimiento->daysInMonth);
+                
+                $periodo->update([
+                    'fecha_vencimiento' => $fechaVencimiento
+                ]);
+            }
+        }
     }
 }

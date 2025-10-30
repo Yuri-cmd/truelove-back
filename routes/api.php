@@ -10,44 +10,42 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CuotaMotorizadoController;
-use App\Http\Controllers\DatosBancariosRepartoController;
-use App\Http\Controllers\DescuentoClienteController;
-use App\Http\Controllers\EntregaCalendarioController;
-use App\Http\Controllers\HorarioController;
-use App\Http\Controllers\MotorizadoController;
-use App\Http\Controllers\PerfilNegocioController;
-use App\Http\Controllers\RegistrationStatusController;
-use App\Http\Controllers\RegistroVehiculoController;
-use App\Http\Controllers\RepartoRegistroCompletoController;
-use App\Http\Controllers\RepartoRegistroController;
-use App\Http\Controllers\SociosCuentaBancariaController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\EmailVerificationController;
-use App\Http\Controllers\SocioController;
-use Illuminate\Http\Request;
-use App\Http\Controllers\NegocioController;
-use App\Http\Controllers\SucursalController;
-use App\Http\Controllers\EstablecimientoController;
-use App\Http\Controllers\DatosClaveNegocioController;
+use App\Http\Controllers\CuotaSocioController;
 use App\Http\Controllers\DatosBancariosController;
-use App\Http\Controllers\RevisarDatosController;
-use App\Http\Controllers\IdsController;
-use App\Http\Middleware\EncryptionHandler;
-
+use App\Http\Controllers\DatosBancariosRepartoController;
+use App\Http\Controllers\DatosClaveNegocioController;
 use App\Http\Controllers\DatosPersonalesRepartoController;
+use App\Http\Controllers\DescuentoClienteController;
+use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\EntregaCalendarioController;
+use App\Http\Controllers\EstablecimientoController;
+use App\Http\Controllers\HorarioController;
+use App\Http\Controllers\IdsController;
+use App\Http\Controllers\KilometrosTarifaController;
 use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MedioPagoController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MotorizadoController;
+use App\Http\Controllers\NegocioController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PedidoTrackingController;
+use App\Http\Controllers\PerfilNegocioController;
 use App\Http\Controllers\PromocionController;
 use App\Http\Controllers\RatingController;
+use App\Http\Controllers\RegistrationStatusController;
+use App\Http\Controllers\RegistroVehiculoController;
+use App\Http\Controllers\RepartoRegistroCompletoController;
+use App\Http\Controllers\RepartoRegistroController;
+use App\Http\Controllers\RevisarDatosController;
+use App\Http\Controllers\SocioController;
+use App\Http\Controllers\SociosCuentaBancariaController;
+use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TipoNegocioController;
-use App\Http\Controllers\KilometrosTarifaController;
-use App\Http\Controllers\CuotaSocioController;
+use App\Http\Controllers\UserController;
+use App\Http\Middleware\EncryptionHandler;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 
 Route::post('/admin/login', [AuthAdminController::class, 'login']);
 
@@ -55,8 +53,6 @@ Route::post('/admin/verify-email', [AuthAdminController::class, 'verifyEmail']);
 Route::post('/admin/verify-code', [AuthAdminController::class, 'verifyCode']);
 Route::post('/admin/reset-password', [AuthAdminController::class, 'resetPassword']);
 Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);
-
-
 
 Route::middleware('auth:sanctum')->group(function () {
     // Rutas para administradores
@@ -152,6 +148,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/periodos/{socioId}', 'verPeriodosDeSocio');
             Route::get('/estado-pagos/{socioId}', 'getEstadoPagosSocio');
 
+            // Gestión de día de pago
+            Route::put('/{id}/actualizar-dia-pago', 'actualizarDiaPago');
+
             // IMPORTANTE: Esta ruta debe ir al final para evitar conflictos
             Route::get('/{id}', 'show');
         });
@@ -193,10 +192,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-
-
 // Rutas de autenticación y verificación del formulario principal y envio del correo
-
 
 Route::controller(EmailVerificationController::class)->group(function () {
     Route::post('/register', 'register');
@@ -216,7 +212,6 @@ Route::put('/negocios/{negocio}', [NegocioController::class, 'update']);
 Route::post('/negocios/{negocio}/sucursales', [SucursalController::class, 'store']);
 Route::get('/negocios/{businessRegistrationId}/approval-status', [NegocioController::class, 'checkApprovalStatus']);
 
-
 // Route::get('/obtener-ultimos-ids', [IdsController::class, 'obtenerUltimosIds']);
 
 Route::post('/establecimientos', [EstablecimientoController::class, 'store']);
@@ -224,7 +219,6 @@ Route::put('/establecimientos/{establecimiento}', [EstablecimientoController::cl
 Route::get('/establecimientos', [EstablecimientoController::class, 'index']);
 Route::get('/establecimientos/{businessRegistrationId}', [EstablecimientoController::class, 'show']);
 Route::delete('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'destroy']);
-
 
 Route::get('/revisarDatos', [RevisarDatosController::class, 'obtenerDatosRevision']);
 Route::get('/revisarDatos/{negocioId}', [RevisarDatosController::class, 'obtenerDatosRevision']);
@@ -260,7 +254,6 @@ Route::post('/cuenta-bancaria', [DatosBancariosRepartoController::class, 'guarda
 Route::get('/cuenta-bancaria/{repartoRegistroId}', [DatosBancariosRepartoController::class, 'show']);
 Route::post('/cuenta-bancaria/{id}', [DatosBancariosRepartoController::class, 'update']);
 
-
 Route::post('/registro-vehiculo', [RegistroVehiculoController::class, 'guardar']);
 
 Route::get('/registro-vehiculo/{repartoRegistroId}', [RegistroVehiculoController::class, 'mostrar']);
@@ -272,7 +265,7 @@ Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchM
 
 Route::get('prueba', [PedidoController::class, 'prueba']);
 
-//rutas app clientes
+// rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
 Route::post('/get-dni', [ClienteController::class, 'getDni']);
@@ -287,7 +280,7 @@ Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getM
 Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
 Route::post('/login/cliente', [ClienteController::class, 'login']);
 Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
-Route::post('/ratings', [RatingController::class, 'store']); // Guardar calificación
+Route::post('/ratings', [RatingController::class, 'store']);  // Guardar calificación
 Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']);
 Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado']);
 Route::get('/getMotorizadoInfo/{idPedido}', [PedidoController::class, 'getMotorizadoInfo']);
@@ -316,7 +309,7 @@ Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
 
-//chat 
+// chat
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
 Route::post('/chats/storeCliente', [ChatController::class, 'storeCliente']);
 Route::post('/chats/storeMotorizado', [ChatController::class, 'storeMotorizado']);
@@ -332,7 +325,7 @@ Route::get('/banners/{id}', [BannerController::class, 'show']);
 Route::post('/banners', [BannerController::class, 'store']);
 Route::put('/banners/{id}', [BannerController::class, 'update']);
 Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
-//rutas app socios
+// rutas app socios
 Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
 Route::get('socio/get/pedido/{id}', [SocioController::class, 'getPedido']);
@@ -354,7 +347,7 @@ Route::get('/heatmap/{idLocal}', [RatingController::class, 'heatmapData']);
 Route::get('/reviews/{idLocal}', [RatingController::class, 'getReviewData']);
 Route::get('/rating-evolution', [RatingController::class, 'getRatingEvolution']);
 
-//rutas app repartidores
+// rutas app repartidores
 Route::post('biker/login', [BikerController::class, 'login']);
 Route::get('biker/condiciones/{id}', [BikerController::class, 'condiciones']);
 Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
@@ -392,7 +385,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/categoria/web/{id}', [CategoriaController::class, 'actualizarCategoria']);
     Route::delete('/categoria/web/{id}/{id_empresa}', [CategoriaController::class, 'eliminarCategoria']);
 
-    //Crear menus
+    // Crear menus
 
     Route::post('/crear/menus/web', [MenuController::class, 'store']);
     Route::get('/listar/menus/web/{empresa_id}', [MenuController::class, 'index']);
@@ -444,14 +437,13 @@ Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
 
-//Crear menus
+// Crear menus
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
 Route::put('/menu/{id}/status', [MenuController::class, 'updateStatus']);
 Route::put('/menus/{id}', [MenuController::class, 'update']);
 Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
-
 
 // rutas para la web
 
@@ -471,7 +463,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/categoria/web/{id}', [CategoriaController::class, 'actualizarCategoria']);
     Route::delete('/categoria/web/{id}/{id_empresa}', [CategoriaController::class, 'eliminarCategoria']);
 
-    //Crear menus
+    // Crear menus
 
     Route::post('/crear/menus/web', [MenuController::class, 'store']);
     Route::get('/listar/menus/web/{empresa_id}', [MenuController::class, 'index']);
@@ -512,8 +504,5 @@ Route::get('clientes/top-completados', [DescuentoClienteController::class, 'getT
 Route::get('descuentos/estadisticas', [DescuentoClienteController::class, 'getEstadisticasDescuentos']);
 Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarClientes']);
 
-
 Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
-
-
