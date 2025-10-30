@@ -117,17 +117,17 @@ class FirebaseService
                 "data" => array_merge($data, [
                     'sound' => $soundFile,
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'tipo' => 'nuevo_pedido' // Agregar tipo para identificación
                 ]),
                 "android" => [
                     "notification" => [
-                        "sound" => $soundFile,
                         "channel_id" => "pedidos_channel"
                     ]
                 ],
                 "apns" => [
                     "payload" => [
                         "aps" => [
-                            "sound" => $soundFile . ".caf"
+                            "sound" => $soundFile . ".wav" 
                         ]
                     ]
                 ]
