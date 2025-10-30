@@ -368,10 +368,9 @@ public function login(Request $request)
             $pedido->foto_pago = config('app.url') . $pedido->foto_pago ?? '';
         }
 
-        // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
+        // Filtrar solo los pedidos entregados (estado 8)
         $pedidos = $pedidos->filter(function ($pedido) {
-            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
-            ;
+            return $pedido->ultimo_estado_tracking == 8; // Solo pedidos entregados
         });
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente

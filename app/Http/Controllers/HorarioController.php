@@ -382,13 +382,13 @@ class HorarioController extends Controller
             
             // Validar duración mínima y máxima
             $duracion = $this->calcularDuracion($bloque['hora_inicio'], $bloque['hora_fin']);
-            
+
             if ($duracion < 15) {
                 throw new \Exception("La duración del bloque es demasiado corta: {$duracion} minutos (mínimo 15 minutos)");
             }
-            
-            if ($duracion > 18 * 60) {
-                throw new \Exception("La duración del bloque es demasiado larga: " . floor($duracion / 60) . "h " . ($duracion % 60) . "min (máximo 18 horas)");
+
+            if ($duracion > 24 * 60) {
+                throw new \Exception("La duración del bloque es demasiado larga: " . floor($duracion / 60) . "h " . ($duracion % 60) . "min (máximo 24 horas)");
             }
             
             foreach ($dias as $dia) {
