@@ -46,7 +46,7 @@ class EnviarMensajeAutomaticoDriver extends Command
 
                 $nombre = $motorizado->nombres;
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                $total = number_format($pedidoDetalles->sum('precio'), 2);
+                $total = (number_format($pedidoDetalles->sum('precio'), 2) + number_format($pedido->precio_delivery, 2) - number_format($pedido->descuento, 2));
                 $direccion = $pedido->direccion ?? 'la dirección que nos brindaste';
 
                 $mensaje = "Hola soy {$nombre}, tú Driver de TRUE LOVE DELIVERY. Acabo de llegar con tu pedido de {$negocio->nombre_establecimiento}. El subtotal a pagar incluyendo el delivery sería S/{$total}.";
