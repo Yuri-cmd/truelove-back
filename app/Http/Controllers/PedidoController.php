@@ -575,7 +575,14 @@ class PedidoController extends Controller
             ];
         }
 
-        return response()->json($items);
+        $data = [
+            'adicionales' => [],
+            'items'       => $items,
+            'nota'        => $pedido->nota,
+            'precio_delivery' => $pedido->precio_delivery,
+        ];
+
+        return response()->json($data);
     }
 
     public function verificarConfirmacion($id)
