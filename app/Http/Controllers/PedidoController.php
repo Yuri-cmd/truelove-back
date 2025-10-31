@@ -578,7 +578,7 @@ class PedidoController extends Controller
         $data = [
             'adicionales' => [],
             'items'       => $items,
-            'nota'        => $pedido->nota,
+            'nota'        => $pedido->nota ?? '',
             'precio_delivery' => $pedido->precio_delivery,
         ];
 
