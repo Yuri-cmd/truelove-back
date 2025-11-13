@@ -310,20 +310,33 @@ public function login(Request $request)
     ]);
 }
 
-    public function getPedidos($id)
+    public function getPedidos($id, Request $request)
     {
         $tienda = BusinessRegistration::find($id);
-        if (!$tienda->activo) {
-            return [];
+        if (!$tienda || !$tienda->activo) {
+            return response()->json([]);
         }
-        $pedidos = Pedido::with([
+        // Obtener el parámetro de fecha (por defecto 'hoy')
+        // Opciones: 'hoy', 'todas', o una fecha específica 'YYYY-MM-DD'
+        $fecha = $request->query('fecha', 'hoy');
+
+        $query = Pedido::with([
             'trackings' => function ($query) {
                 $query->orderBy('created_at', 'desc');
             }
-        ])
-            ->where('id_local', $id)
-            ->whereDate('created_at', Carbon::today())
-            ->get();
+        ])->where('id_local', $id);
+
+        // Aplicar filtro de fecha
+        if ($fecha === 'todas') {
+            // No filtrar por fecha, traer todos los pedidos
+        } elseif ($fecha === 'hoy') {
+            $query->whereDate('created_at', Carbon::today());
+        } else {
+            // Fecha específica en formato YYYY-MM-DD
+            $query->whereDate('created_at', $fecha);
+        }
+
+        $pedidos = $query->get();
         $local = Establecimiento::where('business_registration_id', $id)->first();
 
         foreach ($pedidos as $pedido) {
@@ -364,12 +377,29 @@ public function login(Request $request)
             $pedido->nota = $pedido->nota ?? 'Sin nota';
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
-            $pedido->foto_pago = config('app.url') . $pedido->foto_pago ?? '';
+            $pedido->foto_pago = config('app.url') . ($pedido->foto_pago ?? '');
         }
-        // Filtrar los pedidos cuyo último estado de tracking es diferente de 8
-        $pedidos = $pedidos->filter(function ($pedido) {
-            return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
-        });
+
+        // Obtener el tipo de pedidos a filtrar desde query parameter
+        // Por defecto: 'activos' (para no romper la app móvil)
+        // Para la web: usar ?tipo=finalizados
+        $tipo = $request->query('tipo', 'activos');
+
+        if ($tipo === 'finalizados') {
+            // Para la WEB: Solo pedidos finalizados/entregados (estado 8)
+            $pedidos = $pedidos->filter(function ($pedido) {
+                return $pedido->ultimo_estado_tracking == 8;
+            });
+        } elseif ($tipo === 'todos') {
+            // DEBUG: No filtrar nada, mostrar todos los pedidos
+            // No hacer nada, dejar la colección completa
+        } else {
+            // Para APP MÓVIL: Solo pedidos activos (estados 1, 2, 3)
+            $pedidos = $pedidos->filter(function ($pedido) {
+                return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
+            });
+        }
+
         // Ordenar los pedidos por el último estado del tracking de manera descendente
         $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')
             ->sortByDesc('created_at')
