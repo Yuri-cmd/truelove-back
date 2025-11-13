@@ -549,4 +549,30 @@ class HorarioController extends Controller
             ], 500);
         }
     }
+
+    // Obtener un horario específico por ID
+    public function getHorario($id)
+    {
+        try {
+            $horario = $this->getHorarioCompleto($id);
+
+            if (!$horario) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Horario no encontrado'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $horario
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener horario: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener el horario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
