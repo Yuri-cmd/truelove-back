@@ -296,7 +296,21 @@ class BikerController extends Controller
             ]);
         }
 
-        // Verificar límite de pedidos
+        // Verificar si tiene pedidos activos (estados 1-7, antes de entregado)
+        // Solo considerar pedidos de HOY o de las últimas 24 horas
+        $pedidosActivos = Pedido::where('id_motorizado', $id)
+            ->where('created_at', '>=', Carbon::now()->subHours(24))
+            ->whereHas('trackings', function ($query) {
+                $query->whereIn('estado', [1, 2, 3, 4, 5, 6, 7])
+                    ->whereRaw('id = (SELECT MAX(id) FROM pedido_trackings WHERE pedido_id = pedidos.id)');
+            })
+            ->count();
+
+        $tienePedidoActivo = $pedidosActivos > 0;
+
+        // DESHABILITADO: Verificación de límite de pedidos
+        // Ya no se usa esta funcionalidad
+        /*
         $cantidadPedidoPermitido = $motorizado->cantidad_pedidos_dias ?? 0;
         $cantidadPedidosRealizados = Pedido::where('id_motorizado', $id)
             ->whereDate('created_at', Carbon::today())
@@ -305,13 +319,20 @@ class BikerController extends Controller
             })
             ->count();
 
-        if ($cantidadPedidoPermitido > 0 && $cantidadPedidosRealizados >= $cantidadPedidoPermitido) {
+        $limiteAlcanzado = $cantidadPedidoPermitido > 0 && $cantidadPedidosRealizados >= $cantidadPedidoPermitido;
+
+        // Si alcanzó el límite pero tiene pedidos activos, puede seguir trabajando
+        if ($limiteAlcanzado && !$tienePedidoActivo) {
             return response()->json([
                 'puede_trabajar' => false,
+                'fuera_de_horario' => false,
+                'tiene_pedido_activo' => false,
+                'pedidos_activos' => 0,
                 'mensaje' => 'Ya alcanzó el límite de pedidos',
                 'limite_restante' => 0
             ]);
         }
+        */
 
         // Usar zona horaria de Perú
         $now = Carbon::now('America/Lima');
@@ -325,7 +346,7 @@ class BikerController extends Controller
         ]);
         $horaActual = $now->format('H:i');
 
-        $puedeTrabajar = false;
+        $dentroDeHorario = false;
         $bloqueActivo = null;
         $bloquesDelDia = [];
 
@@ -381,18 +402,32 @@ class BikerController extends Controller
             if ($horaInicioObj <= $horaFinObj) {
                 // Bloque normal, no cruza medianoche
                 if ($horaActualObj >= $horaInicioObj && $horaActualObj <= $horaFinObj) {
-                    $puedeTrabajar = true;
+                    $dentroDeHorario = true;
                     $bloqueActivo = $bloque;
                     break;
                 }
             } else {
                 // Bloque que cruza medianoche, ej: 20:00 a 02:00
                 if ($horaActualObj >= $horaInicioObj || $horaActualObj <= $horaFinObj) {
-                    $puedeTrabajar = true;
+                    $dentroDeHorario = true;
                     $bloqueActivo = $bloque;
                     break;
                 }
             }
+        }
+
+        // Determinar si puede trabajar:
+        // - Puede trabajar si está dentro de horario O tiene pedidos activos
+        $puedeTrabajar = $dentroDeHorario || $tienePedidoActivo;
+        
+        // Determinar el mensaje apropiado
+        $mensaje = '';
+        if ($dentroDeHorario) {
+            $mensaje = 'Puede trabajar';
+        } elseif ($tienePedidoActivo) {
+            $mensaje = 'Fuera de horario pero con pedido activo';
+        } else {
+            $mensaje = 'Se encuentra fuera del rango del horario';
         }
 
         // Calcular el horario completo del día
@@ -409,10 +444,15 @@ class BikerController extends Controller
 
         return response()->json([
             'puede_trabajar' => $puedeTrabajar,
-            'mensaje' => $puedeTrabajar ? 'Puede trabajar' : 'Se encuentra fuera del rango del horario',
+            'fuera_de_horario' => !$dentroDeHorario,
+            'tiene_pedido_activo' => $tienePedidoActivo,
+            'pedidos_activos' => $pedidosActivos,
+            'mensaje' => $mensaje,
             'dia_actual' => $diaActual,
             'hora_actual' => $horaActual,
-            'limite_restante' => max(0, $cantidadPedidoPermitido - $cantidadPedidosRealizados),
+            // DESHABILITADO: Límite de pedidos ya no se usa
+            // 'limite_restante' => max(0, $cantidadPedidoPermitido - $cantidadPedidosRealizados),
+            // 'limite_alcanzado' => $limiteAlcanzado,
             'tipo_horario' => $tipoHorario,
             'bloque_activo' => $bloqueActivo,
             'bloques_del_dia' => $bloquesDelDia,
