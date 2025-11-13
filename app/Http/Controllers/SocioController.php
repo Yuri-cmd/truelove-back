@@ -377,7 +377,7 @@ public function login(Request $request)
             $pedido->nota = $pedido->nota ?? 'Sin nota';
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
-            $pedido->foto_pago = config('app.url') . ($pedido->foto_pago ?? '');
+            $pedido->foto_pago = $pedido->foto_pago ? config('app.url') . ($pedido->foto_pago ?? '') : null;
         }
 
         // Obtener el tipo de pedidos a filtrar desde query parameter
