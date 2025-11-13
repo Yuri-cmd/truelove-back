@@ -26,7 +26,8 @@ class RepartoRegistro extends Model
         'aprobado',
         'token_fmc',
         'documentos_adicionales',
-        'cantidad_pedidos_dias',
+        'pedidos_consecutivos',
+        'nivel', // 1 principante, 2 intermedio , 3avanzado , 4 experto y 5 masteer
         'activo',
     ];
 
@@ -36,7 +37,8 @@ class RepartoRegistro extends Model
         'estado' => 'boolean',
         'aprobado' => 'boolean',
         'documentos_adicionales' => 'array',
-        'cantidad_pedidos_dias' => 'integer',
+        'pedidos_consecutivos' => 'integer',
+        'nivel' => 'integer',
     ];
 
     public function datosPersonales()

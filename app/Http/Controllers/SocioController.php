@@ -382,7 +382,7 @@ public function login(Request $request)
 
         // Obtener el tipo de pedidos a filtrar desde query parameter
         // Por defecto: 'activos' (para no romper la app móvil)
-        // Para la web: usar ?tipo=finalizados
+        // Para la web: usar ?tipo=finalizados o ?tipo=todos
         $tipo = $request->query('tipo', 'activos');
 
         if ($tipo === 'finalizados') {
@@ -390,15 +390,14 @@ public function login(Request $request)
             $pedidos = $pedidos->filter(function ($pedido) {
                 return $pedido->ultimo_estado_tracking == 8;
             });
-        } elseif ($tipo === 'todos') {
-            // DEBUG: No filtrar nada, mostrar todos los pedidos
-            // No hacer nada, dejar la colección completa
-        } else {
-            // Para APP MÓVIL: Solo pedidos activos (estados 1, 2, 3)
+        } elseif ($tipo !== 'todos') {
+            // Para APP MÓVIL (por defecto): Solo pedidos activos (estados 1, 2, 3)
+            // Si $tipo === 'todos', no se filtra nada (se muestran todos los pedidos)
             $pedidos = $pedidos->filter(function ($pedido) {
                 return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
             });
         }
+        // Si $tipo === 'todos', no se aplica ningún filtro (se mantiene la colección completa)
 
         // Ordenar los pedidos por el último estado del tracking de manera descendente
         $pedidos = $pedidos->sortByDesc('ultimo_estado_tracking')

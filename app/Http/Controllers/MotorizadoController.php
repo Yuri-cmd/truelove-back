@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Mail\CredencialesMotorizado;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class MotorizadoController extends Controller
 {
@@ -85,7 +86,7 @@ class MotorizadoController extends Controller
                     ] : null,
                     'entregaCalendario' => $motorizado->entregaCalendario,
                     'aprobado' => $motorizado->aprobado,
-                    'cantidad_pedidos_dias' => $motorizado->cantidad_pedidos_dias
+                    'pedidos_consecutivos' => $motorizado->pedidos_consecutivos
 
                 ]
             ]);
@@ -122,8 +123,8 @@ class MotorizadoController extends Controller
 
             $motorizado->aprobado = true;
             // Guardar cantidad de pedidos si se proporciona
-            if ($request->has('cantidad_pedidos_dias')) {
-                $motorizado->cantidad_pedidos_dias = $request->cantidad_pedidos_dias;
+            if ($request->has('pedidos_consecutivos')) {
+                $motorizado->pedidos_consecutivos = $request->pedidos_consecutivos;
             }
 
             // Generar credenciales únicas
@@ -262,19 +263,37 @@ class MotorizadoController extends Controller
     public function actualizarCantidadPedidos(Request $request, $id)
     {
         try {
+            $validator = Validator::make($request->all(), [
+                'pedidos_consecutivos' => 'required|integer|min:1|max:10',
+                'nivel' => 'required|integer|min:1|max:5'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
             $motorizado = RepartoRegistro::findOrFail($id);
-            $motorizado->cantidad_pedidos_dias = $request->cantidad_pedidos_dias;
+            $motorizado->pedidos_consecutivos = $request->pedidos_consecutivos;
+            $motorizado->nivel = $request->nivel;
             $motorizado->save();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Cantidad de pedidos actualizada correctamente'
+                'message' => 'Nivel y cantidad de pedidos actualizados correctamente',
+                'data' => [
+                    'nivel' => $motorizado->nivel,
+                    'pedidos_consecutivos' => $motorizado->pedidos_consecutivos
+                ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar cantidad de pedidos: ' . $e->getMessage());
+            Log::error('Error al actualizar nivel y pedidos: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al actualizar la cantidad de pedidos: ' . $e->getMessage()
+                'message' => 'Error al actualizar: ' . $e->getMessage()
             ], 500);
         }
     }
