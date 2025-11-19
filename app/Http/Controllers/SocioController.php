@@ -1192,10 +1192,10 @@ class SocioController extends Controller
         $documentos = [];
         switch ($empresa->entrega_documento_venta) {
             case 1:
-                $documentos = ['Boleta'];
+                $documentos = ['Boleta', 'Ninguno'];
                 break;
             case 2:
-                $documentos = ['Factura'];
+                $documentos = ['Factura','Ninguno'];
                 break;
             case 3:
                 $documentos = ['Boleta', 'Factura', 'Ninguno'];
