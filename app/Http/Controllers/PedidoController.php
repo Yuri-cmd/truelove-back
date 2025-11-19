@@ -25,6 +25,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class PedidoController extends Controller
 {
@@ -161,55 +162,86 @@ class PedidoController extends Controller
 
     public function iniciarViaje(Request $request)
     {
-        // Buscar el pedido por su ID
+        $request->validate([
+            'id' => 'required|integer',
+            'id_motorizado' => 'required|integer',
+            'estado' => 'nullable|integer'
+        ]);
+
         $pedido = Pedido::find($request->id);
 
-        // Verificar si el pedido existe
-        if (!$pedido) {
+        if (! $pedido) {
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
 
-        // Verificar si ya tiene un motorizado asignado
         if ($pedido->id_motorizado) {
             return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
         }
 
-        // Asignar el id_motorizado y guardar
-        $pedido->id_motorizado = $request->id_motorizado;
-        $pedido->save();
+        $idMotorizado = (int) $request->id_motorizado;
 
-        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
-        $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
+        // Usar transacción y lock para evitar condiciones de carrera
+        return DB::transaction(function () use ($pedido, $idMotorizado, $request) {
 
-        $estado = estadoPedido($request->estado);
-        $mensajeLocal = mensajeNotificacionPedido($request->estado, $pedido->id, 'local');
-        $mensajeCliente = mensajeNotificacionPedido($request->estado, $pedido->id, 'cliente');
+            // Bloquear la fila del motorizado (RepartoRegistro) para la duración de la transacción
+            $reparto = RepartoRegistro::where('id', $idMotorizado)->lockForUpdate()->first();
 
-        if ($local_fmc) {
-            $this->firebaseService->sendNotification(
-                $local_fmc,
-                $estado,
-                $mensajeLocal
-            );
-        }
+            if (! $reparto) {
+                return response()->json(['status' => 'error', 'message' => 'Motorizado no encontrado'], 404);
+            }
 
-        if ($cliente_fmc) {
-            $this->firebaseService->sendNotification(
-                $cliente_fmc,
-                $estado,
-                $mensajeCliente
-            );
-        }
+            $pedidos_consecutivos = (int) $reparto->pedidos_consecutivos;
 
-        // Registrar el tracking del pedido
-        $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-        $estado = $pedidoTracking->estado == 2 ? 2 : 4;
-        PedidoTracking::create([
-            'pedido_id' => $pedido->id,
-            'estado' => $estado
-        ]);
+            $puedeAceptar = $this->verificarPedidosActivosMotorizado($idMotorizado, $pedidos_consecutivos);
 
-        return response()->json(['status' => 'success']);
+            if (! $puedeAceptar) {
+                return response()->json(['status' => 'error', 'message' => 'El motorizado ha alcanzado el límite de pedidos activos'], 400);
+            }
+
+            // Asignar y guardar dentro de la transacción
+            $pedido->id_motorizado = $idMotorizado;
+            $pedido->save();
+
+            // Notificaciones (con chequeos de null)
+            $local_fmc = $pedido->id_local ? BusinessRegistration::find($pedido->id_local)->token_fmc ?? null : null;
+            $cliente_fmc = $pedido->id_cliente ? Cliente::find($pedido->id_cliente)->token_fmc ?? null : null;
+
+            $estado = estadoPedido($request->estado ?? null);
+            $mensajeLocal = mensajeNotificacionPedido($request->estado ?? null, $pedido->id, 'local');
+            $mensajeCliente = mensajeNotificacionPedido($request->estado ?? null, $pedido->id, 'cliente');
+
+            if ($local_fmc) {
+                $this->firebaseService->sendNotification($local_fmc, $estado, $mensajeLocal);
+            }
+
+            if ($cliente_fmc) {
+                $this->firebaseService->sendNotification($cliente_fmc, $estado, $mensajeCliente);
+            }
+
+            // Registrar el tracking del pedido (con chequeo si no hay trackings)
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            $estadoTracking = ($pedidoTracking && $pedidoTracking->estado == 2) ? 2 : 4;
+            PedidoTracking::create([
+                'pedido_id' => $pedido->id,
+                'estado' => $estadoTracking
+            ]);
+
+            return response()->json(['status' => 'success']);
+        });
+    }
+
+    private function verificarPedidosActivosMotorizado(int $idMotorizado, int $pedidos_consecutivos): bool
+    {
+        // Asegúrate de que la relación 'trackings' exista en el modelo Pedido y que los estados usados sean correctos.
+        $pedidosActivos = Pedido::where('id_motorizado', $idMotorizado)
+            ->whereHas('trackings', function ($query) {
+                $query->whereIn('estado', [2, 3, 4, 5, 6]);
+            })
+            ->count();
+
+        // Si queremos permitir hasta N pedidos activos (es decir, si N es el máximo permitido),
+        // la condición para aceptar otro pedido es que pedidosActivos < pedidos_consecutivos.
+        return $pedidosActivos < $pedidos_consecutivos;
     }
 
     public function updateEstadoPedido(Request $request, $id)
@@ -258,12 +290,12 @@ class PedidoController extends Controller
             $tracking->save();
         }
 
-        if($request->estado == 3 && ($pedido->tipo_pedido == '1' || $pedido->tipo_pedido == 1)) {
+        if ($request->estado == 3 && ($pedido->tipo_pedido == '1' || $pedido->tipo_pedido == 1)) {
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 9;
 
-             $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+            $cliente = Cliente::where('id', $pedido->id_cliente)->first();
             if ($cliente->token_fmc) {
                 $this->firebaseService->sendNotification(
                     $cliente->token_fmc,
