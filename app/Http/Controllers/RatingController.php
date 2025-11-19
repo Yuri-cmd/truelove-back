@@ -47,12 +47,12 @@ class RatingController extends Controller
                     'id_pedido' => $pedido->id,
                     'cliente' => $cliente ? [
                         'id' => $cliente->id,
-                        'nombre' => $cliente->nombre ?? '',
-                        'telefono' => $cliente->telefono ?? '',
+                        'nombre' => $cliente->nombre ?? '-',
+                        'telefono' => $cliente->telefono ?? 'Sin teléfono',
                     ] : null, // Si no hay cliente, devolver null
                     'rating' => $rating ? [
                         'motorcycle_rating' => $rating->motorcycle_rating ?? 0.0,
-                        'motorcycle_comment' => $rating->motorcycle_comment ?? '',
+                        'motorcycle_comment' => $rating->motorcycle_comment ?? 'Sin comentarios',
                     ] : null, // Si no hay rating, devolver null
                 ];
             }
