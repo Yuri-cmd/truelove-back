@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\FirebaseService;
+use Carbon\Carbon;
 
 class DescuentoClienteController extends Controller
 {
@@ -420,8 +421,13 @@ class DescuentoClienteController extends Controller
             ], 400);
         }
 
-        $hoy = now()->toDateString(); // obtiene la fecha de hoy
-        if (!($descuento->fecha_inicio >= $hoy &&  $hoy <= $descuento->fecha_fin)) {
+        // usar Carbon para comparar fechas correctamente
+        $hoy = Carbon::now()->startOfDay();
+        $inicio = Carbon::parse($descuento->fecha_inicio)->startOfDay();
+        $fin = Carbon::parse($descuento->fecha_fin)->endOfDay();
+
+        // si hoy es anterior al inicio o posterior al fin -> inválido
+        if ($hoy->lt($inicio) || $hoy->gt($fin)) {
             return response()->json([
                 'success' => false,
                 'message' => 'El código ya no se encuentra disponible',
