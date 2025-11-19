@@ -248,67 +248,67 @@ class SocioController extends Controller
     }
 
 
-public function login(Request $request)
-{
-    // Buscar el usuario
-    $user = User::where('usuario', $request->usuario)
-        ->where('estado', 1)
-        ->first();
+    public function login(Request $request)
+    {
+        // Buscar el usuario
+        $user = User::where('usuario', $request->usuario)
+            ->where('estado', 1)
+            ->first();
 
-    if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Credenciales incorrectas'
+            ], 401);
+        }
+
+        // Buscar el socio
+        $socio = BusinessRegistration::where('user_id', $user->id)
+            ->where('estado', 1)
+            ->where('aprobado', 1)
+            ->first();
+
+        if (!$socio) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No tienes un registro de socio aprobado'
+            ], 403);
+        }
+
+        // Verificar estado de cuotas del socio
+        $periodoCuotaService = app(\App\Services\PeriodoCuotaService::class);
+        $estadoCuota = $periodoCuotaService->verificarAccesoSocio($socio->id);
+
+        // 🔴 BLOQUEAR LOGIN SI TIENE CUOTAS VENCIDAS
+        if (!$estadoCuota['puede_acceder']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $estadoCuota['mensaje'],
+                'motivo' => $estadoCuota['motivo'],
+                'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
+                'alerta' => 'critico'
+            ], 403); // 403 Forbidden - No tiene permiso para acceder
+        }
+
+        // ✅ Solo crear token si PUEDE acceder
+        $token = $user->createToken('your-app-name')->plainTextToken;
+
+        // Respuesta exitosa
         return response()->json([
-            'status' => 'error', 
-            'message' => 'Credenciales incorrectas'
-        ], 401);
+            'status' => 'success',
+            'message' => 'Inicio de sesión exitoso',
+            'user' => $user,
+            'socio' => $socio,
+            'token' => $token,
+            'estado_cuota' => [
+                'puede_acceder' => true,
+                'motivo' => $estadoCuota['motivo'],
+                'mensaje' => $estadoCuota['mensaje'],
+                'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
+                'alerta' => $estadoCuota['motivo'] === 'proximo_vencimiento' ? 'advertencia' : null
+            ]
+        ]);
     }
-
-    // Buscar el socio
-    $socio = BusinessRegistration::where('user_id', $user->id)
-        ->where('estado', 1)
-        ->where('aprobado', 1)
-        ->first();
-
-    if (!$socio) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'No tienes un registro de socio aprobado'
-        ], 403);
-    }
-
-    // Verificar estado de cuotas del socio
-    $periodoCuotaService = app(\App\Services\PeriodoCuotaService::class);
-    $estadoCuota = $periodoCuotaService->verificarAccesoSocio($socio->id);
-
-    // 🔴 BLOQUEAR LOGIN SI TIENE CUOTAS VENCIDAS
-    if (!$estadoCuota['puede_acceder']) {
-        return response()->json([
-            'status' => 'error',
-            'message' => $estadoCuota['mensaje'],
-            'motivo' => $estadoCuota['motivo'],
-            'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
-            'alerta' => 'critico'
-        ], 403); // 403 Forbidden - No tiene permiso para acceder
-    }
-
-    // ✅ Solo crear token si PUEDE acceder
-    $token = $user->createToken('your-app-name')->plainTextToken;
-
-    // Respuesta exitosa
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Inicio de sesión exitoso',
-        'user' => $user,
-        'socio' => $socio,
-        'token' => $token,
-        'estado_cuota' => [
-            'puede_acceder' => true,
-            'motivo' => $estadoCuota['motivo'],
-            'mensaje' => $estadoCuota['mensaje'],
-            'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
-            'alerta' => $estadoCuota['motivo'] === 'proximo_vencimiento' ? 'advertencia' : null
-        ]
-    ]);
-}
 
     public function getPedidos($id, Request $request)
     {
@@ -1186,4 +1186,24 @@ public function login(Request $request)
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
 
+    public function getDocumentos($idEmpresa)
+    {
+        $empresa = BusinessRegistration::find($idEmpresa);
+        $documentos = [];
+        switch ($empresa->entrega_documento_venta) {
+            case 1:
+                $documentos = ['Boleta'];
+                break;
+            case 2:
+                $documentos = ['Factura'];
+                break;
+            case 3:
+                $documentos = ['Boleta', 'Factura', 'Ninguno'];
+                break;
+            default:
+                $documentos = ['Ninguno'];
+                break;
+        }
+        return response()->json($documentos, 200);
+    }
 }

@@ -338,6 +338,7 @@ Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
 Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);
 Route::post('/socio/update-password', [SocioController::class, 'updatePassword']);
 Route::post('socio/update-token', [SocioController::class, 'updateToken']);
+Route::post('/get/documentos/{id}', [SocioController::class, 'getDocumentos']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);
