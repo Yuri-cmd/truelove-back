@@ -234,6 +234,7 @@ class PedidoController extends Controller
     {
         // Asegúrate de que la relación 'trackings' exista en el modelo Pedido y que los estados usados sean correctos.
         $pedidosActivos = Pedido::where('id_motorizado', $idMotorizado)
+            ->whereDate('created_at', Carbon::today())
             ->whereHas('trackings', function ($query) {
                 $query->whereIn('estado', [2, 3, 4, 5, 6]);
             })
