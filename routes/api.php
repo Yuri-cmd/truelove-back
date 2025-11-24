@@ -129,6 +129,23 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{id}/activar', 'activar');
         });
 
+        // Rutas para administración de Tipos de Negocio y Categorías
+        Route::controller(TipoNegocioController::class)->prefix('tipos-negocio')->group(function () {
+            Route::get('/admin/all', 'getAllAdmin');
+            Route::post('/admin', 'storeAdmin');
+            Route::put('/admin/{id}', 'updateAdmin');
+            Route::delete('/admin/{id}', 'destroyAdmin');
+            Route::post('/admin/{id}/toggle-status', 'toggleStatus');
+        });
+
+        Route::prefix('categorias')->group(function () {
+            Route::get('/admin/tipo/{tipoNegocioId}', [TipoNegocioController::class, 'getCategoriasAdmin']);
+            Route::post('/admin', [TipoNegocioController::class, 'storeCategoria']);
+            Route::put('/admin/{id}', [TipoNegocioController::class, 'updateCategoria']);
+            Route::delete('/admin/{id}', [TipoNegocioController::class, 'destroyCategoria']);
+            Route::post('/admin/{id}/toggle-status', [TipoNegocioController::class, 'toggleCategoriaStatus']);
+        });
+
         Route::controller(CuotaSocioController::class)->prefix('cuotas-socios')->group(function () {
             Route::get('/', 'index');
             Route::post('/', 'store');
