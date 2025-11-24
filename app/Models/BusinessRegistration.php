@@ -32,7 +32,7 @@ class BusinessRegistration extends Model
         'aprobado' => 'boolean',
        'posToDriver' => 'integer', // puede tener valores 0 (No facilitar POS), 1 (POS estilos) y 2 (POS visa) y 3 envia ambos
         'activo' => 'boolean',
-       'entrega_documento_venta' => 'integer', //  valores 0 (No emite documentos de venta) y 1 (Si emite documentos de venta)
+       'entrega_documento_venta' => 'integer', //  valores 0 (No emite documentos de venta) , 1 emite boleta ,2 emite factura , 3 emite ambos
         'fecha_asignacion_cuota' => 'datetime'
     ];
     public function user()
@@ -69,15 +69,9 @@ class BusinessRegistration extends Model
         return $this->hasOne(RevisarDatos::class);
     }
 
-    public function documentosPdfExtranjero()
-    {
-        return $this->hasOne(DocPdfExtranjero::class);
-    }
-
     public function perfil()
     {
         return $this->hasOne(PerfilNegocio::class);
-
     }
 
     // Relación con cuota asignada

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DocPdfExtranjero extends Model
 {
-    protected $table = 'doc_pdf_extranjero';
+    protected $table = '';
 
     protected $fillable = [
         'business_registration_id',

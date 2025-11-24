@@ -3,12 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
-use App\Models\DocPdfExtranjero;
 use App\Models\RepartoRegistro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class EmailVerificationController extends Controller
@@ -96,10 +94,8 @@ class EmailVerificationController extends Controller
                 'businessType' => 'required|string|max:255',
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
-                'antecedentesPenales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
-                'antecedentesPoliciales' => 'required_if:documentType,CARNET_EXTRANJERIA|file|mimes:pdf|max:10240',
-              'posToDriver' => 'nullable|integer|in:0,1,2,3',
-              'entrega_documento_venta' => 'nullable|integer|in:0,1,2',
+                'posToDriver' => 'nullable|integer|in:0,1,2,3',
+                'entrega_documento_venta' => 'nullable|integer|in:0,1,2',
             ]);
     
             // Verificar si existe en RepartoRegistro
@@ -129,42 +125,9 @@ class EmailVerificationController extends Controller
                 'phone' => $validated['phone'],
                 'email' => $validated['email'],
                 'verification_code' => $verificationCode,
-               'posToDriver' => $request->has('posToDriver') ? (int)$request->posToDriver : 0,
+                'posToDriver' => $request->has('posToDriver') ? (int)$request->posToDriver : 0,
                 'entrega_documento_venta' => $request->has('entrega_documento_venta') ? (int)$request->entrega_documento_venta : 0,
             ]);
-    
-            // Función para almacenar PDF
-            $almacenarPdf = function ($archivo, $carpeta) {
-                if (!$archivo) return null;
-                
-                try {
-                    $extension = $archivo->getClientOriginalExtension();
-                    $nombreArchivo = time() . '_' . Str::random(10) . '.' . $extension;
-                    
-                    $ruta = Storage::disk('custom_public')->putFileAs(
-                        'pdfs/antecedentes/' . $carpeta,
-                        $archivo,
-                        $nombreArchivo
-                    );
-                    
-                    return $ruta;
-                } catch (\Exception $e) {
-                    Log::error("Error al guardar PDF en {$carpeta}: " . $e->getMessage());
-                    throw $e;
-                }
-            };
-    
-            // Si es extranjero, guardar los PDFs
-            if ($request->documentType === 'CARNET_EXTRANJERIA') {
-                $antecedentesPenalesPath = $almacenarPdf($request->file('antecedentesPenales'), 'penales');
-                $antecedentesPolicialesPath = $almacenarPdf($request->file('antecedentesPoliciales'), 'policiales');
-    
-                DocPdfExtranjero::create([
-                    'business_registration_id' => $registration->id,
-                    'antecedentes_penales_pdf' => $antecedentesPenalesPath,
-                    'antecedentes_policiales_pdf' => $antecedentesPolicialesPath,
-                ]);
-            }
     
             // Enviar correo de verificación
             Mail::send('emails.verification', [
