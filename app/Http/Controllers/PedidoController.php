@@ -233,13 +233,13 @@ class PedidoController extends Controller
     private function verificarPedidosActivosMotorizado(int $idMotorizado, int $pedidos_consecutivos): bool
     {
         // Asegúrate de que la relación 'trackings' exista en el modelo Pedido y que los estados usados sean correctos.
-        $pedidosActivos = Pedido::where('id_motorizado', $idMotorizado)
-            ->whereDate('created_at', Carbon::today())
-            ->whereHas('trackings', function ($query) {
-                $query->whereIn('estado', [2, 3, 4, 5, 6]);
-            })
-            ->count();
-
+        $pedidosActivos = DB::table('pedidos as p')
+            ->join('pedido_trackings as pt', 'pt.pedido_id', '=', 'p.id')
+            ->where('p.id_motorizado', $idMotorizado)
+            ->whereIn('pt.estado', [2, 3, 4, 5, 6, 7])
+            ->whereDate('p.created_at', Carbon::today())
+            ->distinct()
+            ->count('p.id');
         // Si queremos permitir hasta N pedidos activos (es decir, si N es el máximo permitido),
         // la condición para aceptar otro pedido es que pedidosActivos < pedidos_consecutivos.
         return $pedidosActivos < $pedidos_consecutivos;
