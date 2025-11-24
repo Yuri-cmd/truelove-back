@@ -234,12 +234,23 @@ class PedidoController extends Controller
     {
         // Asegúrate de que la relación 'trackings' exista en el modelo Pedido y que los estados usados sean correctos.
         $pedidosActivos = DB::table('pedidos as p')
-            ->join('pedido_trackings as pt', 'pt.pedido_id', '=', 'p.id')
             ->where('p.id_motorizado', $idMotorizado)
-            ->whereIn('pt.estado', [2, 3, 4, 5, 6, 7])
             ->whereDate('p.created_at', Carbon::today())
-            ->distinct()
-            ->count('p.id');
+            // que tenga al menos un tracking en 2..7
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                ->from('pedido_trackings as pt')
+                ->whereRaw('pt.pedido_id = p.id')
+                ->whereIn('pt.estado', [2, 3, 4, 5, 6, 7]);
+            })
+            // y que NO tenga ningún tracking con estado = 8
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                ->from('pedido_trackings as pt2')
+                ->whereRaw('pt2.pedido_id = p.id')
+                ->where('pt2.estado', 8);
+            })
+            ->count('p.id'); 
         // Si queremos permitir hasta N pedidos activos (es decir, si N es el máximo permitido),
         // la condición para aceptar otro pedido es que pedidosActivos < pedidos_consecutivos.
         return $pedidosActivos < $pedidos_consecutivos;
