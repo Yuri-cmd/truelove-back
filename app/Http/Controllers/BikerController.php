@@ -179,7 +179,7 @@ class BikerController extends Controller
                         $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                         $coordenadasCliente = json_decode($clienteDireccion->coordenadas);
                         $names = array_map(function ($item) {
-                            return $item['nombre'];
+                            return $item['nombre'] . ' x ' . $item['cantidad'];
                         }, $pedidoDetalles->toArray());
                         $namesString = implode(', ', $names);
                         $pedido->tiempo_estimado = $tiempoEstimado;
