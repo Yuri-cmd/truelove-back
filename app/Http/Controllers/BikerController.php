@@ -676,6 +676,9 @@ class BikerController extends Controller
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $productosList = $productos->pluck('nombre');
+                $productosListCantidad = $productos->map(function($item) {
+                    return $item->nombre . ' x ' . $item->cantidad;
+                });
                 $data[] = [
                     'id' => $pedido->id,
                     'local' => $establecimiento->nombre_establecimiento,
@@ -698,7 +701,7 @@ class BikerController extends Controller
                     'precioDelivery' => $pedido->precio_delivery,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
-                    'productosList' => $productosList,
+                    'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
                     'actualizado' => $pedido->updated_at,
                     'descuento' => $pedido->descuento
