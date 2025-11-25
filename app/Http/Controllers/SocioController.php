@@ -347,7 +347,7 @@ class SocioController extends Controller
             }
 
             $names = array_map(function ($item) {
-                return $item['nombre'];
+                return $item['nombre'] . ' x' . $item['cantidad'];
             }, $pedidoDetalles->toArray());
             $namesString = implode(', ', $names);
 
