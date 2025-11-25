@@ -239,18 +239,18 @@ class PedidoController extends Controller
             // que tenga al menos un tracking en 2..7
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
-                ->from('pedido_trackings as pt')
-                ->whereRaw('pt.pedido_id = p.id')
-                ->whereIn('pt.estado', [2, 3, 4, 5, 6, 7]);
+                    ->from('pedido_trackings as pt')
+                    ->whereRaw('pt.pedido_id = p.id')
+                    ->whereIn('pt.estado', [2, 3, 4, 5, 6, 7]);
             })
             // y que NO tenga ningún tracking con estado = 8
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                ->from('pedido_trackings as pt2')
-                ->whereRaw('pt2.pedido_id = p.id')
-                ->where('pt2.estado', 8);
+                    ->from('pedido_trackings as pt2')
+                    ->whereRaw('pt2.pedido_id = p.id')
+                    ->where('pt2.estado', 8);
             })
-            ->count('p.id'); 
+            ->count('p.id');
         // Si queremos permitir hasta N pedidos activos (es decir, si N es el máximo permitido),
         // la condición para aceptar otro pedido es que pedidosActivos < pedidos_consecutivos.
         return $pedidosActivos < $pedidos_consecutivos;
@@ -438,18 +438,18 @@ class PedidoController extends Controller
         $coment = [];
         foreach ($pedidos as $pedido) {
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            // if ($pedidoTracking->estado == 8) {
-            $rating = Rating::where('id_pedido', $pedido->id)->first();
-            if ($rating) {
-                $cliente = Cliente::where('id', $pedido->id_cliente)->first();
-                $coment[] = [
-                    'id' => $pedido->id,
-                    'comentario' => $rating->motorcycle_comment,
-                    'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
-                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
-                ];
+            if ($pedidoTracking->estado == 8) {
+                $rating = Rating::where('id_pedido', $pedido->id)->first();
+                if ($rating) {
+                    $cliente = Cliente::where('id', $pedido->id_cliente)->first();
+                    $coment[] = [
+                        'id' => $pedido->id,
+                        'comentario' => $rating->motorcycle_comment ?? 'No hay comentario',
+                        'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
+                        'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                    ];
+                }
             }
-            // }
         }
         return response()->json($coment);
     }
