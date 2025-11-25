@@ -676,9 +676,10 @@ class BikerController extends Controller
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $productosList = $productos->pluck('nombre');
-                $productosListCantidad = $productos->map(function($item) {
-                    return $item->nombre . ' x ' . $item->cantidad;
-                });
+                $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
+                    ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
+                    ->pluck('descripcion');
+
                 $data[] = [
                     'id' => $pedido->id,
                     'local' => $establecimiento->nombre_establecimiento,
