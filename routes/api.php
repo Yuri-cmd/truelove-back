@@ -524,3 +524,6 @@ Route::get('clientes/buscar', [DescuentoClienteController::class, 'buscarCliente
 
 Route::post('/reparto/registro-completo', [RepartoRegistroCompletoController::class, 'registroCompleto']);
 Route::post('/reparto/validate-document-email', [RepartoRegistroController::class, 'validateDocumentAndEmail']);
+
+// Ruta para formulario de soporte
+Route::post('/soporte/enviar', [App\Http\Controllers\SoporteController::class, 'enviarConsulta']);
