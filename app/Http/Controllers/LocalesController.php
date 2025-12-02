@@ -72,7 +72,11 @@ class LocalesController extends Controller
         }
 
         if ($term) {
-            $where[] = "establecimientos.nombre_establecimiento LIKE '%$term%'";
+            // Convierte el término de búsqueda a minúsculas una vez en PHP
+            $lowerTerm = strtolower($term);
+
+            // APLICA LOWER() EN EL CAMPO DE LA DB para búsqueda insensible a mayúsculas/minúsculas
+            $where[] = "LOWER(establecimientos.nombre_establecimiento) LIKE '%$lowerTerm%'";
         }
 
         // Condición para la distancia (filtrada antes del LIMIT)
