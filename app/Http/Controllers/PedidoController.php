@@ -620,6 +620,7 @@ class PedidoController extends Controller
         }
 
         $data = [
+            'idLocal'      => $pedido->id_local,
             'adicionales' => [],
             'items'       => $items,
             'nota'        => $pedido->nota ?? '',
