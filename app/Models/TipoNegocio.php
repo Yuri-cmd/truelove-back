@@ -12,7 +12,7 @@ class TipoNegocio extends Model
     // Specify the correct table name
     protected $table = 'tipos_negocios';
 
-    protected $fillable = ['nombre', 'slug', 'activo'];
+    protected $fillable = ['nombre', 'slug', 'activo', 'image'];
 
     public function categorias()
     {
