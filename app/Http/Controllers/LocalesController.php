@@ -76,9 +76,9 @@ class LocalesController extends Controller
             $lowerTerm = strtolower($term);
 
             // APLICA LOWER() EN EL CAMPO DE LA DB para búsqueda insensible a mayúsculas/minúsculas
-            $where[] = "LOWER(establecimientos.nombre_establecimiento) LIKE '%$lowerTerm%'";
+            $where[] = "(LOWER(establecimientos.nombre_establecimiento) LIKE '%$lowerTerm%' OR
+            LOWER(business_registrations.businessType) LIKE '%$lowerTerm%')";
 
-            $where[] = "LOWER(business_registrations.businessType) LIKE '%$lowerTerm%'";
         }
 
         $where[] = "(6371 * acos(
