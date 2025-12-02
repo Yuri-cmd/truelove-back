@@ -77,9 +77,10 @@ class LocalesController extends Controller
 
             // APLICA LOWER() EN EL CAMPO DE LA DB para búsqueda insensible a mayúsculas/minúsculas
             $where[] = "LOWER(establecimientos.nombre_establecimiento) LIKE '%$lowerTerm%'";
+
+            $where[] = "LOWER(business_registrations.businessType) LIKE '%$lowerTerm%'";
         }
 
-        // Condición para la distancia (filtrada antes del LIMIT)
         $where[] = "(6371 * acos(
                     cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
                     cos(radians(establecimientos.longitud) - radians($lng)) +
