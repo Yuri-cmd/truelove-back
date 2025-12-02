@@ -49,8 +49,6 @@ class NegocioController extends Controller
 
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255',
-            'tipo_negocio_id' => 'required|exists:tipos_negocios,id',
-            'categoria_id' => 'required|exists:categorias,id',
             'total_sucursales' => 'required|integer|min:1',
             'es_local_calle' => 'required|boolean',
             'metodo_contacto' => 'required|in:WhatsApp,Llamada,SMS',
@@ -80,8 +78,6 @@ class NegocioController extends Controller
 
             $negocio = Negocio::create([
                 'nombre' => $request->nombre,
-                'tipo_negocio_id' => $request->tipo_negocio_id,
-                'categoria_id' => $request->categoria_id,
                 'user_id' => 1, // Ajusta esto según tu lógica de autenticación
                 'total_sucursales' => $request->total_sucursales,
                 'es_local_calle' => $request->es_local_calle,
