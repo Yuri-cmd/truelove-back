@@ -32,8 +32,7 @@ class RevisarDatosController extends Controller
                     ], 404);
                 }
 
-                $negocio = Negocio::with(['tipoNegocio', 'categoria'])
-                    ->where('business_registration_id', $registrationId)
+                $negocio = Negocio::where('business_registration_id', $registrationId)
                     ->first();
                 $establecimiento = Establecimiento::where('business_registration_id', $registrationId)
                     ->first();
@@ -41,6 +40,8 @@ class RevisarDatosController extends Controller
                     ->first();
                 $datosBancarios = DatosBancarios::where('business_registration_id', $registrationId)
                     ->first();
+
+                $local = BusinessRegistration::find($registrationId);
 
                 // Verificar que al menos los datos básicos estén completos
                 if (!$negocio || !$establecimiento) {
@@ -59,8 +60,8 @@ class RevisarDatosController extends Controller
                 $response = [
                     'datos_negocio' => [
                         'nombre' => $negocio->nombre,
-                        'tipo' => $negocio->tipoNegocio->nombre,
-                        'categoria' => $negocio->categoria->nombre,
+                        'tipo' => $local->businessType,
+                        'categoria' => $local->businessType,
                         'total_sucursales' => $negocio->total_sucursales,
                         'metodo_contacto' => $negocio->metodo_contacto,
                         'telefono' => $negocio->telefono,
