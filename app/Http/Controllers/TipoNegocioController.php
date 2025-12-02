@@ -15,7 +15,7 @@ class TipoNegocioController extends Controller
     // Método para la app (solo activos, limitado)
     public function getAll()
     {
-        return response()->json(TipoNegocio::where('activo', 1)->take(6)->get());
+        return response()->json(TipoNegocio::where('activo', 1)->take(24)->get());
     }
 
     // ========== MÉTODOS DE ADMINISTRACIÓN - TIPOS DE NEGOCIO ==========
