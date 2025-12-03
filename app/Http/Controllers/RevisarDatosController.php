@@ -61,7 +61,7 @@ class RevisarDatosController extends Controller
                     'datos_negocio' => [
                         'nombre' => $negocio->nombre,
                         'tipo' => $local->businessType,
-                        'categoria' => $local->businessType,
+                        // 'categoria' => $local->businessType,
                         'total_sucursales' => $negocio->total_sucursales,
                         'metodo_contacto' => $negocio->metodo_contacto,
                         'telefono' => $negocio->telefono,
