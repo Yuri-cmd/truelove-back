@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDeletionController;
+use App\Http\Controllers\ClienteDeletionAdminController;
 use App\Http\Controllers\AdicionalController;
 use App\Http\Controllers\AuthAdminController;
 use App\Http\Controllers\BannerController;
@@ -68,6 +69,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/deletion-requests/{id}/approve', [AccountDeletionController::class, 'approveRequest']);
         Route::post('/deletion-requests/{id}/reject', [AccountDeletionController::class, 'rejectRequest']);
         Route::get('/deletion-requests/history', [AccountDeletionController::class, 'getRequestHistory']);
+
+        // Rutas para solicitudes de eliminación de cuenta de clientes
+        Route::get('/cliente-deletion-requests', [ClienteDeletionAdminController::class, 'getPendingRequests']);
+        Route::get('/cliente-deletion-requests/history', [ClienteDeletionAdminController::class, 'getRequestHistory']);
+        Route::get('/cliente-deletion-requests/stats', [ClienteDeletionAdminController::class, 'getStats']);
+        Route::post('/cliente-deletion-requests/{id}/approve', [ClienteDeletionAdminController::class, 'approveRequest']);
+        Route::post('/cliente-deletion-requests/{id}/reject', [ClienteDeletionAdminController::class, 'rejectRequest']);
 
         // Gestión de socios
         Route::controller(SocioController::class)->group(function () {
@@ -325,6 +333,11 @@ Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteContro
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
+
+// Rutas para eliminación de cuenta de cliente
+Route::post('cliente/buscar-documento', [ClienteController::class, 'buscarPorDocumento']);
+Route::post('cliente/solicitar-eliminacion', [ClienteController::class, 'solicitarEliminacionCuenta']);
+Route::post('cliente/verificar-codigo-eliminacion', [ClienteController::class, 'verificarCodigoEliminacion']);
 
 // chat
 Route::get('/chats/{pedidoId}', [ChatController::class, 'index']);
