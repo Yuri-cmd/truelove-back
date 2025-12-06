@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
+use App\Mail\SendAccountDeletionCode;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
+use App\Models\ClienteDeletionRequest;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -427,5 +429,180 @@ class ClienteController extends Controller
             'message' => 'Token actualizado correctamente',
             'data' => $reparto
         ]);
+    }
+
+    /**
+     * Buscar cliente por número de documento
+     */
+    public function buscarPorDocumento(Request $request)
+    {
+        try {
+            $request->validate([
+                'documento' => 'required|string',
+            ]);
+
+            $cliente = Cliente::where('documento', $request->documento)->first();
+
+            if (!$cliente) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró ningún cliente con ese número de documento',
+                ], 404);
+            }
+
+            // Solo devolver datos necesarios
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombre,
+                    'apellido' => $cliente->apellido,
+                    'email' => $cliente->email,
+                    'documento' => $cliente->documento,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar cliente',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Solicitar código de eliminación de cuenta
+     */
+    public function solicitarEliminacionCuenta(Request $request)
+    {
+        try {
+            $request->validate([
+                'documento' => 'required|string',
+                'motivo' => 'required|string',
+            ]);
+
+            $cliente = Cliente::where('documento', $request->documento)->first();
+
+            if (!$cliente) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró ningún cliente con ese número de documento',
+                ], 404);
+            }
+
+            if (!$cliente->email) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este cliente no tiene un correo electrónico registrado',
+                ], 400);
+            }
+
+            // Verificar si ya tiene una solicitud pendiente
+            $existingRequest = ClienteDeletionRequest::where('cliente_id', $cliente->id)
+                ->where('status', 'pending')
+                ->first();
+
+            if ($existingRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya tienes una solicitud de eliminación pendiente',
+                ], 400);
+            }
+
+            // Generar código de verificación
+            $verificationCode = Str::random(6);
+
+            // Generar ID de solicitud único
+            $requestId = '#' . strtoupper(uniqid());
+
+            // Crear la solicitud
+            $deletionRequest = ClienteDeletionRequest::create([
+                'cliente_id' => $cliente->id,
+                'request_id' => $requestId,
+                'motivo' => $request->motivo,
+                'verification_code' => $verificationCode,
+                'requested_at' => now(),
+            ]);
+
+            // Enviar correo con el código de verificación para eliminación
+            Mail::to($cliente->email)->send(new SendAccountDeletionCode($cliente->nombre . ' ' . $cliente->apellido, $verificationCode));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Código de verificación enviado al correo electrónico',
+                'email' => substr($cliente->email, 0, 3) . '***@***' . substr($cliente->email, strpos($cliente->email, '@')),
+                'deletion_request_id' => $deletionRequest->id,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error al solicitar eliminación de cuenta: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la solicitud',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar código y crear solicitud pendiente (NO elimina aún)
+     */
+    public function verificarCodigoEliminacion(Request $request)
+    {
+        try {
+            $request->validate([
+                'deletion_request_id' => 'required|integer',
+                'codigo' => 'required|string',
+            ]);
+
+            $deletionRequest = ClienteDeletionRequest::with('cliente')->find($request->deletion_request_id);
+
+            if (!$deletionRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solicitud no encontrada',
+                ], 404);
+            }
+
+            // Verificar si ya fue verificada
+            if ($deletionRequest->code_verified_at) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este código ya fue verificado',
+                ], 400);
+            }
+
+            // Verificar si expiró (15 minutos desde la creación)
+            if (now()->greaterThan($deletionRequest->requested_at->addMinutes(15))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El código de verificación ha expirado',
+                ], 400);
+            }
+
+            // Verificar el código (case-insensitive)
+            if (strtoupper($deletionRequest->verification_code) !== strtoupper($request->codigo)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código de verificación incorrecto',
+                ], 400);
+            }
+
+            // Marcar como verificado
+            $deletionRequest->code_verified_at = now();
+            $deletionRequest->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Código verificado exitosamente',
+                'request_id' => $deletionRequest->request_id,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error al verificar código: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la solicitud',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
