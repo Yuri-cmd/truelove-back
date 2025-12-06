@@ -1,0 +1,31 @@
+name: Deploy Scorpion (Laravel on CentOS)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Deploy to CentOS via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}   # root
+          key: ${{ secrets.SERVER_SSH_KEY }}     # tu id_rsa
+          port: 22
+          script: |
+            echo "Entrando al proyecto..."
+            cd /var/www/html/truelove-back
+
+            echo "Actualizando repo..."
+            git pull origin main
+
+            echo "Instalando dependencias..."
+            composer install --no-dev --optimize-autoloader
+
+            echo "Deploy completado."
