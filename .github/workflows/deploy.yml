@@ -23,9 +23,6 @@ jobs:
             cd /var/www/html/truelove-back
 
             echo "Actualizando repo..."
-            git pull origin main
-
-            echo "Instalando dependencias..."
-            composer install --no-dev --optimize-autoloader
+            git pull
 
             echo "Deploy completado."
