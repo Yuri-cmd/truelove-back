@@ -682,40 +682,28 @@ private function procesarArchivoBase64(
         // Ruta completa dentro de la carpeta
         $filePath = "{$carpeta}/{$fileName}";
         
-        // Obtener la ruta física completa
-        $fullPath = Storage::disk('custom_public')->path($filePath);
-        $dirPath = dirname($fullPath);
+        // Usar Storage para guardar el archivo (funciona en Windows y Linux)
+        $saved = Storage::disk('custom_public')->put($filePath, $archivo);
         
-        // Crear el directorio si no existe
-        if (!file_exists($dirPath)) {
-            if (!mkdir($dirPath, 0755, true)) {
-                Log::error("No se pudo crear el directorio", [
-                    'carpeta' => $carpeta,
-                    'ruta_completa' => $dirPath
-                ]);
-                return null;
-            }
-            Log::info("Directorio creado exitosamente", ['ruta' => $dirPath]);
-        }
-        
-        // Guardar el archivo usando file_put_contents directamente
-        $bytesWritten = file_put_contents($fullPath, $archivo);
-        
-        if ($bytesWritten === false) {
-            Log::error("Error al escribir el archivo en disco", [
+        if (!$saved) {
+            Log::error("Error al guardar el archivo con Storage::put", [
                 'prefijo' => $prefijo,
-                'ruta_completa' => $fullPath
+                'ruta' => $filePath
             ]);
             return null;
         }
         
-        // Verificar que el archivo existe y tiene contenido
-        if (!file_exists($fullPath) || filesize($fullPath) === 0) {
-            Log::error("El archivo no existe o está vacío después de guardarlo", [
+        // Obtener la ruta física completa para verificación
+        $fullPath = Storage::disk('custom_public')->path($filePath);
+        
+        // Verificar que el archivo se guardó correctamente
+        $bytesWritten = Storage::disk('custom_public')->size($filePath);
+        
+        if ($bytesWritten === false || $bytesWritten === 0) {
+            Log::error("El archivo está vacío o no se guardó correctamente", [
                 'prefijo' => $prefijo,
                 'ruta_completa' => $fullPath,
-                'existe' => file_exists($fullPath),
-                'tamano' => file_exists($fullPath) ? filesize($fullPath) : 0
+                'tamano' => $bytesWritten
             ]);
             return null;
         }
