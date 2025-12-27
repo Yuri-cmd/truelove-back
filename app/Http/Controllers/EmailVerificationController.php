@@ -90,12 +90,12 @@ class EmailVerificationController extends Controller
                 'documentType' => 'required|string|max:255',
                 'documentNumber' => 'required|string|max:20',
                 'name' => 'required|string|max:255',
-                'lastName' => 'required|string|max:255',
+                'lastName' => 'nullable|string|max:255', // Opcional para RUC
                 'businessType' => 'required|string|max:255',
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
                 'posToDriver' => 'nullable|integer|in:0,1,2,3',
-                'entrega_documento_venta' => 'nullable|integer|in:0,1,2',
+                'entrega_documento_venta' => 'nullable|integer|in:0,1,2,3',
             ]);
     
             // Verificar si existe en RepartoRegistro
@@ -120,7 +120,7 @@ class EmailVerificationController extends Controller
                 'documentType' => $validated['documentType'],
                 'documentNumber' => $validated['documentNumber'],
                 'name' => $validated['name'],
-                'lastName' => $validated['lastName'],
+                'lastName' => $validated['lastName'] ?? '', // Usar string vacío si no viene
                 'businessType' => $validated['businessType'],
                 'phone' => $validated['phone'],
                 'email' => $validated['email'],
