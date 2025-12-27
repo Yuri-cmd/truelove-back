@@ -22,7 +22,7 @@ class RepartoRegistroCompletoController extends Controller
      */
     public function registroCompleto(Request $request)
     {
-        Log::info('Iniciando registro completo de repartidor', $request->all());
+        // Log::info('Iniciando registro completo de repartidor', $request->all());
 
         // Validar la estructura de la solicitud
         $validator = $this->validarSolicitud($request);
@@ -231,16 +231,78 @@ class RepartoRegistroCompletoController extends Controller
      */
     private function procesarDocumentosAdicionales($registro, $datosBasicos)
     {
-        if (!isset($datosBasicos['documentosAdicionales']) || !is_array($datosBasicos['documentosAdicionales'])) {
+        // ✅ LOG: Verificar si existen documentos adicionales
+        if (!isset($datosBasicos['documentosAdicionales'])) {
+            Log::info("No se recibieron documentos adicionales", [
+                'registro_id' => $registro->id
+            ]);
             return;
         }
 
-        $documentosGuardados = [];
+        if (!is_array($datosBasicos['documentosAdicionales'])) {
+            Log::warning("documentosAdicionales no es un array", [
+                'registro_id' => $registro->id,
+                'tipo' => gettype($datosBasicos['documentosAdicionales'])
+            ]);
+            return;
+        }
 
-        foreach ($datosBasicos['documentosAdicionales'] as $documento) {
-            if (!isset($documento['archivo']) || !isset($documento['nombre']) || !isset($documento['categoria'])) {
+        Log::info("Iniciando procesamiento de documentos adicionales", [
+            'registro_id' => $registro->id,
+            'cantidad_documentos' => count($datosBasicos['documentosAdicionales'])
+        ]);
+
+        $documentosGuardados = [];
+        $documentosRechazados = [];
+
+        foreach ($datosBasicos['documentosAdicionales'] as $index => $documento) {
+            // ✅ LOG: Validar cada documento
+            if (!isset($documento['archivo'])) {
+                Log::warning("Documento adicional sin archivo", [
+                    'registro_id' => $registro->id,
+                    'index' => $index,
+                    'documento_keys' => array_keys($documento)
+                ]);
+                $documentosRechazados[] = "Documento #{$index}: sin archivo";
                 continue;
             }
+
+            if (!isset($documento['nombre'])) {
+                Log::warning("Documento adicional sin nombre", [
+                    'registro_id' => $registro->id,
+                    'index' => $index
+                ]);
+                $documentosRechazados[] = "Documento #{$index}: sin nombre";
+                continue;
+            }
+
+            if (!isset($documento['categoria'])) {
+                Log::warning("Documento adicional sin categoría", [
+                    'registro_id' => $registro->id,
+                    'index' => $index
+                ]);
+                $documentosRechazados[] = "Documento #{$index}: sin categoría";
+                continue;
+            }
+
+            // Verificar que el archivo no esté vacío o sea null
+            if (empty($documento['archivo']) || $documento['archivo'] === 'null') {
+                Log::warning("Documento adicional con archivo vacío o null", [
+                    'registro_id' => $registro->id,
+                    'nombre' => $documento['nombre'],
+                    'categoria' => $documento['categoria']
+                ]);
+                $documentosRechazados[] = "Documento {$documento['nombre']}: archivo vacío";
+                continue;
+            }
+
+            // ✅ LOG: Intentar procesar
+            Log::info("Procesando documento adicional", [
+                'registro_id' => $registro->id,
+                'nombre' => $documento['nombre'],
+                'categoria' => $documento['categoria'],
+                'tamano_base64' => strlen($documento['archivo'])
+            ]);
 
             // Procesar el documento adicional - FORZAR PDF para documentos adicionales
             $filePath = $this->procesarArchivoBase64(
@@ -264,26 +326,48 @@ class RepartoRegistroCompletoController extends Controller
                     }
                 }
 
-                // Registrar información sobre el archivo guardado
-                Log::info("Documento adicional guardado", [
-                    'categoria' => $documento['categoria'],
-                    'nombre_original' => $documento['nombre'],
-                    'mime_detectado' => $mimeType,
-                    'extension' => '.pdf', // Forzamos PDF
-                    'ruta_guardada' => $filePath
-                ]);
-
                 $documentosGuardados[] = [
                     'ruta' => $filePath,
                     'tipo' => $mimeType,
                     'categoria' => $documento['categoria'],
                     'fecha_carga' => now()->toDateTimeString()
                 ];
+                
+                Log::info("Documento adicional guardado exitosamente", [
+                    'registro_id' => $registro->id,
+                    'categoria' => $documento['categoria'],
+                    'nombre' => $documento['nombre'],
+                    'ruta' => $filePath
+                ]);
+            } else {
+                Log::error("Error al guardar documento adicional - procesarArchivoBase64 retornó null", [
+                    'registro_id' => $registro->id,
+                    'categoria' => $documento['categoria'],
+                    'nombre' => $documento['nombre']
+                ]);
+                $documentosRechazados[] = "Documento {$documento['nombre']}: error al guardar archivo";
             }
         }
 
+        // ✅ LOG: Resumen final
+        Log::info("Resumen de procesamiento de documentos adicionales", [
+            'registro_id' => $registro->id,
+            'documentos_guardados' => count($documentosGuardados),
+            'documentos_rechazados' => count($documentosRechazados),
+            'rechazos' => $documentosRechazados
+        ]);
+
         if (!empty($documentosGuardados)) {
             $registro->update(['documentos_adicionales' => $documentosGuardados]);
+            Log::info("Campo documentos_adicionales actualizado en BD", [
+                'registro_id' => $registro->id,
+                'cantidad' => count($documentosGuardados)
+            ]);
+        } else {
+            Log::warning("No se guardaron documentos adicionales", [
+                'registro_id' => $registro->id,
+                'motivo' => empty($documentosRechazados) ? 'No se procesaron documentos' : 'Todos los documentos fueron rechazados'
+            ]);
         }
     }
 
