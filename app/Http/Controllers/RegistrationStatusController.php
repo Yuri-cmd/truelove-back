@@ -15,10 +15,10 @@ class RegistrationStatusController extends Controller
     public function checkStatus(Request $request)
     {
         // Registrar la solicitud para depuración
-        Log::info('Solicitud de verificación de estado recibida', [
-            'documentNumber' => $request->input('documentNumber'),
-            'email' => $request->input('email')
-        ]);
+        // Log::info('Solicitud de verificación de estado recibida', [
+        //     'documentNumber' => $request->input('documentNumber'),
+        //     'email' => $request->input('email')
+        // ]);
 
         $documentNumber = $request->input('documentNumber');
         $email = $request->input('email');
