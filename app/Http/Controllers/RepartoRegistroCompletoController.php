@@ -611,17 +611,6 @@ private function procesarArchivoBase64(
     }
 
     try {
-        // Verificar que el directorio exista y tenga permisos de escritura
-        $dirPath = Storage::disk('custom_public')->path($carpeta);
-        if (!file_exists($dirPath)) {
-            if (!mkdir($dirPath, 0755, true)) {
-                Log::error("No se pudo crear el directorio para guardar el archivo", [
-                    'carpeta' => $carpeta
-                ]);
-                return null;
-            }
-        }
-
         // Verificar formato base64
         if (!str_contains($base64Data, ',')) {
             Log::error("Formato base64 inválido - no contiene coma separadora", [
@@ -693,42 +682,52 @@ private function procesarArchivoBase64(
         // Ruta completa dentro de la carpeta
         $filePath = "{$carpeta}/{$fileName}";
         
-        // Guardar el archivo directamente usando Storage
-        Storage::disk('custom_public')->put($filePath, $archivo);
+        // Obtener la ruta física completa
+        $fullPath = Storage::disk('custom_public')->path($filePath);
+        $dirPath = dirname($fullPath);
         
-        // Verificar que el archivo se haya guardado correctamente
-        if (!Storage::disk('custom_public')->exists($filePath)) {
-            Log::error("Error al guardar el archivo en el almacenamiento", [
+        // Crear el directorio si no existe
+        if (!file_exists($dirPath)) {
+            if (!mkdir($dirPath, 0755, true)) {
+                Log::error("No se pudo crear el directorio", [
+                    'carpeta' => $carpeta,
+                    'ruta_completa' => $dirPath
+                ]);
+                return null;
+            }
+            Log::info("Directorio creado exitosamente", ['ruta' => $dirPath]);
+        }
+        
+        // Guardar el archivo usando file_put_contents directamente
+        $bytesWritten = file_put_contents($fullPath, $archivo);
+        
+        if ($bytesWritten === false) {
+            Log::error("Error al escribir el archivo en disco", [
                 'prefijo' => $prefijo,
-                'ruta' => $filePath
+                'ruta_completa' => $fullPath
+            ]);
+            return null;
+        }
+        
+        // Verificar que el archivo existe y tiene contenido
+        if (!file_exists($fullPath) || filesize($fullPath) === 0) {
+            Log::error("El archivo no existe o está vacío después de guardarlo", [
+                'prefijo' => $prefijo,
+                'ruta_completa' => $fullPath,
+                'existe' => file_exists($fullPath),
+                'tamano' => file_exists($fullPath) ? filesize($fullPath) : 0
             ]);
             return null;
         }
 
-        // Verificar si el archivo se guardó con la extensión correcta
-        $storedPath = Storage::disk('custom_public')->path($filePath);
-        $fileInfo = pathinfo($storedPath);
-        
-        if (isset($fileInfo['extension']) && $fileInfo['extension'] !== ltrim($extension, '.')) {
-            // El archivo se guardó con una extensión incorrecta, renombrarlo
-            $correctPath = $fileInfo['dirname'] . '/' . $fileInfo['filename'] . $extension;
-            rename($storedPath, $correctPath);
-            
-            // Actualizar la ruta que se devolverá
-            $filePath = $carpeta . '/' . $fileInfo['filename'] . $extension;
-            
-            Log::info("Archivo renombrado para corregir extensión", [
-                'ruta_original' => $storedPath,
-                'ruta_corregida' => $correctPath
-            ]);
-        }
-
-        Log::info("Archivo guardado exitosamente con método directo", [
+        Log::info("Archivo guardado exitosamente", [
             'prefijo' => $prefijo,
             'ruta_final' => $filePath,
+            'ruta_completa' => $fullPath,
             'mime_detectado' => $mimeType,
             'extension_forzada' => $forzarExtension,
-            'extension_final' => $extension
+            'extension_final' => $extension,
+            'tamano_bytes' => $bytesWritten
         ]);
 
         return $filePath;
