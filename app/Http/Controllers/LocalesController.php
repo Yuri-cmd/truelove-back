@@ -82,11 +82,11 @@ class LocalesController extends Controller
 
         }
 
-        $where[] = "(6371 * acos(
+       /* $where[] = "(6371 * acos(
                     cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
                     cos(radians(establecimientos.longitud) - radians($lng)) +
                     sin(radians($lat)) * sin(radians(establecimientos.latitud))
-                )) <= $radio";
+                )) <= $radio";*/
 
         // Armamos el WHERE final
         $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
