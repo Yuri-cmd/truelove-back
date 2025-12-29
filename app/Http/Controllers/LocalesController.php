@@ -39,7 +39,7 @@ class LocalesController extends Controller
         $lat = $coordenadas->coordinates[0];
         $lng = $coordenadas->coordinates[1];
 
-        $locales = $this->getLocalesCercanos($lng, $lat, $category);
+        $locales = $this->getLocalesCercanos($lng, $lat, $category, false);
 
         return response()->json($locales);
     }
@@ -56,15 +56,16 @@ class LocalesController extends Controller
         $lat = $coordenadas->coordinates[0];
         $lng = $coordenadas->coordinates[1];
 
-        $locales = $this->getLocalesCercanos($lng, $lat, false, $term);
+        $locales = $this->getLocalesCercanos($lng, $lat, false, $term, false);
 
         return response()->json($locales);
     }
 
-    private function getLocalesCercanos($lat, $lng, $category = false, $term = false)
+    private function getLocalesCercanos($lat, $lng, $category = false, $term = false, $tieneLimite = true)
     {
         $radio = 10;
         $where = [];
+        $limite = $tieneLimite ? 'LIMIT 10' : '';
 
         // Filtros dinámicos
         if ($category) {
@@ -122,7 +123,7 @@ class LocalesController extends Controller
             ON establecimientos.id = local_priorities.establecimiento_id
         $whereSql
         ORDER BY local_priorities.prioridad DESC, distancia ASC
-        LIMIT 10");
+        $limite");
 
         return $query;
     }
