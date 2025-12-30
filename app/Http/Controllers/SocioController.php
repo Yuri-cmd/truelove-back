@@ -337,7 +337,8 @@ class SocioController extends Controller
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
-            $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
+            $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
+            $motorizado = $motorizadoRegistro ? $motorizadoRegistro->only(['nombres', 'apellidos', 'celular']) : null;
             if ($motorizado) {
                 $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
                 $pedido->celular_motorizado = $motorizado['celular'] ?? '';
@@ -850,7 +851,8 @@ class SocioController extends Controller
         $cliente = Cliente::find($pedido->id_cliente);
         $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
-        $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']) : null;
+        $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
+        $motorizado = $motorizadoRegistro ? $motorizadoRegistro->only(['nombres', 'apellidos', 'celular']) : null;
         if ($motorizado) {
             $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
             $pedido->celular_motorizado = $motorizado['celular'] ?? '';
