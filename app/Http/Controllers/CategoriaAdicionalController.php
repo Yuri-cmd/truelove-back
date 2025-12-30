@@ -12,10 +12,14 @@ class CategoriaAdicionalController extends Controller
     {
         try {
             $categorias = CategoriaAdicional::all();
-            if ($categorias->isEmpty()) {
-                return response()->json(['message' => 'No se encontraron categorías adicionales'], 404);
-            }
-            return response()->json($categorias);
+            // Retornar 200 con array vacío si no hay categorías, en lugar de 404
+            return response()->json([
+                'success' => true,
+                'data' => $categorias,
+                'message' => $categorias->isEmpty()
+                    ? 'No se encontraron categorías adicionales'
+                    : 'Categorías obtenidas correctamente'
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al obtener las categorías adicionales', 'error' => $e->getMessage()], 500);
         }
@@ -82,10 +86,14 @@ class CategoriaAdicionalController extends Controller
     {
         try {
             $categorias = CategoriaAdicional::where('empresa_id', $empresa_id)->get();
-            if ($categorias->isEmpty()) {
-                return response()->json(['message' => 'No se encontraron categorías adicionales para esta empresa'], 404);
-            }
-            return response()->json(['success' => true, 'data' => $categorias]);
+            // Retornar 200 con array vacío si no hay categorías, en lugar de 404
+            return response()->json([
+                'success' => true,
+                'data' => $categorias,
+                'message' => $categorias->isEmpty()
+                    ? 'No se encontraron categorías adicionales para esta empresa'
+                    : 'Categorías obtenidas correctamente'
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al obtener las categorías adicionales', 'error' => $e->getMessage()], 500);
         }

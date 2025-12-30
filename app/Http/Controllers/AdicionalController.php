@@ -31,7 +31,7 @@ class AdicionalController extends Controller
                 'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
                 'descripcion' => 'required|string',
-                'foto' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'foto' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
@@ -81,7 +81,7 @@ class AdicionalController extends Controller
                 'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
                 'descripcion' => 'required|string',
-                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
@@ -131,11 +131,8 @@ class AdicionalController extends Controller
     {
         try {
             $adicionales = Adicional::where('empresa_id', $empresa_id)->get();
-            // si esta vacio devuelve not found
-            if ($adicionales->isEmpty()) {
-                return response()->json(['message' => 'No se encontraron adicionales para esta empresa'], 404);
-            }
-            return response()->json($adicionales);
+            // Retornar 200 con array vacío si no hay adicionales, en lugar de 404
+            return response()->json($adicionales, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al obtener los adicionales', 'error' => $e->getMessage()], 500);
         }
@@ -149,7 +146,7 @@ class AdicionalController extends Controller
                 'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
                 'descripcion' => 'required|string',
-                'foto' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'foto' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
@@ -199,7 +196,7 @@ class AdicionalController extends Controller
                 'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
                 'descripcion' => 'required|string',
-                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
