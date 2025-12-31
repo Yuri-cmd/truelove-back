@@ -50,6 +50,7 @@ class TipoNegocioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255|unique:tipos_negocios,nombre',
+            'orden' => 'required|integer|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // máximo 2MB
         ]);
 
@@ -77,6 +78,7 @@ class TipoNegocioController extends Controller
             $data = [
                 'nombre' => $request->nombre,
                 'slug' => $slug,
+                'orden' => $request->orden,
                 'activo' => true
             ];
 
@@ -117,6 +119,7 @@ class TipoNegocioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255|unique:tipos_negocios,nombre,' . $id,
+            'orden' => 'required|integer|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // máximo 2MB
         ]);
 
@@ -145,7 +148,8 @@ class TipoNegocioController extends Controller
 
             $data = [
                 'nombre' => $request->nombre,
-                'slug' => $slug
+                'slug' => $slug,
+                'orden' => $request->orden
             ];
 
             // Manejar la subida de imagen
