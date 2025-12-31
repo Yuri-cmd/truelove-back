@@ -42,8 +42,22 @@ class MenuController extends Controller
 
     public function index($empresa_id)
     {
+        // Obtener todos los menús de la empresa
         $menus = Menu::where('empresa_id', $empresa_id)->get();
-        return response()->json($menus);
+        
+        // Para cada menú, obtener su categoria_id desde la tabla categoria_menu
+        $menusWithCategory = $menus->map(function ($menu) {
+            // Buscar la categoría del menú en la tabla categoria_menu
+            $categoriaMenu = CategoriaMenu::where('menu_id', $menu->id)->first();
+            
+            // Agregar el categoria_id al menú
+            $menuArray = $menu->toArray();
+            $menuArray['categoria_id'] = $categoriaMenu ? $categoriaMenu->categoria_id : null;
+            
+            return $menuArray;
+        });
+        
+        return response()->json($menusWithCategory);
     }
 
     public function updateStatus($id, Request $request)
