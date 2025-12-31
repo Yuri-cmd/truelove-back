@@ -90,7 +90,8 @@ class TipoNegocioController extends Controller
                 // Guardar en public/img/categories
                 $image->move(public_path('img/categories'), $imageName);
 
-                $data['image'] = $imageName;
+                // Guardar la ruta completa en la DB
+                $data['image'] = '/img/categories/' . $imageName;
             }
 
             $tipoNegocio = TipoNegocio::create($data);
@@ -156,7 +157,8 @@ class TipoNegocioController extends Controller
             if ($request->hasFile('image')) {
                 // Eliminar la imagen anterior si existe
                 if ($tipoNegocio->image) {
-                    $oldImagePath = public_path('img/categories/' . $tipoNegocio->image);
+                    // La imagen en DB tiene el formato /img/categories/nombre.png
+                    $oldImagePath = public_path(ltrim($tipoNegocio->image, '/'));
                     if (file_exists($oldImagePath)) {
                         unlink($oldImagePath);
                     }
@@ -168,7 +170,8 @@ class TipoNegocioController extends Controller
                 // Guardar en public/img/categories
                 $image->move(public_path('img/categories'), $imageName);
 
-                $data['image'] = $imageName;
+                // Guardar la ruta completa en la DB
+                $data['image'] = '/img/categories/' . $imageName;
             }
 
             $tipoNegocio->update($data);
