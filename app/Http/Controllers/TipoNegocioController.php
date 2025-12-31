@@ -50,6 +50,7 @@ class TipoNegocioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255|unique:tipos_negocios,nombre',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // máximo 2MB
         ]);
 
         if ($validator->fails()) {
@@ -73,11 +74,24 @@ class TipoNegocioController extends Controller
                 $counter++;
             }
 
-            $tipoNegocio = TipoNegocio::create([
+            $data = [
                 'nombre' => $request->nombre,
                 'slug' => $slug,
                 'activo' => true
-            ]);
+            ];
+
+            // Manejar la subida de imagen
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imageName = Str::slug($request->nombre) . '.' . $image->getClientOriginalExtension();
+
+                // Guardar en public/img/categories
+                $image->move(public_path('img/categories'), $imageName);
+
+                $data['image'] = $imageName;
+            }
+
+            $tipoNegocio = TipoNegocio::create($data);
 
             DB::commit();
 
@@ -103,6 +117,7 @@ class TipoNegocioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|min:2|max:255|unique:tipos_negocios,nombre,' . $id,
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // máximo 2MB
         ]);
 
         if ($validator->fails()) {
@@ -128,10 +143,31 @@ class TipoNegocioController extends Controller
                 $counter++;
             }
 
-            $tipoNegocio->update([
+            $data = [
                 'nombre' => $request->nombre,
                 'slug' => $slug
-            ]);
+            ];
+
+            // Manejar la subida de imagen
+            if ($request->hasFile('image')) {
+                // Eliminar la imagen anterior si existe
+                if ($tipoNegocio->image) {
+                    $oldImagePath = public_path('img/categories/' . $tipoNegocio->image);
+                    if (file_exists($oldImagePath)) {
+                        unlink($oldImagePath);
+                    }
+                }
+
+                $image = $request->file('image');
+                $imageName = Str::slug($request->nombre) . '.' . $image->getClientOriginalExtension();
+
+                // Guardar en public/img/categories
+                $image->move(public_path('img/categories'), $imageName);
+
+                $data['image'] = $imageName;
+            }
+
+            $tipoNegocio->update($data);
 
             DB::commit();
 
