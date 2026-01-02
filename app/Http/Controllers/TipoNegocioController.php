@@ -26,7 +26,7 @@ class TipoNegocioController extends Controller
     public function getAllAdmin()
     {
         try {
-            $tipos = TipoNegocio::withCount('categorias')
+            $tipos = TipoNegocio::withCount('negocios')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -203,20 +203,20 @@ class TipoNegocioController extends Controller
         try {
             $tipoNegocio = TipoNegocio::findOrFail($id);
 
-            // Verificar si tiene categorías asociadas
-            if ($tipoNegocio->categorias()->count() > 0) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'No se puede eliminar el tipo de negocio porque tiene categorías asociadas'
-                ], 400);
-            }
-
             // Verificar si hay negocios usando este tipo
             if ($tipoNegocio->negocios()->count() > 0) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'No se puede eliminar el tipo de negocio porque hay negocios registrados con este tipo'
                 ], 400);
+            }
+
+            // Eliminar la imagen si existe
+            if ($tipoNegocio->image) {
+                $imagePath = public_path(ltrim($tipoNegocio->image, '/'));
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
             }
 
             $tipoNegocio->delete();
