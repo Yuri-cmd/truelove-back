@@ -70,6 +70,7 @@ class SocioController extends Controller
                     'personal' => [
                         'name' => $businessRegistration->name,
                         'lastName' => $businessRegistration->lastName,
+                        'documentNumber' => $businessRegistration->documentNumber,
                         'email' => $businessRegistration->email,
                         'phone' => $businessRegistration->phone,
                         'businessType' => $businessRegistration->businessType,
@@ -77,8 +78,9 @@ class SocioController extends Controller
                         'posToDriver' => $businessRegistration->posToDriver,
                         'entrega_documento_venta' => $businessRegistration->entrega_documento_venta,
                         'cuota_socio_id' => $businessRegistration->cuota_socio_id,
-                        'fecha_asignacion_cuota' => $businessRegistration->fecha_asignacion_cuota
-
+                        'fecha_asignacion_cuota' => $businessRegistration->fecha_asignacion_cuota 
+                            ? Carbon::parse($businessRegistration->fecha_asignacion_cuota)->format('d/m/Y H:i')
+                            : null
                     ],
                     'business' => $businessRegistration->negocio ? [
                         'nombre' => $businessRegistration->negocio->nombre,
@@ -931,24 +933,108 @@ class SocioController extends Controller
     }
     public function actualizarInformaciónPersonal(Request $request)
     {
+        DB::beginTransaction();
         try {
             $user = $request->user();
             $socio = BusinessRegistration::where('user_id', $user->id)->firstOrFail();
 
-            $request->validate([
+            // Validar los datos de entrada
+            $validated = $request->validate([
+                'documentNumber' => 'required|string|max:20',
                 'name' => 'required|string|max:255',
                 'lastName' => 'required|string|max:255',
+                'email' => 'required|email|max:255',
                 'phone' => 'required|string|max:20',
                 'posToDriver' => 'integer|in:0,1,2,3',
                 'entrega_documento_venta' => 'integer|in:0,1'
             ]);
 
-            $socio->update($request->only(['name', 'lastName', 'phone', 'posToDriver', 'entrega_documento_venta']));
+            // Verificar si el DNI cambió y si ya existe en otro registro
+            if ($validated['documentNumber'] !== $socio->documentNumber) {
+                $existingDocument = BusinessRegistration::where('documentNumber', $validated['documentNumber'])
+                    ->where('id', '!=', $socio->id)
+                    ->first();
+                
+                if ($existingDocument) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Este número de documento ya está registrado'
+                    ], 422);
+                }
 
-            return response()->json(['status' => 'success', 'message' => 'Información personal actualizada correctamente']);
+                // Verificar si existe en RepartoRegistro
+                $existingReparto = RepartoRegistro::where('nro_documento', $validated['documentNumber'])->first();
+                if ($existingReparto) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Este número de documento ya está registrado como repartidor'
+                    ], 422);
+                }
+            }
+
+            // Verificar si el correo cambió y si ya existe en otro registro
+            if ($validated['email'] !== $socio->email) {
+                $existingEmail = BusinessRegistration::where('email', $validated['email'])
+                    ->where('id', '!=', $socio->id)
+                    ->first();
+                
+                if ($existingEmail) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Este correo electrónico ya está registrado'
+                    ], 422);
+                }
+
+                // Verificar si existe en RepartoRegistro
+                $existingRepartoEmail = RepartoRegistro::where('email', $validated['email'])->first();
+                if ($existingRepartoEmail) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Este correo electrónico ya está registrado como repartidor'
+                    ], 422);
+                }
+
+                // Si el correo cambió, también actualizar en la tabla users
+                if ($socio->user_id) {
+                    $userToUpdate = User::find($socio->user_id);
+                    if ($userToUpdate) {
+                        $userToUpdate->email = $validated['email'];
+                        $userToUpdate->save();
+                    }
+                }
+            }
+
+            // Actualizar los datos del socio
+            $socio->update([
+                'documentNumber' => $validated['documentNumber'],
+                'name' => $validated['name'],
+                'lastName' => $validated['lastName'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'posToDriver' => $validated['posToDriver'] ?? $socio->posToDriver,
+                'entrega_documento_venta' => $validated['entrega_documento_venta'] ?? $socio->entrega_documento_venta
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Información personal actualizada correctamente'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error al actualizar información personal: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => 'Error al actualizar la información'], 500);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar la información'
+            ], 500);
         }
     }
     public function actualizarInformaciónNegocio(Request $request)
