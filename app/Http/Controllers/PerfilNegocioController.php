@@ -574,14 +574,15 @@ public function obtenerConfiguracionPagoDigital(Request $request)
     try {
         $businessRegistrationId = $request->user()->businessRegistration->id;
         $negocio = \App\Models\Negocio::where('business_registration_id', $businessRegistrationId)->first();
-        
+
         if (!$negocio) {
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
-        
+
         return response()->json([
             'tipo_pago_digital' => $negocio->tipo_pago_digital,
             'numero_pago_digital' => $negocio->numero_pago_digital,
+            'nombre_titular_pago_digital' => $negocio->nombre_titular_pago_digital,
         ]);
     } catch (\Exception $e) {
         // Log::error('Error al obtener configuración de pago digital: ' . $e->getMessage());
@@ -595,24 +596,27 @@ public function actualizarConfiguracionPagoDigital(Request $request)
         $request->validate([
             'tipo_pago_digital' => 'required|integer|in:0,1,2',
             'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
+            'nombre_titular_pago_digital' => 'nullable|string|min:2|max:255',
         ]);
 
         $businessRegistrationId = $request->user()->businessRegistration->id;
         $negocio = \App\Models\Negocio::where('business_registration_id', $businessRegistrationId)->first();
-        
+
         if (!$negocio) {
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
-        
+
         $negocio->update([
             'tipo_pago_digital' => $request->tipo_pago_digital,
             'numero_pago_digital' => $request->numero_pago_digital,
+            'nombre_titular_pago_digital' => $request->nombre_titular_pago_digital,
         ]);
 
         return response()->json([
             'message' => 'Configuración de pago digital actualizada correctamente',
             'tipo_pago_digital' => $negocio->tipo_pago_digital,
             'numero_pago_digital' => $negocio->numero_pago_digital,
+            'nombre_titular_pago_digital' => $negocio->nombre_titular_pago_digital,
         ]);
     } catch (\Exception $e) {
         // Log::error('Error al actualizar configuración de pago digital: ' . $e->getMessage());
