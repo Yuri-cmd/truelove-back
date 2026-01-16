@@ -634,6 +634,7 @@ class PedidoController extends Controller
     {
         $pedido = Pedido::findOrFail($id);
         $negocio = Negocio::where('business_registration_id', $pedido->id_local)->first();
+        $businessRegistration = BusinessRegistration::where('id', $pedido->id_local)->first();
         $telefono = $negocio->numero_pago_digital ?? '';
         $telefono = $negocio->numero_pago_digital ? formatPhoneNumber($negocio->numero_pago_digital) : formatPhoneNumber($negocio->telefono);
         $tipoPago = 'Ninguno';
@@ -650,7 +651,7 @@ class PedidoController extends Controller
             'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
             'numero_local' => $telefono,
             'tipo_pago_digital' => $tipoPago,
-            'titular' => $negocio->nombre_titular_pago_digital ?? '',
+            'titular' => $negocio->nombre_titular_pago_digital ?? $businessRegistration->name .'  '. $businessRegistration->lastName ?? '',
             'estado' => $estadoPedido,
         ]);
     }

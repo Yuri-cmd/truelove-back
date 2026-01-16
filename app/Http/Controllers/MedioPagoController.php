@@ -13,19 +13,19 @@ class MedioPagoController extends Controller
     public function index($idEmpresa = 0)
     {
         $empresa = BusinessRegistration::find($idEmpresa);
-        $tienePos = $empresa ? $empresa->posToDriver : false;
+        $tienePos = $empresa ? (int) $empresa->posToDriver : 0;
 
         $mediosPago = MedioPago::where('estado', 1)
             ->get(['id', 'nombre', 'estado'])
             ->filter(function ($medio) use ($tienePos) {
                 if (stripos($medio->nombre, 'POS') !== false) {
-                    if ($tienePos == 0) {
+                    if ($tienePos === 0) {
                         return false;
                     }
-                    if ($tienePos == "2" && stripos($medio->nombre, 'VISA') === false) {
+                    if ($tienePos === 2 && stripos($medio->nombre, 'VISA') === false) {
                         return false;
                     }
-                    if ($tienePos == "1" && stripos($medio->nombre, 'ESTILO') === false) {
+                    if ($tienePos === 1 && stripos($medio->nombre, 'ESTILO') === false) {
                         return false;
                     }
                 }
@@ -35,7 +35,6 @@ class MedioPagoController extends Controller
 
         return response()->json($mediosPago, 200);
     }
-
 
     public function store(Request $request)
     {
