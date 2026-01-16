@@ -63,6 +63,9 @@ class SocioController extends Controller
                 'cuentaBancaria.tipoCuenta'
             ])->findOrFail($id);
 
+            // Construir el nombre completo del socio
+            $nombreCompletoSocio = trim($businessRegistration->name . ' ' . $businessRegistration->lastName);
+
             return response()->json([
                 'status' => 'success',
                 'data' => [
@@ -89,7 +92,8 @@ class SocioController extends Controller
                         'telefono' => $businessRegistration->negocio->telefono,
                         'tipo_pago_digital' => $businessRegistration->negocio->tipo_pago_digital,
                         'numero_pago_digital' => $businessRegistration->negocio->numero_pago_digital,
-                        'nombre_titular_pago_digital' => $businessRegistration->negocio->nombre_titular_pago_digital
+                        // Si nombre_titular_pago_digital está vacío, usar el nombre completo del socio
+                        'nombre_titular_pago_digital' => $businessRegistration->negocio->nombre_titular_pago_digital ?: $nombreCompletoSocio
                     ] : null,
                     'businessData' => $businessRegistration->datosClaveNegocio ? [
                         'ruc' => $businessRegistration->datosClaveNegocio->ruc,
@@ -1054,7 +1058,7 @@ class SocioController extends Controller
             ]);
 
             if ($socio->negocio) {
-                $socio->negocio->update($request->only([
+                $dataToUpdate = $request->only([
                     'nombre',
                     'total_sucursales',
                     'metodo_contacto',
@@ -1062,7 +1066,14 @@ class SocioController extends Controller
                     'tipo_pago_digital',
                     'numero_pago_digital',
                     'nombre_titular_pago_digital'
-                ]));
+                ]);
+
+                // Si nombre_titular_pago_digital está vacío y tipo_pago_digital > 0, usar el nombre completo del socio
+                if (empty($dataToUpdate['nombre_titular_pago_digital']) && $dataToUpdate['tipo_pago_digital'] > 0) {
+                    $dataToUpdate['nombre_titular_pago_digital'] = trim($socio->name . ' ' . $socio->lastName);
+                }
+
+                $socio->negocio->update($dataToUpdate);
             }
 
             return response()->json(['status' => 'success', 'message' => 'Datos del negocio actualizados correctamente']);
