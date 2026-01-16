@@ -22,10 +22,10 @@ class MedioPagoController extends Controller
                     if ($tienePos == 0) {
                         return false;
                     }
-                    if ($tienePos == 1 && stripos($medio->nombre, 'VISA') === false) {
+                    if ($tienePos == 2 && stripos($medio->nombre, 'VISA') === false) {
                         return false;
                     }
-                    if ($tienePos == 2 && stripos($medio->nombre, 'ESTILO') === false) {
+                    if ($tienePos == 1 && stripos($medio->nombre, 'ESTILO') === false) {
                         return false;
                     }
                 }
