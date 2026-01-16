@@ -18,18 +18,21 @@ class MedioPagoController extends Controller
         $mediosPago = MedioPago::where('estado', 1)
             ->get(['id', 'nombre', 'estado'])
             ->filter(function ($medio) use ($tienePos) {
-                if (stripos($medio->nombre, 'POS') !== false) {
-                    if ($tienePos === 0) {
-                        return false;
-                    }
-                    if ($tienePos === 2 && stripos($medio->nombre, 'VISA') === false) {
-                        return false;
-                    }
-                    if ($tienePos === 1 && stripos($medio->nombre, 'ESTILO') === false) {
-                        return false;
-                    }
+                $nombre = strtoupper($medio->nombre);
+                $esPos = str_contains($nombre, 'POS');
+                if (!$esPos) {
+                    return true;
                 }
-                return true;
+                switch ($tienePos) {
+                    case 0: // No mostrar ningún POS
+                        return false;
+                    case 1: // Solo Estilo
+                        return str_contains($nombre, 'ESTILO');
+                    case 2: // Solo Visa
+                        return str_contains($nombre, 'VISA');
+                    default:
+                        return true;
+                }
             })
             ->values();
 
