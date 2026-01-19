@@ -251,6 +251,7 @@ class ClienteController extends Controller
                     $cliente->longitud = null;
                     $cliente->direccion = null;
                 }
+                $cliente->celular = $cliente->celular ? $cliente->celular : '999999999';
                 return response()->json([
                     $cliente,
                 ], 200);
