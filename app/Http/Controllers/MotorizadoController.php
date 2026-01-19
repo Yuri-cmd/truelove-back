@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use App\Mail\CredencialesMotorizado;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class MotorizadoController extends Controller
 {
@@ -295,6 +296,262 @@ class MotorizadoController extends Controller
                 'status' => 'error',
                 'message' => 'Error al actualizar: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualizar datos del vehículo (números de documentos)
+     */
+    public function update(Request $request, $id)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'placa' => 'required|string|max:255',
+                'licencia_conducir' => 'required|string|max:255',
+                'seguro' => 'required|string|max:255',
+                'tarjeta_propiedad' => 'required|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $motorizado = RepartoRegistro::findOrFail($id);
+
+            // Verificar si tiene registro de vehículo
+            $registroVehiculo = $motorizado->registroVehiculo;
+            
+            if (!$registroVehiculo) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Este motorizado no tiene registro de vehículo'
+                ], 404);
+            }
+
+            // Actualizar datos del vehículo
+            $registroVehiculo->placa = $request->placa;
+            $registroVehiculo->licencia_conducir = $request->licencia_conducir;
+            $registroVehiculo->seguro = $request->seguro;
+            $registroVehiculo->tarjeta_propiedad = $request->tarjeta_propiedad;
+            $registroVehiculo->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Datos del vehículo actualizados correctamente',
+                'data' => $registroVehiculo
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar datos del vehículo: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar los datos del vehículo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar documentos del motorizado (imágenes/PDFs)
+     */
+    public function updateDocumentos(Request $request, $id)
+    {
+        try {
+            $motorizado = RepartoRegistro::findOrFail($id);
+
+            // Actualizar documento de identidad frente
+            if ($request->has('documento_imagen_frente') && $request->documento_imagen_frente) {
+                $imagePath = $this->procesarImagenBase64(
+                    $request->documento_imagen_frente,
+                    'documento-motorizado',
+                    'documento_motorizado_frente'
+                );
+                if ($imagePath) {
+                    $motorizado->documento_imagen_frente = $imagePath;
+                }
+            }
+
+            // Actualizar documento de identidad reverso
+            if ($request->has('documento_imagen_reverso') && $request->documento_imagen_reverso) {
+                $imagePath = $this->procesarImagenBase64(
+                    $request->documento_imagen_reverso,
+                    'documento-motorizado',
+                    'documento_motorizado_reverso'
+                );
+                if ($imagePath) {
+                    $motorizado->documento_imagen_reverso = $imagePath;
+                }
+            }
+
+            // Actualizar documentos adicionales
+            if ($request->has('documentos_adicionales') && is_array($request->documentos_adicionales)) {
+                $documentosGuardados = [];
+                foreach ($request->documentos_adicionales as $documento) {
+                    if (isset($documento['archivo']) && isset($documento['categoria'])) {
+                        $filePath = $this->procesarPDFBase64(
+                            $documento['archivo'],
+                            'documentos-adicionales',
+                            'documento_adicional'
+                        );
+                        if ($filePath) {
+                            $documentosGuardados[] = [
+                                'ruta' => $filePath,
+                                'tipo' => 'application/pdf',
+                                'categoria' => $documento['categoria'],
+                                'fecha_carga' => now()->toDateTimeString()
+                            ];
+                        }
+                    }
+                }
+                if (!empty($documentosGuardados)) {
+                    $motorizado->documentos_adicionales = $documentosGuardados;
+                }
+            }
+
+            $motorizado->save();
+
+            // Actualizar documentos del vehículo si existen
+            if ($motorizado->registroVehiculo) {
+                $registroVehiculo = $motorizado->registroVehiculo;
+
+                if ($request->has('imagen_placa') && $request->imagen_placa) {
+                    $imagePath = $this->procesarImagenBase64(
+                        $request->imagen_placa,
+                        'placas',
+                        'placa'
+                    );
+                    if ($imagePath) {
+                        $registroVehiculo->imagen_placa = $imagePath;
+                    }
+                }
+
+                if ($request->has('imagen_licencia') && $request->imagen_licencia) {
+                    $imagePath = $this->procesarImagenBase64(
+                        $request->imagen_licencia,
+                        'licencias',
+                        'licencia'
+                    );
+                    if ($imagePath) {
+                        $registroVehiculo->imagen_licencia = $imagePath;
+                    }
+                }
+
+                if ($request->has('imagen_seguro') && $request->imagen_seguro) {
+                    $imagePath = $this->procesarImagenBase64(
+                        $request->imagen_seguro,
+                        'seguros',
+                        'seguro'
+                    );
+                    if ($imagePath) {
+                        $registroVehiculo->imagen_seguro = $imagePath;
+                    }
+                }
+
+                if ($request->has('imagen_tarjeta_propiedad') && $request->imagen_tarjeta_propiedad) {
+                    $imagePath = $this->procesarImagenBase64(
+                        $request->imagen_tarjeta_propiedad,
+                        'tarjetas_propiedad',
+                        'tarjeta_propiedad'
+                    );
+                    if ($imagePath) {
+                        $registroVehiculo->imagen_tarjeta_propiedad = $imagePath;
+                    }
+                }
+
+                $registroVehiculo->save();
+            }
+
+            // Actualizar documento de cuenta bancaria
+            if ($motorizado->datosBancarios && $request->has('imagen_cuenta_bancaria') && $request->imagen_cuenta_bancaria) {
+                $imagePath = $this->procesarImagenBase64(
+                    $request->imagen_cuenta_bancaria,
+                    'cuentas_bancarias',
+                    'cuenta_bancaria'
+                );
+                if ($imagePath) {
+                    $motorizado->datosBancarios->url_imagen_cuenta = $imagePath;
+                    $motorizado->datosBancarios->save();
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Documentos actualizados correctamente'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar documentos: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar los documentos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar imagen base64 y guardarla
+     */
+    private function procesarImagenBase64($base64Data, $carpeta, $prefijo)
+    {
+        if (!$base64Data || !str_contains($base64Data, ',')) {
+            return null;
+        }
+
+        try {
+            $partes = explode(',', $base64Data);
+            if (count($partes) !== 2) {
+                return null;
+            }
+
+            $archivo = base64_decode($partes[1]);
+            if ($archivo === false) {
+                return null;
+            }
+
+            $uniqueId = uniqid();
+            $fileName = "{$prefijo}_{$uniqueId}.jpg";
+            $filePath = "{$carpeta}/{$fileName}";
+
+            Storage::disk('custom_public')->put($filePath, $archivo);
+
+            return $filePath;
+        } catch (\Exception $e) {
+            Log::error("Error al procesar imagen: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Procesar PDF base64 y guardarlo
+     */
+    private function procesarPDFBase64($base64Data, $carpeta, $prefijo)
+    {
+        if (!$base64Data || !str_contains($base64Data, ',')) {
+            return null;
+        }
+
+        try {
+            $partes = explode(',', $base64Data);
+            if (count($partes) !== 2) {
+                return null;
+            }
+
+            $archivo = base64_decode($partes[1]);
+            if ($archivo === false) {
+                return null;
+            }
+
+            $uniqueId = uniqid();
+            $fileName = "{$prefijo}_{$uniqueId}.pdf";
+            $filePath = "{$carpeta}/{$fileName}";
+
+            Storage::disk('custom_public')->put($filePath, $archivo);
+
+            return $filePath;
+        } catch (\Exception $e) {
+            Log::error("Error al procesar PDF: " . $e->getMessage());
+            return null;
         }
     }
     // Agregar este método al MotorizadoController

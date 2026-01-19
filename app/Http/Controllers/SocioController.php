@@ -549,34 +549,73 @@ class SocioController extends Controller
     /**
      * Obtiene los locales ordenados por prioridad
      */
-    public function getLocalesPorPrioridad()
+    public function getLocalesPorPrioridad(Request $request)
     {
         try {
-            // Obtener todos los establecimientos con sus datos de negocio, perfil y prioridad
-            $locales = Establecimiento::with([
+            // Obtener parámetros de paginación y filtros
+            $perPage = $request->input('per_page', 10);
+            $page = $request->input('page', 1);
+            $search = $request->input('search', '');
+            $city = $request->input('city', '');
+            $priorityLevel = $request->input('priority_level', 'todos');
+
+            // Construir la consulta base
+            $query = Establecimiento::with([
                 'businessRegistration',
                 'businessRegistration.perfil'
-                // 'rating'
             ])
                 ->join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
-                // Hacemos un left join con la tabla de prioridades para incluir todos los locales
                 ->leftJoin('local_priorities', 'establecimientos.id', '=', 'local_priorities.establecimiento_id')
                 ->where('business_registrations.estado', 1)
+                ->where('business_registrations.aprobado', 1);
+
+            // Aplicar filtro de búsqueda si existe
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('establecimientos.nombre_establecimiento', 'like', "%{$search}%")
+                        ->orWhere('establecimientos.direccion_completa', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(business_registrations.name, ' ', business_registrations.lastName) like ?", ["%{$search}%"]);
+                });
+            }
+
+            // Aplicar filtro de ciudad si existe
+            if (!empty($city) && $city !== 'all') {
+                $query->where('establecimientos.ciudad', $city);
+            }
+
+            // Obtener el total de locales para calcular umbrales de prioridad
+            $totalLocales = Establecimiento::join('business_registrations', 'establecimientos.business_registration_id', '=', 'business_registrations.id')
+                ->where('business_registrations.estado', 1)
                 ->where('business_registrations.aprobado', 1)
-                // Ordenamos por prioridad (de mayor a menor) y luego por nombre
-                // Mayor número = mayor prioridad
-                ->orderBy('local_priorities.prioridad', 'desc')
+                ->count();
+
+            // Aplicar filtro de nivel de prioridad si no es "todos"
+            if ($priorityLevel !== 'todos' && $totalLocales > 0) {
+                $lowThreshold = ceil($totalLocales * 0.33);
+                $mediumThreshold = ceil($totalLocales * 0.67);
+
+                if ($priorityLevel === 'baja') {
+                    $query->where(function ($q) use ($lowThreshold) {
+                        $q->where('local_priorities.prioridad', '<=', $lowThreshold)
+                            ->orWhereNull('local_priorities.prioridad');
+                    });
+                } elseif ($priorityLevel === 'media') {
+                    $query->whereBetween('local_priorities.prioridad', [$lowThreshold + 1, $mediumThreshold]);
+                } elseif ($priorityLevel === 'alta') {
+                    $query->where('local_priorities.prioridad', '>', $mediumThreshold);
+                }
+            }
+
+            // Ordenar por prioridad y nombre
+            $query->orderBy('local_priorities.prioridad', 'desc')
                 ->orderBy('establecimientos.nombre_establecimiento', 'asc')
-                // Seleccionamos todas las columnas de la tabla establecimientos y la prioridad
-                ->select('establecimientos.*', 'local_priorities.prioridad')
-                ->get();
+                ->select('establecimientos.*', 'local_priorities.prioridad');
 
-            // Transformamos la colección de locales para incluir la puntuación y prioridad
-            $localesFormateados = $locales->map(function ($local) {
-                // Obtenemos la puntuación del local usando la relación
-                // $puntuacion = $local->rating ? $local->rating->puntuacion : 0;
+            // Paginar los resultados
+            $locales = $query->paginate($perPage, ['*'], 'page', $page);
 
-                // Verificamos si businessRegistration y perfil existen
+            // Transformar la colección de locales
+            $localesFormateados = $locales->getCollection()->map(function ($local) {
                 $logo = null;
                 if (
                     $local->businessRegistration &&
@@ -586,7 +625,6 @@ class SocioController extends Controller
                     $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
                 }
 
-                // Retornamos un array con los datos formateados del local
                 return [
                     'id' => $local->id,
                     'nombre' => $local->nombre_establecimiento,
@@ -595,23 +633,31 @@ class SocioController extends Controller
                     'business_id' => $local->business_registration_id,
                     'empresa' => $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName,
                     'logo' => $logo,
-                    // 'puntuacion' => $puntuacion,
-                    'prioridad' => $local->prioridad ?? 0, // Si no tiene prioridad, asignamos 0
+                    'prioridad' => $local->prioridad ?? 0,
                     'latitud' => $local->latitud,
                     'longitud' => $local->longitud
                 ];
             });
 
-            // Retornamos una respuesta JSON exitosa con los datos
+            // Reemplazar la colección transformada en el paginador
+            $locales->setCollection($localesFormateados);
+
+            // Retornar respuesta con metadatos de paginación
             return response()->json([
                 'status' => 'success',
-                'data' => $localesFormateados
+                'data' => $locales->items(),
+                'meta' => [
+                    'current_page' => $locales->currentPage(),
+                    'last_page' => $locales->lastPage(),
+                    'per_page' => $locales->perPage(),
+                    'total' => $locales->total(),
+                    'from' => $locales->firstItem(),
+                    'to' => $locales->lastItem()
+                ]
             ]);
         } catch (\Exception $e) {
-            // Registramos el error en el log para debugging
             Log::error('Error al obtener locales por prioridad: ' . $e->getMessage());
 
-            // Retornamos una respuesta de error con código 500
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al obtener la lista de locales por prioridad: ' . $e->getMessage()

@@ -44,6 +44,7 @@ use App\Http\Controllers\SociosCuentaBancariaController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TipoNegocioController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\InfoClienteController;
 use App\Http\Middleware\EncryptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -97,11 +98,21 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/motorizado', 'all');
             Route::post('/motorizado/change/state/{id}', 'changeState');
             Route::get('/motorizado/{id}/details', 'getDetails');
+            Route::put('/motorizado/{id}/update', 'update');
+            Route::put('/motorizado/{id}/update-documentos', 'updateDocumentos');
             Route::post('/motorizado/{id}/aprobar', 'aprobar');
             Route::delete('/motorizado/{id}/delete', 'delete');
             Route::post('/motorizado/{id}/actualizar-pedidos', 'actualizarCantidadPedidos');
             Route::get('/motorizado/{id}/entrega-calendario', 'getEntregaCalendarios');
         });
+
+        // Gestión de clientes
+        Route::controller(InfoClienteController::class)->group(function () {
+            Route::get('/cliente', 'all');
+            Route::get('/cliente/{id}/details', 'getDetails');
+            Route::delete('/cliente/{id}/delete', 'delete');
+        });
+
         Route::controller(HorarioController::class)->group(function () {
             Route::get('/horarios', 'getAllHorarios');
             Route::get('/horarios/grupales', 'getHorariosGrupales');
