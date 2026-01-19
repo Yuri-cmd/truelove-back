@@ -371,9 +371,10 @@ class DescuentoClienteController extends Controller
             ->where(function ($q) use ($query) {
                 $q->where('clientes.documento', 'LIKE', "%{$query}%")
                     ->orWhere('clientes.nombre', 'LIKE', "%{$query}%")
-                    ->orWhere('clientes.apellido', 'LIKE', "%{$query}%");
+                    ->orWhere('clientes.apellido', 'LIKE', "%{$query}%")
+                    ->orWhere(DB::raw('CONCAT(clientes.nombre, " ", clientes.apellido)'), 'LIKE', "%{$query}%");
             })
-            ->having('total_pedidos', '>', 0) // Solo clientes con pedidos completados
+            // Removido el filtro ->having('total_pedidos', '>', 0) para incluir clientes sin pedidos
             ->orderBy('total_pedidos', 'desc')
             ->limit(10)
             ->get();
