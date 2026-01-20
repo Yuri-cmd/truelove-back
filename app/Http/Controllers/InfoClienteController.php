@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Pedido;
+use App\Models\PedidoTracking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -154,43 +155,38 @@ class InfoClienteController extends Controller
             // Buscar el cliente
             $cliente = Cliente::findOrFail($id);
 
-            // Verificar si tiene pedidos activos (no entregados ni cancelados)
+            // Buscar pedidos activos (no entregados ni cancelados)
             // Estados: 0 = cancelado, 8 = entregado
-            // Contar pedidos que NO tienen estado 0 (cancelado) o 8 (entregado) en su último tracking
             $pedidosActivos = Pedido::where('id_cliente', $id)
                 ->whereDoesntHave('trackings', function($query) {
                     $query->whereIn('estado', [0, 8]); // 0 = cancelado, 8 = entregado
                 })
-                ->count();
+                ->get();
 
-            if ($pedidosActivos > 0) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'No se puede eliminar el cliente porque tiene pedidos activos',
-                    'pedidos_activos' => $pedidosActivos
-                ], 400);
+            // Cancelar automáticamente los pedidos activos
+            foreach ($pedidosActivos as $pedido) {
+                PedidoTracking::create([
+                    'pedido_id' => $pedido->id,
+                    'estado' => 0, // 0 = cancelado
+                ]);
             }
 
-            // Eliminar las direcciones del cliente (usar id_cliente)
+            // Eliminar las direcciones del cliente
             ClienteDireccion::where('id_cliente', $id)->delete();
-
-            // Nota: Los pedidos NO se eliminan, solo se mantienen como histórico
-            // Si quieres eliminarlos también, descomenta las siguientes líneas:
-            // $pedidos = Pedido::where('id_cliente', $id)->get();
-            // foreach ($pedidos as $pedido) {
-            //     $pedido->trackings()->delete();
-            //     $pedido->detalles()->delete();
-            //     $pedido->delete();
-            // }
 
             // Eliminar el cliente
             $cliente->delete();
 
             DB::commit();
 
+            $mensaje = 'Cliente eliminado correctamente';
+            if ($pedidosActivos->count() > 0) {
+                $mensaje .= '. Se cancelaron ' . $pedidosActivos->count() . ' pedido(s) activo(s).';
+            }
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Cliente eliminado correctamente'
+                'message' => $mensaje
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
