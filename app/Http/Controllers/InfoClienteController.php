@@ -43,15 +43,16 @@ class InfoClienteController extends Controller
             $totalPedidos = Pedido::where('id_cliente', $id)->count();
             
             // Contar pedidos por estado usando la relación con trackings
+            // Estados: 0 = cancelado, 8 = entregado
             $pedidosCompletados = Pedido::where('id_cliente', $id)
                 ->whereHas('trackings', function($query) {
-                    $query->where('estado', 'entregado');
+                    $query->where('estado', 8); // 8 = entregado
                 })
                 ->count();
-                
+
             $pedidosCancelados = Pedido::where('id_cliente', $id)
                 ->whereHas('trackings', function($query) {
-                    $query->where('estado', 'cancelado');
+                    $query->where('estado', 0); // 0 = cancelado
                 })
                 ->count();
 
@@ -154,17 +155,19 @@ class InfoClienteController extends Controller
             $cliente = Cliente::findOrFail($id);
 
             // Verificar si tiene pedidos activos (no entregados ni cancelados)
-            // Contar pedidos que NO tienen estado 'entregado' o 'cancelado' en su último tracking
+            // Estados: 0 = cancelado, 8 = entregado
+            // Contar pedidos que NO tienen estado 0 (cancelado) o 8 (entregado) en su último tracking
             $pedidosActivos = Pedido::where('id_cliente', $id)
                 ->whereDoesntHave('trackings', function($query) {
-                    $query->whereIn('estado', ['entregado', 'cancelado']);
+                    $query->whereIn('estado', [0, 8]); // 0 = cancelado, 8 = entregado
                 })
                 ->count();
 
             if ($pedidosActivos > 0) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'No se puede eliminar el cliente porque tiene pedidos activos'
+                    'message' => 'No se puede eliminar el cliente porque tiene pedidos activos',
+                    'pedidos_activos' => $pedidosActivos
                 ], 400);
             }
 
