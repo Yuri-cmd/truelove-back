@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SendCode;
 use App\Mail\SendAccountDeletionCode;
+use App\Mail\CredencialesCliente;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\ClienteDeletionRequest;
@@ -131,6 +132,18 @@ class ClienteController extends Controller
         $direccion->alias = $request->alias;
         $direccion->coordenadas = json_encode($request->selectedPosition);
         $direccion->save();
+
+        // Enviar correo con credenciales al cliente
+        if ($profile->email) {
+            try {
+                Mail::to($profile->email)->send(new CredencialesCliente(
+                    $profile->email,
+                    $profile->documento
+                ));
+            } catch (\Exception $e) {
+                Log::error('Error al enviar credenciales al cliente: ' . $e->getMessage());
+            }
+        }
 
         return response()->json([
             'message' => 'Perfil creado exitosamente',
