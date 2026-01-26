@@ -374,6 +374,7 @@ Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateE
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
+Route::put('/categories/{id}/status', [CategoriaController::class, 'toggleStatus']);
 Route::delete('/categorias/{id}/{id_empresa}', [CategoriaController::class, 'destroy']);
 Route::post('/socio/estado', [SocioController::class, 'actualizarEstado']);
 Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);

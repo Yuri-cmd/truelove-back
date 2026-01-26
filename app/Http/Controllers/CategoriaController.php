@@ -218,4 +218,33 @@ class CategoriaController extends Controller
             ], 500);
         }
     }
+
+    // Actualizar el estado (activo/inactivo) de una categoría
+    public function toggleStatus(Request $request, $id)
+    {
+        $request->validate([
+            'estado' => 'required',
+            'empresa_id' => 'required'
+        ]);
+
+        $category = Categorias::where('id', $id)
+                        ->where('empresa_id', $request->empresa_id)
+                        ->first();
+
+        if (!$category) {
+            return response()->json([
+                'error' => 'Categoría no encontrada',
+                'message' => 'La categoría no existe o no pertenece a esta empresa'
+            ], 404);
+        }
+
+        $category->estado = $request->estado;
+        $category->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estado de categoría actualizado correctamente',
+            'data' => $category
+        ], 200);
+    }
 }
