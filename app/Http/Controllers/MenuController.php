@@ -88,8 +88,16 @@ class MenuController extends Controller
 
     public function getMenuCategoria($empresa_id)
     {
-        // Obtener todos los menús con sus categorías
-        $menus = Menu::with('categorias')->where('empresa_id', $empresa_id)->where('status', 'active')->get();
+        // Obtener todos los menús con sus categorías cuya categoría tenga estado = 1
+        $menus = Menu::where('empresa_id', $empresa_id)
+            ->where('status', 'active')
+            ->whereHas('categorias', function ($q) {
+                $q->where('estado', 1);
+            })
+            ->with(['categorias' => function ($q) {
+                $q->where('estado', 1);
+            }])
+            ->get();
 
         // Agrupar los menús por categoría
         $groupedMenus = [];
