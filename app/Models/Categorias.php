@@ -10,6 +10,7 @@ class Categorias extends Model
     protected $fillable = [
         'empresa_id',
         'nombre',
+        'estado',
     ];
 
       // Relación inversa con Menu
