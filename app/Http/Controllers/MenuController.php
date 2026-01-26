@@ -40,23 +40,32 @@ class MenuController extends Controller
         return response()->json($menu, 201);
     }
 
-    public function index($empresa_id)
+    public function index(Request $request, $empresa_id)
     {
-        // Obtener todos los menús de la empresa
-        $menus = Menu::where('empresa_id', $empresa_id)->get();
-        
+        // Obtener posible filtro de categoría desde query string
+        $categoriaFiltro = $request->query('categoria');
+
+        // Si se proporcionó una categoría, obtener sólo los menús asociados
+        if ($categoriaFiltro !== null) {
+            $menuIds = CategoriaMenu::where('categoria_id', $categoriaFiltro)->pluck('menu_id')->toArray();
+            $menus = Menu::where('empresa_id', $empresa_id)->whereIn('id', $menuIds)->get();
+        } else {
+            // Obtener todos los menús de la empresa
+            $menus = Menu::where('empresa_id', $empresa_id)->get();
+        }
+
         // Para cada menú, obtener su categoria_id desde la tabla categoria_menu
         $menusWithCategory = $menus->map(function ($menu) {
             // Buscar la categoría del menú en la tabla categoria_menu
             $categoriaMenu = CategoriaMenu::where('menu_id', $menu->id)->first();
-            
+
             // Agregar el categoria_id al menú
             $menuArray = $menu->toArray();
             $menuArray['categoria_id'] = $categoriaMenu ? $categoriaMenu->categoria_id : null;
-            
+
             return $menuArray;
         });
-        
+
         return response()->json($menusWithCategory);
     }
 
