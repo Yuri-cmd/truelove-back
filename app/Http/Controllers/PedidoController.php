@@ -150,6 +150,11 @@ class PedidoController extends Controller
         return response()->json(number_format((float)$precio_delivery, 2, '.', ''));
     }
 
+    public function pruebaNoticacion()
+    {
+        $this->firebaseService->sendNotificationWithSound('e-lqChBeT92YXekLcKtW5o:APA91bEvAFvWDdWBoWBybg3c6NkTZ_BT8j_4e-FEfsW9xdHdZ5nCJnYbyciSPfu6xwB-ZoYuIkjXUyWS3n9hXHIvv-DBJFs1r5Zezi1xH1vNp8yHyBln3HY', '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
+    }
+
     public function sendMotorizadosCerca()
     {
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();

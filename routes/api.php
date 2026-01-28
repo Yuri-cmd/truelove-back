@@ -238,6 +238,8 @@ Route::controller(EmailVerificationController::class)->group(function () {
     Route::get('/register/{id}', 'getRegistration');
 });
 
+Route::get('/prueba-notificacion', [PedidoController::class, 'pruebaNoticacion']);
+
 // Otras rutas
 Route::post('/negocios', [NegocioController::class, 'store']);
 Route::get('/negocios/{businessRegistrationId}', [NegocioController::class, 'show']);
