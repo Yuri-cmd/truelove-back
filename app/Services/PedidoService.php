@@ -50,6 +50,11 @@ class PedidoService
         $response = Http::get($url);
         $data = $response->json();
 
+        \Log::debug('Mapbox directions response', [
+            'url' => $url,
+            'response' => $data
+        ]);
+
         if (isset($data['routes'][0]['distance'])) {
             return $data['routes'][0]['distance'] / 1000; // en kilómetros
         }
@@ -59,14 +64,10 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm)
     {
-        // 1. Usar Carbon para asegurar la zona horaria correcta
-        // Si no usas Laravel, puedes usar: 
-        $hora = (int)\Carbon\Carbon::now('America/Lima')->format('G');
+        $hora = (int) \Carbon\Carbon::now('America/Lima')->format('G');
 
         $config = KilometrosTarifa::getConfiguracionActiva();
-
         if (!$config) {
-            // Fallback manual
             if ($hora >= 23 || $hora < 5) {
                 $precioBase = 5.50;
             } else {
@@ -76,7 +77,6 @@ class PedidoService
             $distanciaMax = 10.00;
             $distanciaMin = 1.00;
         } else {
-            // Configuración desde DB
             if ($hora >= 23 || $hora < 5) {
                 $precioBase = $config->precio_base_nocturno;
             } else {
@@ -87,12 +87,20 @@ class PedidoService
             $distanciaMin = $config->distancia_minima;
         }
 
-        if ($distanciaKm <= $distanciaMin) return $precioBase;
-        if ($distanciaKm >= $distanciaMax) return $precioMax;
+        // Tolerancia para evitar que 1.0000001 pase a la siguiente categoría
+        $epsilon = 0.0001;
+
+        if ($distanciaKm <= $distanciaMin + $epsilon)
+            return $precioBase;
+        if ($distanciaKm >= $distanciaMax - $epsilon)
+            return $precioMax;
 
         // Cálculo proporcional
         $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - $distanciaMin)) * ($distanciaKm - $distanciaMin);
 
+        // Si quieres redondear al .5 más cercano (en lugar de truncar hacia abajo), usar round()
+        // return round($precio * 2) / 2;
+        // Si quieres mantener comportamiento actual (siempre hacia abajo), conserva floor:
         return floor($precio * 2) / 2;
     }
 

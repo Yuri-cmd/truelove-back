@@ -137,17 +137,22 @@ class PedidoController extends Controller
 
         $clienteDireccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
         $coordenadas = json_decode($clienteDireccion->coordenadas);
-        $distancia = $this->pedidoService->obtenerDistancia(
-            $local->latitud,
-            $local->longitud,
-            $coordenadas->coordinates[1],
-            $coordenadas->coordinates[0]
-        );
+
+        // Normalizar precisión: 6 decimales (≈0.11 m), usa 5 si quieres más tolerancia
+        $lat1 = round((float) $local->latitud, 6);
+        $lon1 = round((float) $local->longitud, 6);
+        $lat2 = round((float) $coordenadas->coordinates[1], 6);
+        $lon2 = round((float) $coordenadas->coordinates[0], 6);
+
+        // opcional: loguear para debug
+        \Log::debug('Coords used for routing', compact('lat1', 'lon1', 'lat2', 'lon2'));
+
+        $distancia = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
 
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia) : 0;
 
         // Formatear con 2 decimales
-        return response()->json(number_format((float)$precio_delivery, 2, '.', ''));
+        return response()->json(number_format((float) $precio_delivery, 2, '.', ''));
     }
 
     public function pruebaNoticacion()
@@ -175,7 +180,7 @@ class PedidoController extends Controller
 
         $pedido = Pedido::find($request->id);
 
-        if (! $pedido) {
+        if (!$pedido) {
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
 
@@ -191,7 +196,7 @@ class PedidoController extends Controller
             // Bloquear la fila del motorizado (RepartoRegistro) para la duración de la transacción
             $reparto = RepartoRegistro::where('id', $idMotorizado)->lockForUpdate()->first();
 
-            if (! $reparto) {
+            if (!$reparto) {
                 return response()->json(['status' => 'error', 'message' => 'Motorizado no encontrado'], 404);
             }
 
@@ -199,7 +204,7 @@ class PedidoController extends Controller
 
             $puedeAceptar = $this->verificarPedidosActivosMotorizado($idMotorizado, $pedidos_consecutivos);
 
-            if (! $puedeAceptar) {
+            if (!$puedeAceptar) {
                 return response()->json(['status' => 'error', 'message' => 'El motorizado ha alcanzado el límite de pedidos activos'], 400);
             }
 
@@ -519,9 +524,11 @@ class PedidoController extends Controller
 
     public function getPedido($id)
     {
-        $pedido = Pedido::with(['trackings' => function ($query) {
-            $query->orderBy('created_at', 'desc');
-        }])->find($id);
+        $pedido = Pedido::with([
+            'trackings' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ])->find($id);
 
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
@@ -614,21 +621,21 @@ class PedidoController extends Controller
         foreach (PedidoDetalle::where('pedido_id', $idPedido)->where('tipo', 'item')->get() as $detalle) {
             $menu = $productos[$detalle->id_producto];
             $items[] = [
-                'id'               => $menu->id,
-                'name'             => $menu->titulo,
-                'category'         => $menu->descripcion,
-                'image'            => $menu->foto,
-                'price'            => $menu->precio,
-                'discountedPrice'  => 0,
-                'quantity'         => $detalle->cantidad,
+                'id' => $menu->id,
+                'name' => $menu->titulo,
+                'category' => $menu->descripcion,
+                'image' => $menu->foto,
+                'price' => $menu->precio,
+                'discountedPrice' => 0,
+                'quantity' => $detalle->cantidad,
             ];
         }
 
         $data = [
-            'idLocal'      => $pedido->id_local,
+            'idLocal' => $pedido->id_local,
             'adicionales' => [],
-            'items'       => $items,
-            'nota'        => $pedido->nota ?? '',
+            'items' => $items,
+            'nota' => $pedido->nota ?? '',
             'precio_delivery' => $pedido->precio_delivery,
         ];
 
@@ -656,7 +663,7 @@ class PedidoController extends Controller
             'requiere_confirmacion' => $pedido->requiere_confirmacion_local,
             'numero_local' => $telefono,
             'tipo_pago_digital' => $tipoPago,
-            'titular' => $negocio->nombre_titular_pago_digital ?? $businessRegistration->name .'  '. $businessRegistration->lastName ?? '',
+            'titular' => $negocio->nombre_titular_pago_digital ?? $businessRegistration->name . '  ' . $businessRegistration->lastName ?? '',
             'estado' => $estadoPedido,
         ]);
     }
@@ -681,8 +688,10 @@ class PedidoController extends Controller
             if ($pedidoTracking->estado == 7) {
                 $motorizado = RepartoRegistro::find($pedido->id_motorizado);
                 $negocio = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-                if (!$motorizado) continue;
-                if (!$negocio) continue;
+                if (!$motorizado)
+                    continue;
+                if (!$negocio)
+                    continue;
 
                 $nombre = $motorizado->nombres;
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
