@@ -394,7 +394,7 @@ class SocioController extends Controller
             // Para APP MÓVIL (por defecto): Solo pedidos activos (estados 1, 2, 3)
             // Si $tipo === 'todos', no se filtra nada (se muestran todos los pedidos)
             $pedidos = $pedidos->filter(function ($pedido) {
-                return in_array($pedido->ultimo_estado_tracking, [1, 2, 3]);
+                return in_array($pedido->ultimo_estado_tracking, [1, 2, 3, 9]);
             });
         }
         // Si $tipo === 'todos', no se aplica ningún filtro (se mantiene la colección completa)
