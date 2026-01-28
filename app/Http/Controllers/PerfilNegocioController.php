@@ -219,7 +219,7 @@ class PerfilNegocioController extends Controller
         }
     }
     
-    public function guardarHorario(Request $request)
+    public function guardarHorario(Request $request, $id = null)
     {
         try {
             $request->validate([
@@ -244,20 +244,43 @@ class PerfilNegocioController extends Controller
                 ['business_registration_id' => $businessRegistrationId]
             );
 
-            // Crear el horario asociado al perfil
-            $horario = $perfil->horarios()->create([
-                'nombre' => $request->nombre,
-                'lunes' => $request->lunes,
-                'martes' => $request->martes,
-                'miercoles' => $request->miercoles,
-                'jueves' => $request->jueves,
-                'viernes' => $request->viernes,
-                'sabado' => $request->sabado,
-                'domingo' => $request->domingo,
-                'hora_apertura' => $request->hora_apertura,
-                'hora_cierre' => $request->hora_cierre,
-                'activo' => $request->activo
-            ]);
+            if ($id) {
+                // Actualizar horario existente
+                $horario = \App\Models\HorarioNegocio::where('id', $id)
+                    ->whereHas('perfilNegocio', function ($query) use ($businessRegistrationId) {
+                        $query->where('business_registration_id', $businessRegistrationId);
+                    })
+                    ->firstOrFail();
+
+                $horario->update([
+                    'nombre' => $request->nombre,
+                    'lunes' => $request->lunes,
+                    'martes' => $request->martes,
+                    'miercoles' => $request->miercoles,
+                    'jueves' => $request->jueves,
+                    'viernes' => $request->viernes,
+                    'sabado' => $request->sabado,
+                    'domingo' => $request->domingo,
+                    'hora_apertura' => $request->hora_apertura,
+                    'hora_cierre' => $request->hora_cierre,
+                    'activo' => $request->activo
+                ]);
+            } else {
+                // Crear nuevo horario asociado al perfil
+                $horario = $perfil->horarios()->create([
+                    'nombre' => $request->nombre,
+                    'lunes' => $request->lunes,
+                    'martes' => $request->martes,
+                    'miercoles' => $request->miercoles,
+                    'jueves' => $request->jueves,
+                    'viernes' => $request->viernes,
+                    'sabado' => $request->sabado,
+                    'domingo' => $request->domingo,
+                    'hora_apertura' => $request->hora_apertura,
+                    'hora_cierre' => $request->hora_cierre,
+                    'activo' => $request->activo
+                ]);
+            }
 
             return response()->json($horario);
 
