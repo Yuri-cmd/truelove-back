@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\SendCode;
+use App\Mail\SendCodeCliente;
 use App\Mail\SendAccountDeletionCode;
 use App\Mail\CredencialesCliente;
 use App\Models\Cliente;
@@ -44,7 +44,7 @@ class ClienteController extends Controller
             $newVerificationCode = Str::random(6);
 
             // Enviar el correo con el código de verificación
-            Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
+            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode));
 
             // Retornar el código en la respuesta para ser usado en la aplicación
             return response()->json([
@@ -398,7 +398,7 @@ class ClienteController extends Controller
             $newVerificationCode = Str::random(6);
 
             // Enviar el correo con el código de verificación
-            Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
+            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode));
 
 
             // Retornar el código en la respuesta para ser usado en la aplicación
