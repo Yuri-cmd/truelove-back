@@ -12,11 +12,13 @@ class SendCodeCliente extends Mailable
 
     public $name;
     public $code;
+    public $isNewCode;
 
-    public function __construct($name, $code)
+    public function __construct($name, $code, $isNewCode = false)
     {
         $this->name = $name;
         $this->code = $code;
+        $this->isNewCode = $isNewCode;
     }
 
     public function build()
@@ -26,6 +28,7 @@ class SendCodeCliente extends Mailable
             ->with([
                 'name' => $this->name,
                 'code' => $this->code,
+                'isNewCode' => $this->isNewCode,
             ]);
     }
 }

@@ -25,8 +25,12 @@
                             <!-- Greeting -->
                             <h3 style="text-align: start; margin-top: 0;">Hola, {{ $name }}</h3>
 
-                            <p style="margin: 0 0 20px;">Gracias por registrarte en TRUELOVE. Para completar
-                                tu registro, por favor utiliza el siguiente código de verificación:</p>
+                            @if($isNewCode)
+                                <p style="margin: 0 0 20px;">Has solicitado un nuevo código de verificación para recuperar tu contraseña en TRUELOVE. Por favor utiliza el siguiente código:</p>
+                            @else
+                                <p style="margin: 0 0 20px;">Gracias por registrarte en TRUELOVE como cliente. Para completar
+                                    tu registro, por favor utiliza el siguiente código de verificación:</p>
+                            @endif
 
                             <!-- Verification Code Box -->
                             <div
@@ -34,8 +38,11 @@
                                 <h1 style="color: #f34739; margin: 0; letter-spacing: 5px;">{{ $code }}</h1>
                             </div>
 
-                            <p style="margin: 20px 0 0;">Si no has solicitado este código, puedes ignorar este correo.
-                            </p>
+                            @if($isNewCode)
+                                <p style="margin: 20px 0 0;">Este código es válido por 15 minutos. Si no has solicitado este código, por favor ignora este correo y tu cuenta permanecerá segura.</p>
+                            @else
+                                <p style="margin: 20px 0 0;">Si no has solicitado este código, puedes ignorar este correo.</p>
+                            @endif
                         </td>
                     </tr>
                 </table>
