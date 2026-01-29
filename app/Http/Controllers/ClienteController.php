@@ -8,6 +8,7 @@ use App\Mail\CredencialesCliente;
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\ClienteDeletionRequest;
+use App\Models\EmailLog;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -44,19 +45,38 @@ class ClienteController extends Controller
             $newVerificationCode = Str::random(6);
 
             // Enviar el correo con el código de verificación
-            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode));
+            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, false));
+
+            // Registrar en logs
+            EmailLog::logSuccess(
+                $request->email,
+                'Código de verificación - TRUELOVE',
+                'verification_new_user',
+                'ClienteController',
+                'sendCode'
+            );
 
             // Retornar el código en la respuesta para ser usado en la aplicación
             return response()->json([
                 'message' => 'Nuevo código de verificación enviado al correo electrónico',
                 'status' => 200,
-                'verification_code' => $newVerificationCode, // Devolver el código
+                'verification_code' => $newVerificationCode,
             ]);
         } catch (\Exception $e) {
+            // Registrar error en logs
+            EmailLog::logFailure(
+                $request->email ?? 'unknown',
+                'Código de verificación - TRUELOVE',
+                'verification_new_user',
+                $e->getMessage(),
+                'ClienteController',
+                'sendCode'
+            );
+
             // Capturar cualquier error y devolver una respuesta de error
             return response()->json([
                 'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
-                'error' => $e->getMessage() // Detalle del error para depuración
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -140,8 +160,27 @@ class ClienteController extends Controller
                     $profile->email,
                     $profile->documento
                 ));
+
+                // Registrar en logs
+                EmailLog::logSuccess(
+                    $profile->email,
+                    'Credenciales de acceso - TRUELOVE',
+                    'credentials',
+                    'ClienteController',
+                    'actualizarInfoCliente'
+                );
             } catch (\Exception $e) {
                 Log::error('Error al enviar credenciales al cliente: ' . $e->getMessage());
+                
+                // Registrar error en logs
+                EmailLog::logFailure(
+                    $profile->email,
+                    'Credenciales de acceso - TRUELOVE',
+                    'credentials',
+                    $e->getMessage(),
+                    'ClienteController',
+                    'actualizarInfoCliente'
+                );
             }
         }
 
@@ -401,6 +440,14 @@ class ClienteController extends Controller
             // Enviar el correo con el código de verificación (isNewCode = true para recuperación)
             Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, true));
 
+            // Registrar en logs
+            EmailLog::logSuccess(
+                $request->email,
+                'Código de verificación - TRUELOVE',
+                'password_reset',
+                'ClienteController',
+                'sendCodeNew'
+            );
 
             // Retornar el código en la respuesta para ser usado en la aplicación
             return response()->json([
@@ -411,10 +458,20 @@ class ClienteController extends Controller
                 'id' => $user->id
             ]);
         } catch (\Exception $e) {
+            // Registrar error en logs
+            EmailLog::logFailure(
+                $request->email ?? 'unknown',
+                'Código de verificación - TRUELOVE',
+                'password_reset',
+                $e->getMessage(),
+                'ClienteController',
+                'sendCodeNew'
+            );
+
             // Capturar cualquier error y devolver una respuesta de error
             return response()->json([
                 'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
-                'error' => $e->getMessage() // Detalle del error para depuración
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -540,6 +597,15 @@ class ClienteController extends Controller
 
             // Enviar correo con el código de verificación para eliminación
             Mail::to($cliente->email)->send(new SendAccountDeletionCode($cliente->nombre . ' ' . $cliente->apellido, $verificationCode));
+
+            // Registrar en logs
+            EmailLog::logSuccess(
+                $cliente->email,
+                'Código de eliminación de cuenta - TRUELOVE',
+                'account_deletion',
+                'ClienteController',
+                'solicitarEliminacionCuenta'
+            );
 
             return response()->json([
                 'success' => true,
