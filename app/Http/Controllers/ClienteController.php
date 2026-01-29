@@ -398,8 +398,8 @@ class ClienteController extends Controller
             // Generar nuevo código de verificación
             $newVerificationCode = Str::random(6);
 
-            // Enviar el correo con el código de verificación
-            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode));
+            // Enviar el correo con el código de verificación (isNewCode = true para recuperación)
+            Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, true));
 
 
             // Retornar el código en la respuesta para ser usado en la aplicación
