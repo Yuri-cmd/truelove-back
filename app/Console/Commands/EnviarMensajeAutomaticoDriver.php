@@ -76,7 +76,10 @@ class EnviarMensajeAutomaticoDriver extends Command
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
 
                 // Calcular total con formato correcto
-                $sumaDetalles = (float) $pedidoDetalles->sum('precio');
+                $sumaDetalles = $pedidoDetalles->sum(function ($detalle) {
+                    return $detalle->precio * $detalle->cantidad;
+                });
+                $sumaDetalles = (float) $sumaDetalles; 
                 $precioDelivery = (float) $pedido->precio_delivery;
                 $descuento = (float) $pedido->descuento;
                 $totalFloat = $sumaDetalles + $precioDelivery - $descuento;
