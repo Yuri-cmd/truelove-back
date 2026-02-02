@@ -953,6 +953,34 @@ class SocioController extends Controller
         ]);
     }
 
+    public function updateTokenWeb(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $socio = $user->businessRegistration;
+
+            if (!$socio) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se encontró el registro de socio'
+                ], 404);
+            }
+
+            $socio->token_fmc_web = $request->token_fcm;
+            $socio->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Token web actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar token web: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function socioEntregaDocumento($id)
     {
         $socio = BusinessRegistration::find($id);

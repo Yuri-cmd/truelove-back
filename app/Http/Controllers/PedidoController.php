@@ -113,12 +113,27 @@ class PedidoController extends Controller
 
         $comercio = BusinessRegistration::find($request->id_local);
 
+        $nombreCliente = Cliente::where('id', $request->id_cliente)->first()->nombre;
+        $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
+        $cuerpoNotif = 'El pedido #' . $pedido->id . ' ya está disponible para procesar.';
+
+        // Notificación al app móvil
         if ($comercio->token_fmc && $comercio->activo == 1) {
             $this->firebaseService->sendNotificationWithSound(
                 $comercio->token_fmc,
-                '🛒 Nuevo Pedido de ' . Cliente::where('id', $request->id_cliente)->first()->nombre,
-                'El pedido #' . $pedido->id . ' ya está disponible para procesar.',
-                'nuevo_pedido' // Sonido personalizado para nuevos pedidos
+                $tituloNotif,
+                $cuerpoNotif,
+                'nuevo_pedido'
+            );
+        }
+
+        // Notificación a la web
+        if ($comercio->token_fmc_web && $comercio->activo == 1) {
+            $this->firebaseService->sendNotificationWithSound(
+                $comercio->token_fmc_web,
+                $tituloNotif,
+                $cuerpoNotif,
+                'nuevo_pedido'
             );
         }
 
