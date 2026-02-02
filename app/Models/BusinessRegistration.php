@@ -22,6 +22,7 @@ class BusinessRegistration extends Model
         'entrega_documento_venta',
         'activo',
         'token_fmc',
+        'token_fmc_web',
         'cuota_socio_id',
         'fecha_asignacion_cuota'
     ];

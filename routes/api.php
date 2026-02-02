@@ -206,6 +206,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::controller(SocioController::class)->group(function () {
             Route::get('/socio/pedidos/{id}', 'getPedidos');
             Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
+            Route::post('/socio/update-token-web', 'updateTokenWeb');
         });
 
         Route::get('/socio/cuota-activa', [CuotaSocioController::class, 'getCuotaActiva']);
