@@ -12,6 +12,7 @@ use App\Models\HorarioAsignacion;
 use App\Models\HorarioGrupo;
 use App\Models\Location;
 use App\Models\MedioPago;
+use App\Models\Negocio;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
@@ -170,7 +171,6 @@ class BikerController extends Controller
                     $pedido->latitud,
                     $pedido->longitud,
                 );
-
                 // Si el tiempo estimado es válido, agregarlo al pedido
                 if ($tiempoEstimado !== null) {
                     $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
@@ -181,6 +181,7 @@ class BikerController extends Controller
                         return $item['nombre'] . ' x ' . $item['cantidad'];
                     }, $pedidoDetalles->toArray());
                     $namesString = implode(', ', $names);
+                    $pedido->celularLocal = Negocio::where('business_registration_id', $pedido->id_local)->first()->telefono ?? '';
                     $pedido->tiempo_estimado = $tiempoEstimado;
                     $pedido->detalle = $namesString;
                     $pedido->local = $local->nombre_establecimiento;
@@ -199,6 +200,7 @@ class BikerController extends Controller
                     $pedido->precio_delivery = $pedido->precio_delivery;
                     $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
                     $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
+                   
                 }
             }
         }
@@ -703,7 +705,72 @@ class BikerController extends Controller
                     'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
                     'actualizado' => $pedido->updated_at,
-                    'descuento' => $pedido->descuento
+                    'descuento' => $pedido->descuento,
+                    'celularLocal' => Negocio::where('business_registration_id', $establecimiento->business_registration_id)->first()->telefono ?? '',
+                ];
+            }
+        }
+
+        return response()->json($data);
+    }
+
+    public function viajesListado($idBiker)
+    {
+        $pedidos = Pedido::whereNotNull('id_local')
+            ->where('id_motorizado', $idBiker)
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('pedido_id'))
+                    ->from('pedido_trackings')
+                    ->where('estado', 8)
+                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
+                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
+                            ->from('pedido_trackings')
+                            ->groupBy('pedido_id');
+                    });
+            })
+            ->get();
+        $data = [];
+        if ($pedidos->isNotEmpty()) {
+            foreach ($pedidos as $pedido) {
+                $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+                if (!$establecimiento) {
+                    continue;
+                }
+                $cliente = Cliente::find($pedido->id_cliente);
+                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+                $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $productosList = $productos->pluck('nombre');
+                $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
+                    ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
+                    ->pluck('descripcion');
+
+                $data[] = [
+                    'id' => $pedido->id,
+                    'local' => $establecimiento->nombre_establecimiento,
+                    'establecimiento' => $establecimiento->nombre_establecimiento,
+                    'direccionLocal' => $establecimiento->direccion_completa,
+                    'direccionEntrega' => $clienteDireccion->direccion,
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                    'celular' => $cliente->celular,
+                    'tiempoEstimado' => $pedido->tiempo_estimado,
+                    'detalle' => $pedido->nota,
+                    'latLocal' => $establecimiento->latitud,
+                    'lonLocal' => $establecimiento->longitud,
+                    'latitud' => $pedido->latitud,
+                    'longitud' => $pedido->longitud,
+                    'productos' => $pedido->productos,
+                    'estado' => $estado->estado,
+                    'tiempo' => $pedido->tiempo,
+                    'nota' => $pedido->nota,
+                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'precioDelivery' => $pedido->precio_delivery,
+                    'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
+                    'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+                    'productosList' => $productosListCantidad,
+                    'productos' => implode(', ', $productosList->toArray()),
+                    'actualizado' => $pedido->updated_at,
+                    'descuento' => $pedido->descuento,
                 ];
             }
         }

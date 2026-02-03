@@ -410,6 +410,7 @@ Route::post('/biker/sendCode', [BikerController::class, 'sendCode']);
 Route::post('/biker/update-password', [BikerController::class, 'updatePassword']);
 Route::get('/biker/viaje-activo/{idBiker}', [BikerController::class, 'viajeActivo']);
 Route::get('/biker/viajes-activos/{idBiker}', [BikerController::class, 'viajesActivos']);
+Route::get('/biker/viajes/{idBiker}', [BikerController::class, 'viajesListado']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);
