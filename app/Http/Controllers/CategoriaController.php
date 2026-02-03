@@ -17,7 +17,7 @@ class CategoriaController extends Controller
     public function obtenerCategories($empresa_id)
     {
         try {
-        
+
             // Verificar que el usuario tenga acceso a este empresa_id
             if (auth()->user()->businessRegistration && auth()->user()->businessRegistration->id != $empresa_id) {
                 return response()->json([
@@ -25,38 +25,42 @@ class CategoriaController extends Controller
                     'message' => 'No tiene permiso para ver estas categorías'
                 ], 403);
             }
-            
+
             $categorias = Categorias::where('empresa_id', $empresa_id)->get();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $categorias,
                 'count' => $categorias->count()
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error en CategoriaController@obtenerCategories', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'empresa_id' => $empresa_id
             ]);
-            
+
             return response()->json([
                 'error' => 'Error al obtener categorías',
                 'message' => $e->getMessage()
             ], 500);
         }
     }
-    
+
     public function store(Request $request)
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'hora_inicio' => 'nullable',
+            'hora_fin' => 'nullable',
         ]);
 
         $category = Categorias::create([
             'nombre' => $request->nombre,
             'empresa_id' => $request->empresa_id,
+            'hora_inicio' => $request->hora_inicio,
+            'hora_fin' => $request->hora_fin,
         ]);
 
         return response()->json($category, 201);
@@ -69,7 +73,9 @@ class CategoriaController extends Controller
             // Validaciones
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
-                'empresa_id' => 'required|string'
+                'empresa_id' => 'required|string',
+                'hora_inicio' => 'nullable',
+                'hora_fin' => 'nullable',
             ], [
                 'nombre.required' => 'El nombre de la categoría es requerido',
                 'empresa_id.required' => 'El ID de la empresa es requerido'
@@ -83,6 +89,8 @@ class CategoriaController extends Controller
             $category = Categorias::create([
                 'nombre' => $validated['nombre'],
                 'empresa_id' => $validated['empresa_id'],
+                'hora_inicio' => $request->hora_inicio,
+                'hora_fin' => $request->hora_fin,
             ]);
 
             return response()->json([
@@ -118,12 +126,16 @@ class CategoriaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'hora_inicio' => 'nullable',
+            'hora_fin' => 'nullable',
         ]);
 
         $category = Categorias::findOrFail($id);
         $category->update([
             'nombre' => $request->nombre,
             'empresa_id' => $request->empresa_id,
+            'hora_inicio' => $request->hora_inicio,
+            'hora_fin' => $request->hora_fin,
         ]);
 
         return response()->json($category, 200);
@@ -136,12 +148,14 @@ class CategoriaController extends Controller
             // Validaciones
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
-                'empresa_id' => 'required|string'
+                'empresa_id' => 'required|string',
+                'hora_inicio' => 'nullable',
+                'hora_fin' => 'nullable',
             ]);
 
             $category = Categorias::where('id', $id)
-                                ->where('empresa_id', $request->empresa_id)
-                                ->first();
+                ->where('empresa_id', $request->empresa_id)
+                ->first();
 
             if (!$category) {
                 return response()->json([
@@ -188,8 +202,8 @@ class CategoriaController extends Controller
             }
 
             $category = Categorias::where('id', $id)
-                                ->where('empresa_id', $id_empresa)
-                                ->first();
+                ->where('empresa_id', $id_empresa)
+                ->first();
 
             if (!$category) {
                 return response()->json([
@@ -228,8 +242,8 @@ class CategoriaController extends Controller
         ]);
 
         $category = Categorias::where('id', $id)
-                        ->where('empresa_id', $request->empresa_id)
-                        ->first();
+            ->where('empresa_id', $request->empresa_id)
+            ->first();
 
         if (!$category) {
             return response()->json([
