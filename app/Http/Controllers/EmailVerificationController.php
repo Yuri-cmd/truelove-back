@@ -115,7 +115,7 @@ class EmailVerificationController extends Controller
             }
     
             // Crear nuevo registro
-            $verificationCode = Str::random(6);
+            $verificationCode = random_int(100000, 999999);
             $registration = BusinessRegistration::create([
                 'documentType' => $validated['documentType'],
                 'documentNumber' => $validated['documentNumber'],
@@ -216,7 +216,7 @@ class EmailVerificationController extends Controller
             }
 
             // Generar nuevo código de verificación
-            $newVerificationCode = Str::random(6);
+            $newVerificationCode = random_int(100000, 999999);
             $registration->verification_code = $newVerificationCode;
             $registration->save();
 
@@ -269,7 +269,7 @@ class EmailVerificationController extends Controller
             // Actualizar el correo
             $registration = BusinessRegistration::findOrFail($id);
             $registration->email = $validated['email'];
-            $registration->verification_code = Str::random(6); // Generar nuevo código
+            $registration->verification_code = random_int(100000, 999999); // Generar nuevo código
             $registration->email_verified_at = null; // Resetear verificación
             $registration->save();
 
