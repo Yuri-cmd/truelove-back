@@ -197,7 +197,7 @@ class RegistrationStatusController extends Controller
             }
 
             // Generar nuevo código de verificación
-            $verificationCode = Str::random(6);
+            $verificationCode = random_int(100000, 999999);
             
             // Actualizar el registro principal
             $registration->verification_code = $verificationCode;

@@ -519,7 +519,7 @@ class BikerController extends Controller
             ]);
 
             // Generar nuevo código de verificación
-            $newVerificationCode = Str::random(6);
+            $newVerificationCode = random_int(100000, 999999);
 
             // Enviar el correo con el código de verificación
             Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));

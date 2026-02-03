@@ -42,7 +42,7 @@ class ClienteController extends Controller
             }
 
             // Generar nuevo código de verificación
-            $newVerificationCode = Str::random(6);
+            $newVerificationCode = random_int(100000, 999999);
 
             // Enviar el correo con el código de verificación
             Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, false));
@@ -435,7 +435,7 @@ class ClienteController extends Controller
             }
 
             // Generar nuevo código de verificación
-            $newVerificationCode = Str::random(6);
+            $newVerificationCode = random_int(100000, 999999);
 
             // Enviar el correo con el código de verificación (isNewCode = true para recuperación)
             Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, true));
@@ -581,7 +581,7 @@ class ClienteController extends Controller
             }
 
             // Generar código de verificación
-            $verificationCode = Str::random(6);
+            $verificationCode = random_int(100000, 999999);
 
             // Generar ID de solicitud único
             $requestId = '#' . strtoupper(uniqid());
