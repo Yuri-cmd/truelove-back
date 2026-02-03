@@ -88,15 +88,35 @@ class MenuController extends Controller
 
     public function getMenuCategoria($empresa_id)
     {
+        // Obtener la hora actual
+        $now = now()->format('H:i:s');
+
         // Obtener todos los menús con sus categorías cuya categoría tenga estado = 1
+        // Y respetar el horario si está definido
         $menus = Menu::where('empresa_id', $empresa_id)
             ->where('status', 'active')
-            ->whereHas('categorias', function ($q) {
-                $q->where('estado', 1);
+            ->whereHas('categorias', function ($q) use ($now) {
+                $q->where('estado', 1)
+                    ->where(function ($query) use ($now) {
+                        $query->whereNull('hora_inicio')
+                            ->orWhere(function ($subq) use ($now) {
+                                $subq->whereTime('hora_inicio', '<=', $now)
+                                    ->whereTime('hora_fin', '>=', $now);
+                            });
+                    });
             })
-            ->with(['categorias' => function ($q) {
-                $q->where('estado', 1);
-            }])
+            ->with([
+                'categorias' => function ($q) use ($now) {
+                    $q->where('estado', 1)
+                        ->where(function ($query) use ($now) {
+                            $query->whereNull('hora_inicio')
+                                ->orWhere(function ($subq) use ($now) {
+                                    $subq->whereTime('hora_inicio', '<=', $now)
+                                        ->whereTime('hora_fin', '>=', $now);
+                                });
+                        });
+                }
+            ])
             ->get();
 
         // Agrupar los menús por categoría
