@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Adicional;
 use App\Models\CategoriaMenu;
 use App\Models\Menu;
 use Illuminate\Http\Request;
@@ -15,20 +16,18 @@ class MenuController extends Controller
     {
         // Guardar la imagen en el almacenamiento
         if ($request->hasFile('foto')) {
-            // Se guarda la imagen en el disco público y se obtiene el path
-            $fotoPath = $request->file('foto')->store('menus', 'custom_public');  // 'public/menus' es la carpeta donde se guardará
-            // Obtiene la ruta relativa para almacenar en la base de datos (quitar "public/" para almacenar solo el nombre del archivo)
-            $fotoUrl = Storage::url($fotoPath);  // Esto devuelve la URL pública de la imagen
+            $fotoPath = $request->file('foto')->store('menus', 'custom_public');
+            $fotoUrl = Storage::url($fotoPath);
         }
 
         // Crear el menú con la ruta de la imagen
         $menu = Menu::create([
             'titulo' => $request->titulo,
             'descripcion' => $request->descripcion,
-            'foto' => $fotoUrl ?? null,  // Solo guarda la URL de la imagen si fue cargada
+            'foto' => $fotoUrl ?? null,
             'precio' => $request->precio,
             'status' => $request->status,
-            'empresa_id' => $request->empresa_id,  // Asegúrate de que el usuario tenga este campo en el request
+            'empresa_id' => $request->empresa_id,
         ]);
 
         // Asociar el menú con la categoría
@@ -42,27 +41,21 @@ class MenuController extends Controller
 
     public function index(Request $request, $empresa_id)
     {
-        // Obtener posible filtro de categoría desde query string
         $categoriaFiltro = $request->query('categoria');
 
-        // Si se proporcionó una categoría, obtener sólo los menús asociados
         if ($categoriaFiltro !== null) {
             $menuIds = CategoriaMenu::where('categoria_id', $categoriaFiltro)->pluck('menu_id')->toArray();
             $menus = Menu::where('empresa_id', $empresa_id)->whereIn('id', $menuIds)->get();
         } else {
-            // Obtener todos los menús de la empresa
             $menus = Menu::where('empresa_id', $empresa_id)->get();
         }
 
-        // Para cada menú, obtener su categoria_id desde la tabla categoria_menu
         $menusWithCategory = $menus->map(function ($menu) {
-            // Buscar la categoría del menú en la tabla categoria_menu
             $categoriaMenu = CategoriaMenu::where('menu_id', $menu->id)->first();
-
-            // Agregar el categoria_id al menú
             $menuArray = $menu->toArray();
             $menuArray['categoria_id'] = $categoriaMenu ? $categoriaMenu->categoria_id : null;
-
+            // Agregar cantidad de adicionales
+            $menuArray['adicionales_count'] = Adicional::where('menu_id', $menu->id)->count();
             return $menuArray;
         });
 
@@ -71,24 +64,20 @@ class MenuController extends Controller
 
     public function updateStatus($id, Request $request)
     {
-        // Buscar el platillo por ID
         $dish = Menu::find($id);
 
         if (!$dish) {
             return response()->json(['message' => 'Platillo no encontrado'], 404);
         }
 
-        // Actualizar el estado del platillo
         $dish->status = $request->status;
         $dish->save();
 
-        // Retornar respuesta de éxito
         return response()->json(['message' => 'Estado actualizado correctamente', 'dish' => $dish], 200);
     }
 
     public function getMenuCategoria($empresa_id)
     {
-        // Obtener todos los menús con sus categorías cuya categoría tenga estado = 1
         $menus = Menu::where('empresa_id', $empresa_id)
             ->where('status', 'active')
             ->whereHas('categorias', function ($q) {
@@ -99,24 +88,20 @@ class MenuController extends Controller
             }])
             ->get();
 
-        // Agrupar los menús por categoría
         $groupedMenus = [];
 
         foreach ($menus as $menu) {
             foreach ($menu->categorias as $categoria) {
-                // Buscar si ya existe la categoría en el array agrupado
                 $categoriaIndex = array_search($categoria->nombre, array_column($groupedMenus, 'nombre'));
 
-                // Si la categoría no existe, se agrega
                 if ($categoriaIndex === false) {
                     $groupedMenus[] = [
                         'nombre' => $categoria->nombre,
                         'items' => []
                     ];
-                    $categoriaIndex = array_key_last($groupedMenus); // Obtener el índice recién agregado
+                    $categoriaIndex = array_key_last($groupedMenus);
                 }
 
-                // Agregar el menú a la categoría correspondiente
                 $groupedMenus[$categoriaIndex]['items'][] = [
                     'id' => $menu->id,
                     'empresa_id' => $menu->empresa_id,
@@ -135,7 +120,6 @@ class MenuController extends Controller
     public function destroy($id)
     {
         try {
-            // Buscar el platillo por ID
             $dish = Menu::find($id);
 
             if (!$dish) {
@@ -145,65 +129,54 @@ class MenuController extends Controller
             // Eliminar la relación con categorías
             CategoriaMenu::where('menu_id', $id)->delete();
 
+            // Eliminar adicionales asociados
+            Adicional::where('menu_id', $id)->delete();
+
             // Eliminar la imagen si existe
             if ($dish->foto && Storage::exists($dish->foto)) {
                 Storage::delete($dish->foto);
             }
 
-            // Eliminar el platillo
             $dish->delete();
 
-            // Retornar respuesta de éxito
             return response()->json(['message' => 'Platillo eliminado correctamente'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al eliminar platillo', 'error' => $e->getMessage()], 500);
         }
-
     }
+
     public function update(Request $request, $id)
     {
         try {
-            // Buscar el platillo por ID
             $dish = Menu::find($id);
 
             if (!$dish) {
                 return response()->json(['message' => 'Platillo no encontrado'], 404);
             }
 
-            // Actualizar los datos del platillo
             $dish->titulo = $request->titulo;
             $dish->descripcion = $request->descripcion;
             $dish->precio = $request->precio;
             $dish->status = $request->status;
 
-            // Si se envía una nueva imagen
             if ($request->hasFile('foto')) {
-                // Eliminar la imagen anterior si existe
                 if ($dish->foto && Storage::exists($dish->foto)) {
                     Storage::delete($dish->foto);
                 }
-
-                // Guardar la nueva imagen
                 $fotoPath = $request->file('foto')->store('menus', 'custom_public');
                 $dish->foto = Storage::url($fotoPath);
             }
 
-            // Guardar los cambios
             $dish->save();
 
-            // Actualizar la categoría si es necesario
             if ($request->has('categoria_id')) {
-                // Eliminar la relación anterior
                 CategoriaMenu::where('menu_id', $id)->delete();
-
-                // Crear la nueva relación
                 CategoriaMenu::create([
                     'categoria_id' => $request->categoria_id,
                     'menu_id' => $dish->id,
                 ]);
             }
 
-            // Retornar respuesta de éxito
             return response()->json([
                 'message' => 'Platillo actualizado correctamente',
                 'dish' => $dish
@@ -218,19 +191,33 @@ class MenuController extends Controller
 
     public function getMenusByCategory($categoria_id)
     {
-        // Obtener los IDs de los menús que pertenecen a esta categoría
         $menuIds = CategoriaMenu::where('categoria_id', $categoria_id)
             ->pluck('menu_id')
             ->toArray();
 
-        // Obtener los menús con esos IDs
         $menus = Menu::whereIn('id', $menuIds)->get();
 
         return response()->json($menus);
     }
 
-    public function getAdicionales($id)
+    /**
+     * Obtener adicionales de una empresa o de un menú específico
+     */
+    public function getAdicionales(Request $request, $id)
     {
+        $menuId = $request->query('menu_id');
+
+        if ($menuId) {
+            // Obtener adicionales de un menú específico
+            $adicionales = Adicional::where('menu_id', $menuId)
+                ->where('status', 'active')
+                ->select('id', 'titulo', 'precio')
+                ->get();
+
+            return response()->json($adicionales);
+        }
+
+        // Comportamiento original: todos los adicionales de la empresa
         $adicionales = DB::select("SELECT
                     id,
                     titulo,
@@ -242,5 +229,132 @@ class MenuController extends Controller
                     AND adicionales.`status` = 'active'", [$id]);
 
         return response()->json($adicionales);
+    }
+
+    /**
+     * Obtener adicionales de un menú específico
+     */
+    public function getMenuAdicionales($menu_id)
+    {
+        $adicionales = Adicional::where('menu_id', $menu_id)
+            ->where('status', 'active')
+            ->get();
+
+        return response()->json($adicionales);
+    }
+
+    /**
+     * Crear adicional para un menú
+     */
+    public function createMenuAdicional(Request $request, $menu_id)
+    {
+        $menu = Menu::find($menu_id);
+
+        if (!$menu) {
+            return response()->json(['message' => 'Menú no encontrado'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'precio' => 'required|numeric',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $fotoUrl = '';
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
+            $fotoUrl = Storage::url($fotoPath);
+        }
+
+        $adicional = Adicional::create([
+            'menu_id' => $menu_id,
+            'empresa_id' => $menu->empresa_id,
+            'titulo' => $request->titulo,
+            'descripcion' => $request->descripcion ?? '',
+            'foto' => $fotoUrl,
+            'precio' => $request->precio,
+            'status' => 'active',
+        ]);
+
+        return response()->json([
+            'message' => 'Adicional creado correctamente',
+            'adicional' => $adicional
+        ], 201);
+    }
+
+    /**
+     * Actualizar adicional de un menú
+     */
+    public function updateMenuAdicional(Request $request, $menu_id, $adicional_id)
+    {
+        $adicional = Adicional::where('id', $adicional_id)
+            ->where('menu_id', $menu_id)
+            ->first();
+
+        if (!$adicional) {
+            return response()->json(['message' => 'Adicional no encontrado'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'precio' => 'required|numeric',
+            'status' => 'sometimes|in:active,inactive',
+            'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if ($request->hasFile('foto')) {
+            if ($adicional->foto) {
+                Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
+            }
+            $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
+            $adicional->foto = Storage::url($fotoPath);
+        }
+
+        $adicional->titulo = $request->titulo;
+        $adicional->descripcion = $request->descripcion ?? '';
+        $adicional->precio = $request->precio;
+        if ($request->has('status')) {
+            $adicional->status = $request->status;
+        }
+        $adicional->save();
+
+        return response()->json([
+            'message' => 'Adicional actualizado correctamente',
+            'adicional' => $adicional
+        ]);
+    }
+
+    /**
+     * Eliminar adicional de un menú
+     */
+    public function deleteMenuAdicional($menu_id, $adicional_id)
+    {
+        $adicional = Adicional::where('id', $adicional_id)
+            ->where('menu_id', $menu_id)
+            ->first();
+
+        if (!$adicional) {
+            return response()->json(['message' => 'Adicional no encontrado'], 404);
+        }
+
+        if ($adicional->foto) {
+            Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
+        }
+
+        $adicional->delete();
+
+        return response()->json([
+            'message' => 'Adicional eliminado correctamente'
+        ]);
     }
 }

@@ -22,11 +22,16 @@ class Menu extends Model
     public function categorias()
     {
         return $this->belongsToMany(Categorias::class, 'categoria_menu', 'menu_id', 'categoria_id');
-
     }
+
+    // Relación uno a muchos con Adicionales (un menú tiene muchos adicionales)
+    public function adicionales()
+    {
+        return $this->hasMany(Adicional::class, 'menu_id');
+    }
+
     public function businessRegistration()
     {
-        return $this->belongsTo(BusinessRegistration::class);
-
+        return $this->belongsTo(BusinessRegistration::class, 'empresa_id');
     }
 }
