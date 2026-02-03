@@ -11,13 +11,15 @@ class Categorias extends Model
         'empresa_id',
         'nombre',
         'estado',
+        'hora_inicio',
+        'hora_fin',
     ];
 
-      // Relación inversa con Menu
-      public function menus()
-      {
-          return $this->belongsToMany(Menu::class, 'categoria_menu', 'categoria_id', 'menu_id');
-      }
+    // Relación inversa con Menu
+    public function menus()
+    {
+        return $this->belongsToMany(Menu::class, 'categoria_menu', 'categoria_id', 'menu_id');
+    }
 
     public function businessRegistration()
     {

@@ -302,7 +302,7 @@ Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
 Route::get('prueba', [PedidoController::class, 'prueba']);
-
+Route::get('local-esta-abierto/{idLocal}', [NegocioController::class, 'localEstaAbierto']);
 // rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
@@ -352,6 +352,7 @@ Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteContro
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
+
 
 // Rutas para eliminación de cuenta de cliente
 Route::post('cliente/buscar-documento', [ClienteController::class, 'buscarPorDocumento']);
@@ -414,6 +415,7 @@ Route::post('/biker/sendCode', [BikerController::class, 'sendCode']);
 Route::post('/biker/update-password', [BikerController::class, 'updatePassword']);
 Route::get('/biker/viaje-activo/{idBiker}', [BikerController::class, 'viajeActivo']);
 Route::get('/biker/viajes-activos/{idBiker}', [BikerController::class, 'viajesActivos']);
+Route::get('/biker/viajes/{idBiker}', [BikerController::class, 'viajesListado']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/negocio/logo', [PerfilNegocioController::class, 'actualizarLogo']);

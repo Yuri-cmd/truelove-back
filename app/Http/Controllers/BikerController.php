@@ -12,6 +12,7 @@ use App\Models\HorarioAsignacion;
 use App\Models\HorarioGrupo;
 use App\Models\Location;
 use App\Models\MedioPago;
+use App\Models\Negocio;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\PedidoTracking;
@@ -161,46 +162,45 @@ class BikerController extends Controller
                     $local->longitud
                 );
                 // Verificar si el motorizado está dentro del radio de 10 km
-                if ($distancia <= 10) {
-                    // Si está dentro del radio, calcular el tiempo estimado
-                    $tiempoEstimado = $this->obtenerTiempoEstimadoTresPuntos(
-                        $motorizadoLocation->latitude,
-                        $motorizadoLocation->longitude,
-                        $local->latitud,
-                        $local->longitud,
-                        $pedido->latitud,
-                        $pedido->longitud,
-                    );
-
-                    // Si el tiempo estimado es válido, agregarlo al pedido
-                    if ($tiempoEstimado !== null) {
-                        $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                        $cliente = Cliente::find($pedido->id_cliente);
-                        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-                        $coordenadasCliente = json_decode($clienteDireccion->coordenadas);
-                        $names = array_map(function ($item) {
-                            return $item['nombre'] . ' x ' . $item['cantidad'];
-                        }, $pedidoDetalles->toArray());
-                        $namesString = implode(', ', $names);
-                        $pedido->tiempo_estimado = $tiempoEstimado;
-                        $pedido->detalle = $namesString;
-                        $pedido->local = $local->nombre_establecimiento;
-                        $pedido->direccion_local = $local->direccion_completa;
-                        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
-                        $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
-                        $pedido->celular = $cliente->celular;
-                        $pedido->lat_local = (float) $local->latitud;
-                        $pedido->lon_local = (float) $local->longitud;
-                        $pedido->latitud = $coordenadasCliente->coordinates[1];
-                        $pedido->longitud = $coordenadasCliente->coordinates[0];
-                        $pedido->estado = $estado->estado;
-                        $pedido->nota = $pedido->nota ?? 'Sin nota';
-                        $pedido->tiempo = $pedido->tiempo ?? 0;
-                        $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
-                        $pedido->precio_delivery = $pedido->precio_delivery;
-                        $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
-                        $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
-                    }
+                // Si está dentro del radio, calcular el tiempo estimado
+                $tiempoEstimado = $this->obtenerTiempoEstimadoTresPuntos(
+                    $motorizadoLocation->latitude,
+                    $motorizadoLocation->longitude,
+                    $local->latitud,
+                    $local->longitud,
+                    $pedido->latitud,
+                    $pedido->longitud,
+                );
+                // Si el tiempo estimado es válido, agregarlo al pedido
+                if ($tiempoEstimado !== null) {
+                    $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                    $cliente = Cliente::find($pedido->id_cliente);
+                    $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                    $coordenadasCliente = json_decode($clienteDireccion->coordenadas);
+                    $names = array_map(function ($item) {
+                        return $item['nombre'] . ' x ' . $item['cantidad'];
+                    }, $pedidoDetalles->toArray());
+                    $namesString = implode(', ', $names);
+                    $pedido->celularLocal = Negocio::where('business_registration_id', $pedido->id_local)->first()->telefono ?? '';
+                    $pedido->tiempo_estimado = $tiempoEstimado;
+                    $pedido->detalle = $namesString;
+                    $pedido->local = $local->nombre_establecimiento;
+                    $pedido->direccion_local = $local->direccion_completa;
+                    $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+                    $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
+                    $pedido->celular = $cliente->celular;
+                    $pedido->lat_local = (float) $local->latitud;
+                    $pedido->lon_local = (float) $local->longitud;
+                    $pedido->latitud = $coordenadasCliente->coordinates[1];
+                    $pedido->longitud = $coordenadasCliente->coordinates[0];
+                    $pedido->estado = $estado->estado;
+                    $pedido->nota = $pedido->nota ?? 'Sin nota';
+                    $pedido->tiempo = $pedido->tiempo ?? 0;
+                    $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+                    $pedido->precio_delivery = $pedido->precio_delivery;
+                    $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
+                    $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
+                   
                 }
             }
         }
@@ -419,7 +419,7 @@ class BikerController extends Controller
         // Determinar si puede trabajar:
         // - Puede trabajar si está dentro de horario O tiene pedidos activos
         $puedeTrabajar = $dentroDeHorario || $tienePedidoActivo;
-        
+
         // Determinar el mensaje apropiado
         $mensaje = '';
         if ($dentroDeHorario) {
@@ -705,7 +705,72 @@ class BikerController extends Controller
                     'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
                     'actualizado' => $pedido->updated_at,
-                    'descuento' => $pedido->descuento
+                    'descuento' => $pedido->descuento,
+                    'celularLocal' => Negocio::where('business_registration_id', $establecimiento->business_registration_id)->first()->telefono ?? '',
+                ];
+            }
+        }
+
+        return response()->json($data);
+    }
+
+    public function viajesListado($idBiker)
+    {
+        $pedidos = Pedido::whereNotNull('id_local')
+            ->where('id_motorizado', $idBiker)
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('pedido_id'))
+                    ->from('pedido_trackings')
+                    ->where('estado', 8)
+                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
+                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
+                            ->from('pedido_trackings')
+                            ->groupBy('pedido_id');
+                    });
+            })
+            ->get();
+        $data = [];
+        if ($pedidos->isNotEmpty()) {
+            foreach ($pedidos as $pedido) {
+                $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+                if (!$establecimiento) {
+                    continue;
+                }
+                $cliente = Cliente::find($pedido->id_cliente);
+                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+                $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $productosList = $productos->pluck('nombre');
+                $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
+                    ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
+                    ->pluck('descripcion');
+
+                $data[] = [
+                    'id' => $pedido->id,
+                    'local' => $establecimiento->nombre_establecimiento,
+                    'establecimiento' => $establecimiento->nombre_establecimiento,
+                    'direccionLocal' => $establecimiento->direccion_completa,
+                    'direccionEntrega' => $clienteDireccion->direccion,
+                    'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                    'celular' => $cliente->celular,
+                    'tiempoEstimado' => $pedido->tiempo_estimado,
+                    'detalle' => $pedido->nota,
+                    'latLocal' => $establecimiento->latitud,
+                    'lonLocal' => $establecimiento->longitud,
+                    'latitud' => $pedido->latitud,
+                    'longitud' => $pedido->longitud,
+                    'productos' => $pedido->productos,
+                    'estado' => $estado->estado,
+                    'tiempo' => $pedido->tiempo,
+                    'nota' => $pedido->nota,
+                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'precioDelivery' => $pedido->precio_delivery,
+                    'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
+                    'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+                    'productosList' => $productosListCantidad,
+                    'productos' => implode(', ', $productosList->toArray()),
+                    'actualizado' => $pedido->updated_at,
+                    'descuento' => $pedido->descuento,
                 ];
             }
         }

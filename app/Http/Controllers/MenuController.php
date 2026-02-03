@@ -76,16 +76,41 @@ class MenuController extends Controller
         return response()->json(['message' => 'Estado actualizado correctamente', 'dish' => $dish], 200);
     }
 
+    /**
+     * Obtener menús agrupados por categoría con filtro de horario
+     * Las categorías con hora_inicio y hora_fin solo se muestran en ese rango
+     */
     public function getMenuCategoria($empresa_id)
     {
+        // Obtener la hora actual
+        $now = now()->format('H:i:s');
+
+        // Obtener todos los menús con sus categorías cuya categoría tenga estado = 1
+        // Y respetar el horario si está definido
         $menus = Menu::where('empresa_id', $empresa_id)
             ->where('status', 'active')
-            ->whereHas('categorias', function ($q) {
-                $q->where('estado', 1);
+            ->whereHas('categorias', function ($q) use ($now) {
+                $q->where('estado', 1)
+                    ->where(function ($query) use ($now) {
+                        $query->whereNull('hora_inicio')
+                            ->orWhere(function ($subq) use ($now) {
+                                $subq->whereTime('hora_inicio', '<=', $now)
+                                    ->whereTime('hora_fin', '>=', $now);
+                            });
+                    });
             })
-            ->with(['categorias' => function ($q) {
-                $q->where('estado', 1);
-            }])
+            ->with([
+                'categorias' => function ($q) use ($now) {
+                    $q->where('estado', 1)
+                        ->where(function ($query) use ($now) {
+                            $query->whereNull('hora_inicio')
+                                ->orWhere(function ($subq) use ($now) {
+                                    $subq->whereTime('hora_inicio', '<=', $now)
+                                        ->whereTime('hora_fin', '>=', $now);
+                                });
+                        });
+                }
+            ])
             ->get();
 
         $groupedMenus = [];
@@ -202,6 +227,10 @@ class MenuController extends Controller
 
     /**
      * Obtener adicionales de una empresa o de un menú específico
+     * 
+     * Uso:
+     * - GET /get/menu/adicionales/{empresa_id} -> Todos los adicionales de la empresa
+     * - GET /get/menu/adicionales/{empresa_id}?menu_id={menu_id} -> Adicionales de un producto específico
      */
     public function getAdicionales(Request $request, $id)
     {

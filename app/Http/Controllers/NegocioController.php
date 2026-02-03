@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
+use App\Models\HorarioNegocio;
 use App\Models\Negocio;
+use App\Models\PerfilNegocio;
 use App\Models\TipoNegocio;
 use App\Models\Categoria;
 use Illuminate\Http\Request;
@@ -54,7 +56,7 @@ class NegocioController extends Controller
             'metodo_contacto' => 'required|in:WhatsApp,Llamada,SMS',
             'telefono' => 'required|regex:/^\+51\d{9}$/',
             'business_registration_id' => 'required|exists:business_registrations,id', // Agregar esta validación
-           'tipo_pago_digital' => 'required|integer|in:0,1,2',
+            'tipo_pago_digital' => 'required|integer|in:0,1,2',
             'numero_pago_digital' => 'nullable|string|regex:/^\d{9}$/',
             'nombre_titular_pago_digital' => 'nullable|string|min:2|max:255',
         ]);
@@ -141,25 +143,25 @@ class NegocioController extends Controller
             return response()->json(['error' => 'Error al actualizar el negocio'], 500);
         }
     }
-public function show($businessRegistrationId)
-{
-    try {
-        $negocio = Negocio::where('business_registration_id', $businessRegistrationId)
-            ->first();
-            
-        if (!$negocio) {
-            return response()->json(['message' => 'Negocio no encontrado'], 404);
+    public function show($businessRegistrationId)
+    {
+        try {
+            $negocio = Negocio::where('business_registration_id', $businessRegistrationId)
+                ->first();
+
+            if (!$negocio) {
+                return response()->json(['message' => 'Negocio no encontrado'], 404);
+            }
+
+            // Convertir el número a string para el frontend
+            $negocio->tipo_pago_digital = (string) $negocio->tipo_pago_digital;
+
+            return response()->json($negocio);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener negocio: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al obtener los datos del negocio'], 500);
         }
-
-        // Convertir el número a string para el frontend
-        $negocio->tipo_pago_digital = (string) $negocio->tipo_pago_digital;
-
-        return response()->json($negocio);
-    } catch (\Exception $e) {
-        Log::error('Error al obtener negocio: ' . $e->getMessage());
-        return response()->json(['error' => 'Error al obtener los datos del negocio'], 500);
     }
-}
 
 
     public function checkApprovalStatus($businessRegistrationId)
@@ -178,7 +180,59 @@ public function show($businessRegistrationId)
         }
     }
 
+    public function localEstaAbierto($idLocal)
+    {
+        $abierto = false;
 
+        $businessRegistration = BusinessRegistration::findOrFail($idLocal);
+        $negocio = PerfilNegocio::where('business_registration_id', $idLocal)->first();
+        $horarioNegocio = HorarioNegocio::where('perfil_negocio_id', $negocio->id)->first();
+        // 1. Default: usar el estado activo del registro de negocio (si no hay horario detallado)
+        $abierto = $businessRegistration->activo == 1;
 
+        // 2. Si existe un horario definido, verificamos días y horas
+        if ($horarioNegocio && $horarioNegocio->activo) {
+            $now = \Carbon\Carbon::now();
+            $dias = [
+                'Monday' => 'lunes',
+                'Tuesday' => 'martes',
+                'Wednesday' => 'miercoles',
+                'Thursday' => 'jueves',
+                'Friday' => 'viernes',
+                'Saturday' => 'sabado',
+                'Sunday' => 'domingo',
+            ];
 
+            $diaActualEnglish = $now->format('l'); // Monday, Tuesday...
+            $campoDia = $dias[$diaActualEnglish];
+            // Verificamos si abre hoy
+            if ($horarioNegocio->$campoDia) {
+                // Verificamos el rango de hora
+                $horaActual = $now->format('H:i:s');
+
+                if ($horarioNegocio->hora_cierre < $horarioNegocio->hora_apertura) {
+                    // El horario cruza la medianoche (ej: 09:00 a 01:00)
+                    if ($horaActual >= $horarioNegocio->hora_apertura || $horaActual <= $horarioNegocio->hora_cierre) {
+                        $abierto = true;
+                    } else {
+                        $abierto = false;
+                    }
+                } else {
+                    // Horario normal (ej: 09:00 a 22:00)
+                    if ($horaActual >= $horarioNegocio->hora_apertura && $horaActual <= $horarioNegocio->hora_cierre) {
+                        $abierto = true;
+                    } else {
+                        $abierto = false;
+                    }
+                }
+            } else {
+                // No abre hoy
+                $abierto = false;
+            }
+        }
+
+        return response()->json([
+            'abierto' => $abierto
+        ]);
+    }
 }

@@ -155,9 +155,7 @@ class PedidoService
                             $local->longitud
                         );
                         // Verificar si el motorizado está dentro del radio de 10 km
-                        if ($distancia <= 10) {
                             $tokens[] = $motorizado->token_fmc;
-                        }
                     }
                 }
             }
