@@ -23,6 +23,17 @@ jobs:
             cd /var/www/html/truelove-back
 
             echo "Actualizando repo..."
-            git pull
+            git pull origin master
+
+            echo "Instalando dependencias..."
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+
+            echo "Ejecutando migraciones..."
+            php artisan migrate --force
+
+            echo "Limpiando cachés..."
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
 
             echo "Deploy completado."
