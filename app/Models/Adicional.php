@@ -9,11 +9,11 @@ class Adicional extends Model
 {
     use HasFactory;
 
-    protected $table ='adicionales'; //nombre de la tabla
+    protected $table = 'adicionales';
 
     protected $fillable = [
-        'empresa_id', //empresa_id es el id de bussiness_registration
-        'categoria_adicional_id',
+        'menu_id',
+        'empresa_id',
         'titulo',
         'descripcion',
         'foto',
@@ -21,13 +21,19 @@ class Adicional extends Model
         'status',
     ];
 
-    public function empresa() {
-        //adicional pertenece a una empresa , bussiness_registration
-        return $this->belongsTo(BusinessRegistration::class,'empresa_id');
-
+    /**
+     * Relación: El adicional pertenece a un menú (producto)
+     */
+    public function menu()
+    {
+        return $this->belongsTo(Menu::class, 'menu_id');
     }
 
-    public function categoriaAdicional() {
-        return $this->belongsTo(CategoriaAdicional::class,'categoria_adicional_id');
+    /**
+     * Relación: El adicional pertenece a una empresa
+     */
+    public function empresa()
+    {
+        return $this->belongsTo(BusinessRegistration::class, 'empresa_id');
     }
 }

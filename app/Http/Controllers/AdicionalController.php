@@ -9,11 +9,13 @@ use Illuminate\Support\Facades\Storage;
 
 class AdicionalController extends Controller
 {
+    /**
+     * Obtener todos los adicionales
+     */
     public function index()
     {
         try {
             $adicionales = Adicional::all();
-            // si esta vacio devuelve not fount
             if ($adicionales->isEmpty()) {
                 return response()->json(['message' => 'No se encontraron adicionales'], 404);
             }
@@ -23,33 +25,34 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Crear un adicional
+     */
     public function store(Request $request)
     {
         try {
             $request->validate([
+                'menu_id' => 'required|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
-                'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'required|string',
-                'foto' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
+                'descripcion' => 'nullable|string',
+                'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            // Guardar la imagen en el almacenamiento
+            $fotoUrl = null;
             if ($request->hasFile('foto')) {
-                // Se guarda la imagen en el disco público y se obtiene el path
                 $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
-                // Obtiene la ruta relativa para almacenar en la base de datos
                 $fotoUrl = Storage::url($fotoPath);
             }
 
             $adicional = Adicional::create([
+                'menu_id' => $request->menu_id,
                 'empresa_id' => $request->empresa_id,
-                'categoria_adicional_id' => $request->categoria_adicional_id,
                 'titulo' => $request->titulo,
-                'descripcion' => $request->descripcion,
-                'foto' => $fotoUrl ?? null,  // Solo guarda la URL de la imagen si fue cargada
+                'descripcion' => $request->descripcion ?? '',
+                'foto' => $fotoUrl,
                 'precio' => $request->precio,
                 'status' => $request->status,
             ]);
@@ -60,6 +63,9 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Mostrar un adicional
+     */
     public function show($id)
     {
         try {
@@ -72,35 +78,40 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Actualizar un adicional
+     */
     public function update(Request $request, $id)
     {
         try {
             $adicional = Adicional::findOrFail($id);
             $request->validate([
+                'menu_id' => 'required|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
-                'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'required|string',
-                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
+                'descripcion' => 'nullable|string',
+                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            // Actualizar la foto si se proporciona una nueva
             if ($request->hasFile('foto')) {
-                // Eliminar la foto anterior si existe
                 if ($adicional->foto) {
                     Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
                 }
-                
-                // Se guarda la nueva imagen en el disco público y se obtiene el path
                 $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
-                // Obtiene la ruta relativa para almacenar en la base de datos
-                $fotoUrl = Storage::url($fotoPath);
-                $adicional->foto = $fotoUrl;
+                $adicional->foto = Storage::url($fotoPath);
             }
 
-            $adicional->update($request->except('foto'));
+            $adicional->update([
+                'menu_id' => $request->menu_id,
+                'empresa_id' => $request->empresa_id,
+                'titulo' => $request->titulo,
+                'descripcion' => $request->descripcion ?? '',
+                'precio' => $request->precio,
+                'status' => $request->status,
+            ]);
+
             return response()->json($adicional);
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Adicional no encontrado'], 404);
@@ -109,16 +120,18 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Eliminar un adicional
+     */
     public function destroy($id)
     {
         try {
             $adicional = Adicional::findOrFail($id);
-            
-            // Eliminar la foto del almacenamiento si existe
+
             if ($adicional->foto) {
                 Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
             }
-            
+
             $adicional->delete();
             return response()->json(['message' => 'Adicional eliminado con éxito']);
         } catch (ModelNotFoundException $e) {
@@ -127,54 +140,78 @@ class AdicionalController extends Controller
             return response()->json(['message' => 'Error al eliminar el adicional', 'error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Obtener adicionales por empresa (con información del menú)
+     */
     public function obtenerAdicionales($empresa_id)
     {
         try {
-            $adicionales = Adicional::where('empresa_id', $empresa_id)->get();
-            // Retornar 200 con array vacío si no hay adicionales, en lugar de 404
+            $adicionales = Adicional::with('menu:id,titulo')
+                ->where('empresa_id', $empresa_id)
+                ->get();
             return response()->json($adicionales, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al obtener los adicionales', 'error' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Obtener adicionales por menú (producto)
+     */
+    public function obtenerAdicionalesPorMenu($menu_id)
+    {
+        try {
+            $adicionales = Adicional::where('menu_id', $menu_id)
+                ->where('status', 'active')
+                ->get();
+            return response()->json($adicionales, 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al obtener los adicionales', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Crear adicional (versión web)
+     */
     public function crearAdicional(Request $request)
     {
         try {
             $request->validate([
+                'menu_id' => 'required|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
-                'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'required|string',
-                'foto' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
+                'descripcion' => 'nullable|string',
+                'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            // Guardar la imagen en el almacenamiento
+            $fotoUrl = null;
             if ($request->hasFile('foto')) {
-                // Se guarda la imagen en el disco público y se obtiene el path
                 $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
-                // Obtiene la ruta relativa para almacenar en la base de datos
                 $fotoUrl = Storage::url($fotoPath);
             }
 
             $adicional = Adicional::create([
+                'menu_id' => $request->menu_id,
                 'empresa_id' => $request->empresa_id,
-                'categoria_adicional_id' => $request->categoria_adicional_id,
                 'titulo' => $request->titulo,
-                'descripcion' => $request->descripcion,
-                'foto' => $fotoUrl ?? null,  // Solo guarda la URL de la imagen si fue cargada
+                'descripcion' => $request->descripcion ?? '',
+                'foto' => $fotoUrl,
                 'precio' => $request->precio,
                 'status' => $request->status,
             ]);
 
-            return response()->json($adicional, 201);
+            return response()->json(['success' => true, 'data' => $adicional], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al crear el adicional', 'error' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Obtener un adicional (versión web)
+     */
     public function obtenerAdicional($id)
     {
         try {
@@ -187,36 +224,41 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Actualizar adicional (versión web)
+     */
     public function actualizarAdicional(Request $request, $id)
     {
         try {
             $adicional = Adicional::findOrFail($id);
             $request->validate([
+                'menu_id' => 'required|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
-                'categoria_adicional_id' => 'required|exists:categoria_adicional,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'required|string',
-                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB = 5120 KB
+                'descripcion' => 'nullable|string',
+                'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            // Actualizar la foto si se proporciona una nueva
             if ($request->hasFile('foto')) {
-                // Eliminar la foto anterior si existe
                 if ($adicional->foto) {
                     Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
                 }
-                
-                // Se guarda la nueva imagen en el disco público y se obtiene el path
                 $fotoPath = $request->file('foto')->store('adicionales', 'custom_public');
-                // Obtiene la ruta relativa para almacenar en la base de datos
-                $fotoUrl = Storage::url($fotoPath);
-                $adicional->foto = $fotoUrl;
+                $adicional->foto = Storage::url($fotoPath);
             }
 
-            $adicional->update($request->except('foto'));
-            return response()->json($adicional);
+            $adicional->update([
+                'menu_id' => $request->menu_id,
+                'empresa_id' => $request->empresa_id,
+                'titulo' => $request->titulo,
+                'descripcion' => $request->descripcion ?? '',
+                'precio' => $request->precio,
+                'status' => $request->status,
+            ]);
+
+            return response()->json(['success' => true, 'data' => $adicional]);
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Adicional no encontrado'], 404);
         } catch (\Exception $e) {
@@ -224,18 +266,20 @@ class AdicionalController extends Controller
         }
     }
 
+    /**
+     * Eliminar adicional (versión web)
+     */
     public function eliminarAdicional($id)
     {
         try {
             $adicional = Adicional::findOrFail($id);
-            
-            // Eliminar la foto del almacenamiento si existe
+
             if ($adicional->foto) {
                 Storage::disk('custom_public')->delete(str_replace('/storage/', '', $adicional->foto));
             }
-            
+
             $adicional->delete();
-            return response()->json(['message' => 'Adicional eliminado con éxito']);
+            return response()->json(['success' => true, 'message' => 'Adicional eliminado con éxito']);
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Adicional no encontrado'], 404);
         } catch (\Exception $e) {
