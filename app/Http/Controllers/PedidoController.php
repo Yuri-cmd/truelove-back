@@ -409,6 +409,13 @@ class PedidoController extends Controller
                     'logo' => $logo->ruta_logo ? config('app.url') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
                     'total' => $total,
                     'cantidad' => count($pedidoDetalles),
+                    'items' => $pedidoDetalles->map(function ($detalle) {
+                        return [
+                            'nombre' => $detalle->nombre,
+                            'cantidad' => $detalle->cantidad,
+                            'precio' => $detalle->precio
+                        ];
+                    }),
                     'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
                     'created_at' => $pedido->created_at,
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,

@@ -151,7 +151,6 @@ class MenuController extends Controller
 
         return response()->json($groupedMenus);
     }
-
     public function destroy($id)
     {
         try {
