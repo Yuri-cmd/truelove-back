@@ -303,7 +303,7 @@ Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
 Route::get('prueba', [PedidoController::class, 'prueba']);
-
+Route::get('local-esta-abierto/{idLocal}', [NegocioController::class, 'localEstaAbierto']);
 // rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
@@ -347,6 +347,7 @@ Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteContro
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
+
 
 // Rutas para eliminación de cuenta de cliente
 Route::post('cliente/buscar-documento', [ClienteController::class, 'buscarPorDocumento']);
