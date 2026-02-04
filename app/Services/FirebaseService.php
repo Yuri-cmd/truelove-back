@@ -69,13 +69,13 @@ class FirebaseService
                 ],
                 "android" => [
                     "notification" => [
-                        "sound" => "notification_sound"
+                        "sound" => "default"
                     ]
                 ],
                 "apns" => [
                     "payload" => [
                         "aps" => [
-                            "sound" => "notification_sound.caf"
+                            "sound" => "default"
                         ]
                     ]
                 ]
