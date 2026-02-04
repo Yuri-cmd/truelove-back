@@ -170,12 +170,16 @@ class PedidoController extends Controller
         return response()->json(number_format((float) $precio_delivery, 2, '.', ''));
     }
 
-    public function pruebaNoticacion($token, $sonido)
+    public function pruebaNoticacion(Request $request)
     {
-        if($sonido){
-            $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
+        $request->validate([
+            'token' => 'required',
+            'sonido' => 'required|boolean',
+        ]);
+        if($request->sonido){
+            $this->firebaseService->sendNotificationWithSound($request->token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
         }else{
-            $this->firebaseService->sendNotification($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+            $this->firebaseService->sendNotification($request->token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
         }
     }
 

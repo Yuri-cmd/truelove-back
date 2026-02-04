@@ -238,7 +238,7 @@ Route::controller(EmailVerificationController::class)->group(function () {
     Route::get('/register/{id}', 'getRegistration');
 });
 
-Route::get('/prueba-notificacion/{token}/{sonido}', [PedidoController::class, 'pruebaNoticacion']);
+Route::post('/prueba-notificacion', [PedidoController::class, 'pruebaNoticacion']);
 
 // Otras rutas
 Route::post('/negocios', [NegocioController::class, 'store']);
