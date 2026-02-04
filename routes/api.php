@@ -45,6 +45,7 @@ use App\Http\Controllers\TipoNegocioController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\InfoClienteController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\GrupoAdicionalController;
 use App\Http\Middleware\EncryptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -356,6 +357,23 @@ Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProo
 
 // Ticket PDF
 Route::get('pedido/{id}/ticket', [TicketController::class, 'generateTicket']);
+
+// Grupos Adicionales
+Route::get('grupos-adicionales/{empresa_id}', [GrupoAdicionalController::class, 'index']);
+Route::post('grupos-adicionales', [GrupoAdicionalController::class, 'store']);
+Route::get('grupos-adicionales/detalle/{id}', [GrupoAdicionalController::class, 'show']);
+Route::put('grupos-adicionales/{id}', [GrupoAdicionalController::class, 'update']);
+Route::delete('grupos-adicionales/{id}', [GrupoAdicionalController::class, 'destroy']);
+
+// Items dentro de un grupo
+Route::post('grupos-adicionales/{grupo_id}/items', [GrupoAdicionalController::class, 'addItem']);
+Route::put('grupos-adicionales/{grupo_id}/items/{adicional_id}', [GrupoAdicionalController::class, 'updateItem']);
+Route::delete('grupos-adicionales/{grupo_id}/items/{adicional_id}', [GrupoAdicionalController::class, 'removeItem']);
+Route::get('grupos-adicionales/{grupo_id}/disponibles', [GrupoAdicionalController::class, 'getAvailableItems']);
+
+// Asignar grupos a un menú/producto
+Route::post('menu/{menu_id}/grupos', [GrupoAdicionalController::class, 'assignToMenu']);
+Route::get('menu/{menu_id}/grupos', [GrupoAdicionalController::class, 'getMenuGroups']);
 
 
 // Rutas para eliminación de cuenta de cliente
