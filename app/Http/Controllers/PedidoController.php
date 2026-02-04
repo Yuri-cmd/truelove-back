@@ -172,14 +172,10 @@ class PedidoController extends Controller
 
     public function pruebaNoticacion(Request $request)
     {
-        $request->validate([
-            'token' => 'required',
-            'sonido' => 'required|boolean',
-        ]);
-        if($request->sonido){
-            $this->firebaseService->sendNotificationWithSound($request->token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
+        if($request->sonido == 'true'){
+            $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido');
         }else{
-            $this->firebaseService->sendNotification($request->token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!');
+            $this->firebaseService->sendNotification($request->token, 'Prueba', 'Notificacion sin sonido');
         }
     }
 

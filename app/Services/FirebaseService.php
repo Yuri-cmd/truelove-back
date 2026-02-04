@@ -67,14 +67,17 @@ class FirebaseService
                     "title" => $title,
                     "body" => $body
                 ],
-                "data" => $data,
                 "android" => [
+                    "priority" => "high",
                     "notification" => [
                         "sound" => "default",
                         "channel_id" => "general_channel"
                     ]
                 ],
                 "apns" => [
+                    "headers" => [
+                        "apns-priority" => "10"
+                    ],
                     "payload" => [
                         "aps" => [
                             "sound" => "default"
@@ -122,11 +125,15 @@ class FirebaseService
                     'tipo' => 'nuevo_pedido' // Agregar tipo para identificación
                 ]),
                 "android" => [
+                    "priority" => "high",
                     "notification" => [
                         "channel_id" => "pedidos_v3" // Updated to match Flutter app
                     ]
                 ],
                 "apns" => [
+                    "headers" => [
+                        "apns-priority" => "10"
+                    ],
                     "payload" => [
                         "aps" => [
                             "sound" => $soundFile . ".wav"

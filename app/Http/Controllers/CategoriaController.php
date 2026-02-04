@@ -50,18 +50,18 @@ class CategoriaController extends Controller
 
     public function store(Request $request)
     {
+        // 0. Depuración Rápida: Ver qué llega
+        // Esto detendrá la ejecución y te mostrará el array "horarios" si está llegando bien.
+        // Si sale null o vacío, el problema es el envío desde Flutter.
+        // 1. Validar
         $request->validate([
             'nombre' => 'required|string|max:255',
-            'hora_inicio' => 'nullable',
-            'hora_fin' => 'nullable',
+            'empresa_id' => 'required',
+            'horarios' => 'nullable|array', // Asegúrate que esto pase la validación
         ]);
-
-        $category = Categorias::create([
-            'nombre' => $request->nombre,
-            'empresa_id' => $request->empresa_id,
-            'hora_inicio' => $request->hora_inicio,
-            'hora_fin' => $request->hora_fin,
-        ]);
+        // 2. Crear
+        // Simplifica esto para probar
+        $category = Categorias::create($request->all());
 
         return response()->json($category, 201);
     }

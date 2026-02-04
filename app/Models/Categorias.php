@@ -8,11 +8,16 @@ class Categorias extends Model
 {
     protected $table = 'categoria';
     protected $fillable = [
-        'empresa_id',
         'nombre',
-        'estado',
-        'hora_inicio',
+        'empresa_id',
+        'hora_inicio', // Se mantienen por compatibilidad si es necesario
         'hora_fin',
+        'horarios', // Nuevo campo
+        'estado'
+    ];
+
+    protected $casts = [
+        'horarios' => 'array', // Esto hace la magia de convertir JSON <-> Array
     ];
 
     // Relación inversa con Menu

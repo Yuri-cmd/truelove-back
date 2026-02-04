@@ -78,37 +78,36 @@ class MenuController extends Controller
 
     /**
      * Obtener menús agrupados por categoría con filtro de horario
-     * Las categorías con hora_inicio y hora_fin solo se muestran en ese rango
+     * Se valida el campo JSON "horarios" de la categoría para determinar si mostrarla
      */
     public function getMenuCategoria($empresa_id)
     {
-        // Obtener la hora actual
-        $now = now()->format('H:i:s');
+        // Obtener la hora actual para comparaciones
+        $now = now();
+        $horaActual = $now->format('H:i');
 
-        // Obtener todos los menús con sus categorías cuya categoría tenga estado = 1
-        // Y respetar el horario si está definido
+        // Mapeo de días inglés a español para el JSON
+        $diasMap = [
+            'Monday' => 'Lunes',
+            'Tuesday' => 'Martes',
+            'Wednesday' => 'Miércoles',
+            'Thursday' => 'Jueves',
+            'Friday' => 'Viernes',
+            'Saturday' => 'Sábado',
+            'Sunday' => 'Domingo',
+        ];
+        $diaActualEnglish = $now->format('l');
+        $diaActualEs = $diasMap[$diaActualEnglish] ?? '';
+
+        // Obtener menús activos de la empresa, cargando categorías activas (sin filtro de hora SQL)
         $menus = Menu::where('empresa_id', $empresa_id)
             ->where('status', 'active')
-            ->whereHas('categorias', function ($q) use ($now) {
-                $q->where('estado', 1)
-                    ->where(function ($query) use ($now) {
-                        $query->whereNull('hora_inicio')
-                            ->orWhere(function ($subq) use ($now) {
-                                $subq->whereTime('hora_inicio', '<=', $now)
-                                    ->whereTime('hora_fin', '>=', $now);
-                            });
-                    });
+            ->whereHas('categorias', function ($q) {
+                $q->where('estado', 1);
             })
             ->with([
-                'categorias' => function ($q) use ($now) {
-                    $q->where('estado', 1)
-                        ->where(function ($query) use ($now) {
-                            $query->whereNull('hora_inicio')
-                                ->orWhere(function ($subq) use ($now) {
-                                    $subq->whereTime('hora_inicio', '<=', $now)
-                                        ->whereTime('hora_fin', '>=', $now);
-                                });
-                        });
+                'categorias' => function ($q) {
+                    $q->where('estado', 1);
                 }
             ])
             ->get();
@@ -117,6 +116,65 @@ class MenuController extends Controller
 
         foreach ($menus as $menu) {
             foreach ($menu->categorias as $categoria) {
+
+                // --- Lógica de filtrado por horario JSON ---
+                $mostrarCategoria = true;
+
+                if (!empty($categoria->horarios)) {
+                    $configDia = null;
+                    // Buscar configuración para hoy
+                    foreach ($categoria->horarios as $diaConfig) {
+                        if (($diaConfig['dia'] ?? '') === $diaActualEs) {
+                            $configDia = $diaConfig;
+                            break;
+                        }
+                    }
+
+                    if ($configDia) {
+                        $activoDia = $configDia['activo'] ?? false;
+                        if (!$activoDia) {
+                            // Día inactivo -> No mostrar
+                            $mostrarCategoria = false;
+                        } else {
+                            // Día activo, verificar horas
+                            $horaInicio = $configDia['hora_inicio'] ?? null;
+                            $horaFin = $configDia['hora_fin'] ?? null;
+
+                            if (!is_null($horaInicio) && !is_null($horaFin)) {
+                                // Horario específico definido
+                                if ($horaFin < $horaInicio) {
+                                    // Cruza medianoche
+                                    if (!($horaActual >= $horaInicio || $horaActual <= $horaFin)) {
+                                        $mostrarCategoria = false;
+                                    }
+                                } else {
+                                    // Horario normal
+                                    if (!($horaActual >= $horaInicio && $horaActual <= $horaFin)) {
+                                        $mostrarCategoria = false;
+                                    }
+                                }
+                            }
+                            // Si horas son null y activo es true, se considera abierto (mostrarCategoria queda true)
+                            // Si horas son null y activo es true, se considera abierto (mostrarCategoria queda true)
+                        }
+                    }
+                    // Si no hay config para hoy en el JSON, depende de la regla de negocio. 
+                    // Asumiremos que si hay JSON pero no regla para hoy, usamos el estado global (que ya vimos es 1).
+                    // O podría ser false por defecto. Mantendremos true por compatibilidad con "estado 1".
+                } else {
+                    // Sin JSON horarios -> Aplica solo estado=1 (ya filtrado en query)
+                    // Verificar filtro antiguo hora_inicio / hora_fin si aun existen y no son null?
+                    // Por ahora priorizamos JSON, si no hay JSON, pasa por estar activo.
+
+                    // (Opcional: mantener lógica legacy si las columnas existen y tienen datos, 
+                    // pero el requerimiento es mover a JSON. Asumimos legacy es "siempre abierto" si no tiene JSON).
+                }
+
+                if (!$mostrarCategoria) {
+                    continue; // Saltar esta categoría para este menú
+                }
+                // -------------------------------------------
+
                 $categoriaIndex = array_search($categoria->nombre, array_column($groupedMenus, 'nombre'));
 
                 if ($categoriaIndex === false) {
@@ -126,6 +184,10 @@ class MenuController extends Controller
                     ];
                     $categoriaIndex = array_key_last($groupedMenus);
                 }
+
+                // Verificar si el item ya existe en esta categoría (por si acaso duplicados raros)
+                // Aunque iteramos menu -> categoria, un menú puede tener varias categorías.
+                // Aquí estamos agrupando por nombre de categoría.
 
                 $groupedMenus[$categoriaIndex]['items'][] = [
                     'id' => $menu->id,
@@ -141,7 +203,6 @@ class MenuController extends Controller
 
         return response()->json($groupedMenus);
     }
-
     public function destroy($id)
     {
         try {
