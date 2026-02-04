@@ -28,12 +28,4 @@ jobs:
             echo "Instalando dependencias..."
             composer install --no-interaction --prefer-dist --optimize-autoloader
 
-            echo "Ejecutando migraciones..."
-            php artisan migrate --force
-
-            echo "Limpiando cachés..."
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-
             echo "Deploy completado."
