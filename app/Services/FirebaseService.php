@@ -67,9 +67,11 @@ class FirebaseService
                     "title" => $title,
                     "body" => $body
                 ],
+                "data" => $data,
                 "android" => [
                     "notification" => [
-                        "sound" => "default"
+                        "sound" => "default",
+                        "channel_id" => "general_channel" // Explicit general channel
                     ]
                 ],
                 "apns" => [
@@ -121,13 +123,13 @@ class FirebaseService
                 ]),
                 "android" => [
                     "notification" => [
-                        "channel_id" => "pedidos_channel"
+                        "channel_id" => "pedidos_v3" // Updated to match Flutter app
                     ]
                 ],
                 "apns" => [
                     "payload" => [
                         "aps" => [
-                            "sound" => $soundFile . ".wav" 
+                            "sound" => $soundFile . ".wav"
                         ]
                     ]
                 ]
