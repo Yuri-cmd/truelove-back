@@ -320,7 +320,7 @@ class MenuController extends Controller
                 foreach ($grupo->items as $item) {
                     // 1. Fix: menu_id in items shouldn't be null
                     $item->menu_id = (int) $menuId;
-
+                    $item->foto = '';
                     // 2. Fix: item price should be the pivot price
                     if ($item->pivot && isset($item->pivot->precio)) {
                         $item->precio = $item->pivot->precio;
