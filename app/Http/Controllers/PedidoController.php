@@ -178,6 +178,7 @@ class PedidoController extends Controller
     public function sendMotorizadosCerca()
     {
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
+        Log::info('Motorizados cercanos: ' . json_encode($motorizadosToken));
         foreach ($motorizadosToken as $token) {
             if ($token) {
                 $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
