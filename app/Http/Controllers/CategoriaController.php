@@ -74,8 +74,7 @@ class CategoriaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'empresa_id' => 'required|string',
-                'hora_inicio' => 'nullable',
-                'hora_fin' => 'nullable',
+                'horarios' => 'nullable|array',
             ], [
                 'nombre.required' => 'El nombre de la categoría es requerido',
                 'empresa_id.required' => 'El ID de la empresa es requerido'
@@ -89,8 +88,7 @@ class CategoriaController extends Controller
             $category = Categorias::create([
                 'nombre' => $validated['nombre'],
                 'empresa_id' => $validated['empresa_id'],
-                'hora_inicio' => $request->hora_inicio,
-                'hora_fin' => $request->hora_fin,
+                'horarios' => $request->horarios,
             ]);
 
             return response()->json([
@@ -149,8 +147,7 @@ class CategoriaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'empresa_id' => 'required|string',
-                'hora_inicio' => 'nullable',
-                'hora_fin' => 'nullable',
+                'horarios' => 'nullable|array',
             ]);
 
             $category = Categorias::where('id', $id)
@@ -164,7 +161,11 @@ class CategoriaController extends Controller
                 ], 404);
             }
 
-            $category->update($validated);
+            $category->update([
+                'nombre' => $validated['nombre'],
+                'empresa_id' => $validated['empresa_id'],
+                'horarios' => $request->horarios,
+            ]);
 
             return response()->json([
                 'success' => true,

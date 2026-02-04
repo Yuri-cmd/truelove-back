@@ -32,10 +32,10 @@ class AdicionalController extends Controller
     {
         try {
             $request->validate([
-                'menu_id' => 'required|exists:menu,id',
+                'menu_id' => 'nullable|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'descripcion' => 'nullable|string|max:100',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
@@ -86,10 +86,10 @@ class AdicionalController extends Controller
         try {
             $adicional = Adicional::findOrFail($id);
             $request->validate([
-                'menu_id' => 'required|exists:menu,id',
+                'menu_id' => 'nullable|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'descripcion' => 'nullable|string|max:100',
                 'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
@@ -142,14 +142,20 @@ class AdicionalController extends Controller
     }
 
     /**
-     * Obtener adicionales por empresa (con información del menú)
+     * Obtener adicionales por empresa (con información del menú si existe)
      */
     public function obtenerAdicionales($empresa_id)
     {
         try {
-            $adicionales = Adicional::with('menu:id,titulo')
-                ->where('empresa_id', $empresa_id)
-                ->get();
+            $adicionales = Adicional::where('empresa_id', $empresa_id)
+                ->get()
+                ->map(function ($adicional) {
+                    // Cargar menú solo si existe menu_id
+                    if ($adicional->menu_id) {
+                        $adicional->load('menu:id,titulo');
+                    }
+                    return $adicional;
+                });
             return response()->json($adicionales, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al obtener los adicionales', 'error' => $e->getMessage()], 500);
@@ -178,10 +184,10 @@ class AdicionalController extends Controller
     {
         try {
             $request->validate([
-                'menu_id' => 'required|exists:menu,id',
+                'menu_id' => 'nullable|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'descripcion' => 'nullable|string|max:100',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
@@ -194,7 +200,7 @@ class AdicionalController extends Controller
             }
 
             $adicional = Adicional::create([
-                'menu_id' => $request->menu_id,
+                'menu_id' => $request->menu_id ?? null,
                 'empresa_id' => $request->empresa_id,
                 'titulo' => $request->titulo,
                 'descripcion' => $request->descripcion ?? '',
@@ -232,10 +238,10 @@ class AdicionalController extends Controller
         try {
             $adicional = Adicional::findOrFail($id);
             $request->validate([
-                'menu_id' => 'required|exists:menu,id',
+                'menu_id' => 'nullable|exists:menu,id',
                 'empresa_id' => 'required|exists:business_registrations,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'descripcion' => 'nullable|string|max:100',
                 'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
                 'status' => 'required|in:active,inactive',
