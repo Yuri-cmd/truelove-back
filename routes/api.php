@@ -358,7 +358,7 @@ Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProo
 // Ticket PDF
 Route::get('pedido/{id}/ticket', [TicketController::class, 'generateTicket']);
 
-// Grupos Adicionales
+// Grupos Adicionalesss
 Route::get('grupos-adicionales/{empresa_id}', [GrupoAdicionalController::class, 'index']);
 Route::post('grupos-adicionales', [GrupoAdicionalController::class, 'store']);
 Route::get('grupos-adicionales/detalle/{id}', [GrupoAdicionalController::class, 'show']);
