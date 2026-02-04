@@ -237,27 +237,34 @@ class MenuController extends Controller
         $menuId = $request->query('menu_id');
 
         if ($menuId) {
-            // Obtener adicionales de un menú específico
-            $adicionales = Adicional::where('menu_id', $menuId)
-                ->where('status', 'active')
-                ->select('id', 'titulo', 'precio')
-                ->get();
+            // Buscamos el menú y cargamos sus grupos con sus respectivos items
+            // Usamos 'with' para traer toda la jerarquía en una sola consulta
+            $menuConGrupos = Menu::with([
+                'grupos' => function ($query) {
+                    $query->where('estado', 'active')
+                        ->with([
+                            'items' => function ($q) {
+                                $q->where('status', 'active');
+                            }
+                        ]);
+                }
+            ])->find($menuId);
 
-            return response()->json($adicionales);
+            if (!$menuConGrupos) {
+                return response()->json(['error' => 'Menú no encontrado'], 404);
+            }
+
+            // Retornamos los grupos, cada uno llevará sus reglas (min/max) e items
+            return response()->json($menuConGrupos->grupos);
         }
 
-        // Comportamiento original: todos los adicionales de la empresa
-        $adicionales = DB::select("SELECT
-                    id,
-                    titulo,
-                    precio 
-                FROM
-                    `adicionales` 
-                WHERE
-                    adicionales.empresa_id = ? 
-                    AND adicionales.`status` = 'active'", [$id]);
+        // Comportamiento original: Todos los adicionales base de la empresa (biblioteca)
+        $adicionalesBase = Adicional::where('empresa_id', $id)
+            ->where('status', 'active')
+            ->select('id', 'titulo', 'precio_sugerido as precio')
+            ->get();
 
-        return response()->json($adicionales);
+        return response()->json($adicionalesBase);
     }
 
     /**

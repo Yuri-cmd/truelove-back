@@ -34,4 +34,12 @@ class Menu extends Model
     {
         return $this->belongsTo(BusinessRegistration::class, 'empresa_id');
     }
+
+    public function grupos()
+    {
+        // Relación a través de la tabla menu_grupos
+        return $this->belongsToMany(GrupoAdicional::class, 'menu_grupos', 'menu_id', 'grupo_id')
+            ->withPivot('orden')
+            ->orderBy('pivot_orden');
+    }
 }
