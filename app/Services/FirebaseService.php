@@ -71,7 +71,7 @@ class FirebaseService
                 "android" => [
                     "notification" => [
                         "sound" => "default",
-                        "channel_id" => "general_channel" // Explicit general channel
+                        "channel_id" => "general_channel"
                     ]
                 ],
                 "apns" => [
