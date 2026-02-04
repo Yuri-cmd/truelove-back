@@ -17,10 +17,12 @@ class GrupoAdicionalController extends Controller
     {
         try {
             $grupos = GrupoAdicional::where('empresa_id', $empresa_id)
-                ->with(['items' => function ($query) {
-                    $query->select('adicionales.id', 'adicionales.titulo', 'adicionales.precio')
-                        ->orderBy('grupo_adicional_items.orden');
-                }])
+                ->with([
+                    'items' => function ($query) {
+                        $query->select('adicionales.id', 'adicionales.titulo', 'adicionales.precio')
+                            ->orderBy('grupo_adicional_items.orden');
+                    }
+                ])
                 ->orderBy('nombre')
                 ->get();
 
@@ -69,9 +71,11 @@ class GrupoAdicionalController extends Controller
     public function show($id)
     {
         try {
-            $grupo = GrupoAdicional::with(['items' => function ($query) {
-                $query->orderBy('grupo_adicional_items.orden');
-            }])->findOrFail($id);
+            $grupo = GrupoAdicional::with([
+                'items' => function ($query) {
+                    $query->orderBy('grupo_adicional_items.orden');
+                }
+            ])->findOrFail($id);
 
             return response()->json($grupo);
         } catch (\Exception $e) {
@@ -158,11 +162,17 @@ class GrupoAdicionalController extends Controller
                 return response()->json(['error' => 'El adicional ya está en este grupo'], 400);
             }
 
+            $ultimoOrden = DB::table('grupo_adicional_items')
+                ->where('grupo_id', $grupo_id)
+                ->max('orden');
+
+            $orden = ($ultimoOrden ?? 0) + 1;
+
             DB::table('grupo_adicional_items')->insert([
                 'grupo_id' => $grupo_id,
                 'adicional_id' => $request->adicional_id,
                 'precio' => $request->precio,
-                'orden' => $request->orden ?? 0,
+                'orden' => $request->orden ?? $orden,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
