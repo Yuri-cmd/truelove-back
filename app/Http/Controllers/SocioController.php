@@ -476,11 +476,17 @@ class SocioController extends Controller
             $estado = $request->estado;
 
             // Validar que el estado sea válido
-            if (!in_array($estado, [1, 2, 3, 4, 5, 6, 7])) {
+            if (!in_array($estado, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Estado no válido'
                 ], 400);
+            }
+
+            // Guardar el tiempo si se envía
+            if ($request->tiempo) {
+                $pedido->tiempo = $request->tiempo;
+                $pedido->save();
             }
 
             // Crear un nuevo tracking

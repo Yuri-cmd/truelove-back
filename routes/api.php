@@ -44,6 +44,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TipoNegocioController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\InfoClienteController;
+use App\Http\Controllers\TicketController;
 use App\Http\Middleware\EncryptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -352,6 +353,9 @@ Route::get('validar/cupon/descuento/{code}/{idCliente}', [DescuentoClienteContro
 Route::post('cliente/update-token', [ClienteController::class, 'updateToken']);
 Route::get('socio/entrega/documento/{idLocal}', [SocioController::class, 'socioEntregaDocumento']);
 Route::post('upload-payment-proof', [PedidoController::class, 'uploadPaymentProof']);
+
+// Ticket PDF
+Route::get('pedido/{id}/ticket', [TicketController::class, 'generateTicket']);
 
 
 // Rutas para eliminación de cuenta de cliente
