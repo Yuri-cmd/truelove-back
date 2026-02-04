@@ -28,4 +28,9 @@ jobs:
             echo "Instalando dependencias..."
             composer install --no-interaction --prefer-dist --optimize-autoloader
 
+            php artisan route:clear
+            php artisan route:cache
+            php artisan config:clear
+            php artisan config:cache
+
             echo "Deploy completado."

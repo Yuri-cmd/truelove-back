@@ -312,20 +312,25 @@ class MenuController extends Controller
             ])->find($menuId);
 
             if (!$menuConGrupos) {
-                return response()->json(['error' => 'Menú no encontrado'], 404);
+                return response()->json([]);
+            }
+
+            // Iterate over groups and items to fix values as requested
+            foreach ($menuConGrupos->grupos as $grupo) {
+                foreach ($grupo->items as $item) {
+                    // 1. Fix: menu_id in items shouldn't be null
+                    $item->menu_id = (int) $menuId;
+                    $item->foto = '';
+                    // 2. Fix: item price should be the pivot price
+                    if ($item->pivot && isset($item->pivot->precio)) {
+                        $item->precio = $item->pivot->precio;
+                    }
+                }
             }
 
             // Retornamos los grupos, cada uno llevará sus reglas (min/max) e items
             return response()->json($menuConGrupos->grupos);
         }
-
-        // Comportamiento original: Todos los adicionales base de la empresa (biblioteca)
-        $adicionalesBase = Adicional::where('empresa_id', $id)
-            ->where('status', 'active')
-            ->select('id', 'titulo', 'precio_sugerido as precio')
-            ->get();
-
-        return response()->json($adicionalesBase);
     }
 
     /**
