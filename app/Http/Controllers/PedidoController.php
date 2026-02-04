@@ -320,8 +320,8 @@ class PedidoController extends Controller
             // Buscar el último tracking creado para este pedido
             $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
             if ($ultimoTracking) {
-                // Sumarle un minuto al created_at del último tracking
-                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addMinute();
+                // Sumarle 30 segundos al created_at del último tracking
+                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addSeconds(30);
                 $tracking->created_at = $nuevoCreatedAt;
                 $tracking->updated_at = $nuevoCreatedAt;
             }
@@ -345,8 +345,8 @@ class PedidoController extends Controller
             // Buscar el último tracking creado para este pedido
             $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('created_at')->first();
             if ($ultimoTracking) {
-                // Sumarle un minuto al created_at del último tracking
-                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addMinute();
+                // Sumarle 30 segundos al created_at del último tracking
+                $nuevoCreatedAt = (clone $ultimoTracking->created_at)->addSeconds(30);
                 $tracking->created_at = $nuevoCreatedAt;
                 $tracking->updated_at = $nuevoCreatedAt;
             }
