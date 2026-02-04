@@ -200,7 +200,7 @@ class PedidoController extends Controller
     public function pruebaNoticacion(Request $request)
     {
         if ($request->sonido == 'true') {
-            $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido');
+            $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido', $request->channel_id);
         } else {
             $this->firebaseService->sendNotification($request->token, 'Prueba', 'Notificacion sin sonido');
         }
@@ -209,10 +209,9 @@ class PedidoController extends Controller
     public function sendMotorizadosCerca()
     {
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
-        Log::info('Motorizados cercanos: ' . json_encode($motorizadosToken));
         foreach ($motorizadosToken as $token) {
             if ($token) {
-                $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido');
+                $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido', 'pedidos_v6');
             }
         }
     }
