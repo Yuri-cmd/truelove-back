@@ -15,8 +15,10 @@
             font-size: 11px;
             line-height: 1.4;
             color: #000;
-            width: 80mm;
-            padding: 5mm;
+            width: 70mm;
+            max-width: 70mm;
+            padding: 3mm;
+            margin: 0 auto;
         }
 
         .header {
@@ -76,9 +78,10 @@
 
         .productos-table {
             width: 100%;
-            font-size: 10px;
+            font-size: 9px;
             margin-bottom: 8px;
             border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .productos-table th {
@@ -88,14 +91,15 @@
             border-bottom: 1px solid #000;
         }
 
-        .productos-table th:nth-child(3),
-        .productos-table th:nth-child(4) {
-            text-align: right;
-        }
+        .productos-table th:nth-child(1) { width: 12%; }
+        .productos-table th:nth-child(2) { width: 48%; }
+        .productos-table th:nth-child(3) { width: 20%; text-align: right; }
+        .productos-table th:nth-child(4) { width: 20%; text-align: right; }
 
         .productos-table td {
             padding: 3px 0;
             vertical-align: top;
+            word-wrap: break-word;
         }
 
         .productos-table td:nth-child(3),
@@ -249,7 +253,7 @@
         @if($descuento > 0)
         <tr>
             <td class="total-label">Descuento:</td>
-            <td class="total-value">-{{ number_format($descuento, 2) }}</td>
+            <td class="total-value">-S/ {{ number_format($descuento, 2) }}</td>
         </tr>
         @endif
         <tr class="total-final">

@@ -29,13 +29,13 @@ class TicketController extends Controller
         $motorizado = RepartoRegistro::find($pedido->id_motorizado);
         $detalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
         
-        // Calcular subtotal (sin delivery)
-        $subtotal = $detalles->sum(function ($item) {
+        // Calcular subtotal de productos (sin delivery)
+        $subtotalProductos = $detalles->sum(function ($item) {
             return floatval($item->precio) * $item->cantidad;
         });
         
         $descuento = floatval($pedido->descuento ?? 0);
-        $total = $subtotal - $descuento;
+        $total = $subtotalProductos - $descuento;
 
         // Formatear fecha
         $fecha = Carbon::parse($pedido->created_at);
@@ -58,7 +58,6 @@ class TicketController extends Controller
             'localName' => $local->nombre_establecimiento ?? 'TRUE LOVE',
             'motorizado' => $motorizado,
             'detalles' => $detalles,
-            'subtotal' => $subtotal,
             'descuento' => $descuento,
             'total' => $total,
             'fecha' => $fechaFormateada,
@@ -69,8 +68,25 @@ class TicketController extends Controller
 
         $pdf = Pdf::loadView('tickets.pedido', $data);
         
-        // Configurar tamaño de papel para ticket (80mm de ancho)
-        $pdf->setPaper([0, 0, 226.77, 600], 'portrait'); // 80mm = 226.77 points
+        // Calcular altura dinámica basada en el contenido
+        $alturaBase = 350;
+        $alturaPorProducto = 25;
+        $alturaExtras = 0;
+        
+        if ($pedido->nota && $pedido->nota !== 'Sin nota') {
+            $alturaExtras += 40;
+        }
+        if ($motorizado) {
+            $alturaExtras += 30;
+        }
+        if ($descuento > 0) {
+            $alturaExtras += 20;
+        }
+        
+        $alturaTotal = $alturaBase + ($detalles->count() * $alturaPorProducto) + $alturaExtras;
+        
+        // Configurar tamaño de papel para ticket (80mm de ancho, altura dinámica)
+        $pdf->setPaper([0, 0, 226.77, $alturaTotal], 'portrait'); // 80mm = 226.77 points
 
         return $pdf->stream("ticket-pedido-{$id}.pdf");
     }
