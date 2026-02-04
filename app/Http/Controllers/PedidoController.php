@@ -60,16 +60,43 @@ class PedidoController extends Controller
 
         foreach ($request->items as $item) {
             $precio = preg_replace('/[^\d.]/', '', $item['price']);
-            $totalPedido += $precio * ($item['quantity'] ?? 1);
+            $cantidadItem = $item['quantity'] ?? 1;
+            $totalPedido += $precio * $cantidadItem;
 
             PedidoDetalle::create([
                 'pedido_id' => $pedido->id,
                 'id_producto' => $item['id'],
                 'nombre' => $item['name'],
-                'cantidad' => $item['quantity'] ?? 1,
+                'cantidad' => $cantidadItem,
                 'precio' => $precio,
                 'tipo' => 'item',
             ]);
+
+            // Guardar adicionales seleccionados del item
+            if (isset($item['selectedAdicionales']) && is_array($item['selectedAdicionales'])) {
+                foreach ($item['selectedAdicionales'] as $grupo) {
+                    if (isset($grupo['items']) && is_array($grupo['items'])) {
+                        foreach ($grupo['items'] as $adicional) {
+                            $precioAdic = $adicional['precio'];
+                            if (isset($adicional['pivot']['precio'])) {
+                                $precioAdic = $adicional['pivot']['precio'];
+                            }
+                            $precioAdic = preg_replace('/[^\d.]/', '', $precioAdic);
+
+                            $totalPedido += $precioAdic * $cantidadItem;
+
+                            PedidoDetalle::create([
+                                'pedido_id' => $pedido->id,
+                                'id_producto' => $adicional['id'],
+                                'nombre' => $adicional['titulo'] ?? $adicional['name'] ?? 'Adicional',
+                                'cantidad' => $cantidadItem,
+                                'precio' => $precioAdic,
+                                'tipo' => 'adicional',
+                            ]);
+                        }
+                    }
+                }
+            }
         }
 
         foreach ($request->adicionales as $adicional) {
@@ -172,9 +199,9 @@ class PedidoController extends Controller
 
     public function pruebaNoticacion(Request $request)
     {
-        if($request->sonido == 'true'){
+        if ($request->sonido == 'true') {
             $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido');
-        }else{
+        } else {
             $this->firebaseService->sendNotification($request->token, 'Prueba', 'Notificacion sin sonido');
         }
     }
