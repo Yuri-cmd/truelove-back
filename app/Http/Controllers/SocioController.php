@@ -81,7 +81,7 @@ class SocioController extends Controller
                         'posToDriver' => $businessRegistration->posToDriver,
                         'entrega_documento_venta' => $businessRegistration->entrega_documento_venta,
                         'cuota_socio_id' => $businessRegistration->cuota_socio_id,
-                        'fecha_asignacion_cuota' => $businessRegistration->fecha_asignacion_cuota 
+                        'fecha_asignacion_cuota' => $businessRegistration->fecha_asignacion_cuota
                             ? Carbon::parse($businessRegistration->fecha_asignacion_cuota)->format('d/m/Y H:i')
                             : null
                     ],
@@ -341,6 +341,12 @@ class SocioController extends Controller
         foreach ($pedidos as $pedido) {
             $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
             $cliente = Cliente::find($pedido->id_cliente);
+
+            // Si el cliente no existe, omitir este pedido
+            if (!$cliente) {
+                continue;
+            }
+
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
             $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
@@ -1038,7 +1044,7 @@ class SocioController extends Controller
                 $existingDocument = BusinessRegistration::where('documentNumber', $validated['documentNumber'])
                     ->where('id', '!=', $socio->id)
                     ->first();
-                
+
                 if ($existingDocument) {
                     return response()->json([
                         'status' => 'error',
@@ -1061,7 +1067,7 @@ class SocioController extends Controller
                 $existingEmail = BusinessRegistration::where('email', $validated['email'])
                     ->where('id', '!=', $socio->id)
                     ->first();
-                
+
                 if ($existingEmail) {
                     return response()->json([
                         'status' => 'error',
@@ -1363,7 +1369,7 @@ class SocioController extends Controller
                 $documentos = ['Boleta', 'Ninguno'];
                 break;
             case 2:
-                $documentos = ['Factura','Ninguno'];
+                $documentos = ['Factura', 'Ninguno'];
                 break;
             case 3:
                 $documentos = ['Boleta', 'Factura', 'Ninguno'];
