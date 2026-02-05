@@ -608,12 +608,13 @@ class BikerController extends Controller
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+  
             $pedido = [
                 'id' => $pedido->id,
                 'local' => $establecimiento->nombre_establecimiento,
                 'establecimiento' => $establecimiento->nombre_establecimiento,
                 'direccionLocal' => $establecimiento->direccion_completa,
-                'direccionEntrega' => $clienteDireccion->direccion,
+                'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                 'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                 'celular' => $cliente->celular,
                 'tiempoEstimado' => $pedido->tiempo_estimado,
@@ -675,7 +676,7 @@ class BikerController extends Controller
                     'local' => $establecimiento->nombre_establecimiento,
                     'establecimiento' => $establecimiento->nombre_establecimiento,
                     'direccionLocal' => $establecimiento->direccion_completa,
-                    'direccionEntrega' => $clienteDireccion->direccion,
+                    'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
                     'tiempoEstimado' => $pedido->tiempo_estimado,
@@ -734,13 +735,15 @@ class BikerController extends Controller
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
-
+                if($cliente){
+                    continue;
+                }
                 $data[] = [
                     'id' => $pedido->id,
                     'local' => $establecimiento->nombre_establecimiento,
                     'establecimiento' => $establecimiento->nombre_establecimiento,
                     'direccionLocal' => $establecimiento->direccion_completa,
-                    'direccionEntrega' => $clienteDireccion->direccion,
+                    'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
                     'tiempoEstimado' => $pedido->tiempo_estimado,
