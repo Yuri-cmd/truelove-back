@@ -735,7 +735,7 @@ class BikerController extends Controller
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
-                if($cliente){
+                if (!$cliente) {
                     continue;
                 }
                 $data[] = [
