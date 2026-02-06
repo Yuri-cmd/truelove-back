@@ -70,6 +70,7 @@ class SocioController extends Controller
                 'status' => 'success',
                 'data' => [
                     'id' => $businessRegistration->id,
+                    'activo' => (bool) $businessRegistration->activo,
                     'personal' => [
                         'name' => $businessRegistration->name,
                         'lastName' => $businessRegistration->lastName,
@@ -158,7 +159,7 @@ class SocioController extends Controller
             $socio->aprobado = true;
 
             // Generar credenciales
-            $username = $this->generateUniqueUsername($socio->name, $socio->lastName);
+            $username = $this->generateUniqueUsername($socio->name, $socio->lastName, $socio->documentType);
             $password = Str::random(10);
 
             // Obtener el rol de negocio
@@ -167,7 +168,7 @@ class SocioController extends Controller
             // Crear un nuevo usuario
             $user = new User();
             $user->usuario = $username;
-            $user->name = $socio->name . ' ' . $socio->lastName;
+            $user->name = $socio->documentType === 'RUC' ? trim($socio->name) : trim($socio->name . ' ' . $socio->lastName);
             $user->email = $socio->email;
             $user->password = bcrypt($password);
             $user->role_id = $rolNegocio->id;
@@ -209,31 +210,33 @@ class SocioController extends Controller
         }
     }
 
-    private function generateUniqueUsername($name, $lastName)
+    private function generateUniqueUsername($name, $lastName, $documentType = 'DNI')
     {
-        // Dividir nombres y apellidos
-        $nombresArray = explode(' ', trim($name));
-        $apellidosArray = explode(' ', trim($lastName));
+        // Si es RUC, generar username basado en la razón social
+        if ($documentType === 'RUC') {
+            // Limpiar y normalizar la razón social
+            $razonSocial = trim($name);
+            // Remover caracteres especiales y espacios, convertir a minúsculas
+            $baseUsername = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $razonSocial));
+            // Limitar a 15 caracteres máximo
+            $baseUsername = substr($baseUsername, 0, 15);
+            // Si quedó muy corto, agregar 'emp' al inicio
+            if (strlen($baseUsername) < 4) {
+                $baseUsername = 'emp' . $baseUsername;
+            }
+        } else {
+            // Para DNI y otros: primera letra del nombre + primer apellido
+            $nombresArray = explode(' ', trim($name));
+            $apellidosArray = explode(' ', trim($lastName));
 
-        // Obtener la primera letra del primer nombre en mayúscula
-        $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
+            $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
+            $primeraApellido = isset($apellidosArray[0]) && !empty($apellidosArray[0]) 
+                ? strtolower($apellidosArray[0]) 
+                : strtolower($nombresArray[0]);
 
-        // // Obtener el segundo nombre si existe, si no, usar el primer nombre
-        // $segundoNombre = isset($nombresArray[1]) ? strtolower($nombresArray[1]) : strtolower($nombresArray[0]);
+            $baseUsername = $primeraNombre . $primeraApellido;
+        }
 
-        // // Obtener la primera letra del primer apellido en mayúscula
-        // $primeraApellido = isset($apellidosArray[0]) ? ucfirst(substr($apellidosArray[0], 0, 1)) : '';
-
-        // cambiar a obtener el primer apellido completo en minusculas
-        $primeraApellido = isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '';
-
-        // // Obtener el segundo apellido si existe, si no, usar el primer apellido
-        // $segundoApellido = isset($apellidosArray[1]) ? strtolower($apellidosArray[1]) : 
-        //                    (isset($apellidosArray[0]) ? strtolower($apellidosArray[0]) : '');
-
-        // Construir el nombre de usuario base (primera letra del nombre + primer apellido)
-        // $baseUsername = $primeraNombre . $segundoNombre . $primeraApellido . $segundoApellido;
-        $baseUsername = $primeraNombre . $primeraApellido;
         $username = $baseUsername;
         $counter = 1;
 
