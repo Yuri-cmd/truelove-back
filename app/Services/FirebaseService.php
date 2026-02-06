@@ -100,7 +100,7 @@ class FirebaseService
         }
     }
 
-    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $data = [])
+    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', $data = [])
     {
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
@@ -127,7 +127,7 @@ class FirebaseService
                 "android" => [
                     "priority" => "high",
                     "notification" => [
-                        "channel_id" => "pedidos_v3" // Updated to match Flutter app
+                        "channel_id" => $channelId // Updated to match Flutter app
                     ]
                 ],
                 "apns" => [
