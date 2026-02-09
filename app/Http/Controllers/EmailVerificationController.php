@@ -20,7 +20,7 @@ class EmailVerificationController extends Controller
     
             // Verificar si existe un registro con el mismo correo y documento
             $existingRegistration = BusinessRegistration::where('email', $request->email)
-                ->where('documentNumber', $request->documentNumber)
+            
                 ->first();
     
             // Si existe un registro con el mismo correo y documento, permitir continuar
@@ -46,8 +46,7 @@ class EmailVerificationController extends Controller
             }
     
             // Verificar si existe un registro con el mismo documento pero diferente correo
-            $existingDocument = BusinessRegistration::where('documentNumber', $request->documentNumber)
-                ->where('email', '!=', $request->email)
+            $existingDocument = BusinessRegistration::where('email', $request->email)
                 ->first();
             
             if ($existingDocument) {
@@ -68,14 +67,12 @@ class EmailVerificationController extends Controller
                 return response()->json([
                     'message' => 'Ya existe un registro incompleto con este documento pero con otro correo electrónico.',
                     'registration_id' => $existingDocument->id,
-                    'original_email' => $existingDocument->email,
                     'error' => 'different_email'
                 ], 200);
             }
     
             // Verificar si existe un registro con el mismo correo pero diferente documento
             $existingEmail = BusinessRegistration::where('email', $request->email)
-                ->where('documentNumber', '!=', $request->documentNumber)
                 ->first();
             
             if ($existingEmail) {

@@ -113,7 +113,7 @@ class PedidoController extends Controller
             ]);
         }
 
-        $requiereConfirmacion = $totalPedido > 100;
+        $requiereConfirmacion = $totalPedido >= 100;
 
         $pedido->requiere_confirmacion_local = $requiereConfirmacion;
 
