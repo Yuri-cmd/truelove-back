@@ -301,6 +301,7 @@ Route::get('/registro-vehiculo/{repartoRegistroId}', [RegistroVehiculoController
 Route::post('/socios/cuenta-bancaria', [SociosCuentaBancariaController::class, 'store']);
 Route::post('/confirmar-pedido', [PedidoController::class, 'store']);
 Route::get('/pedidos/{id}', [PedidoTrackingController::class, 'obtenerEstado']);
+Route::post('/cancelar-pedido', [PedidoController::class, 'cancelarPedido']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
 Route::get('prueba', [PedidoController::class, 'prueba']);

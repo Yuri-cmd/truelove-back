@@ -834,4 +834,25 @@ class PedidoController extends Controller
             return response()->json(['error' => 'No se recibió archivo'], 400);
         }
     }
+
+    public function cancelarPedido(Request $request)
+    {
+        $pedido = Pedido::find($request->id_pedido);
+        if (!$pedido) {
+            return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
+        }
+
+        // Solo permitir cancelar si está en estado pendiente (1)
+        $ultimoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+        if (!$ultimoTracking || $ultimoTracking->estado != 1) {
+            return response()->json(['status' => 'error', 'message' => 'El pedido ya no puede ser cancelado'], 400);
+        }
+
+        PedidoTracking::create([
+            'pedido_id' => $pedido->id,
+            'estado' => 0 // Cancelado
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Pedido cancelado correctamente']);
+    }
 }

@@ -10,6 +10,7 @@ use App\Models\Pedido;
 use App\Models\PedidoTracking;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class PedidoTrackingController extends Controller
 {
@@ -21,22 +22,32 @@ class PedidoTrackingController extends Controller
     }
     public function obtenerEstado($id)
     {
-        $pedido = PedidoTracking::where('pedido_id', $id)->latest()->first();
-        if (!$pedido) {
+        $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest()->first();
+        if (!$ultimoTracking) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
-        $tiempo = Pedido::find($id)->tiempo;
-        $local = Establecimiento::where('business_registration_id', Pedido::find($id)->id_local)->first();
-        $negocio = Negocio::where('business_registration_id', Pedido::find($id)->id_local)->first();
+
+        $pedido = Pedido::find($id);
+        $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
+        $negocio = Negocio::where('business_registration_id', $pedido->id_local)->first();
+
+        // Calcular minutos transcurridos de forma más robusta usando timestamps
+        $now = Carbon::now();
+        $createdAt = $pedido->created_at ? Carbon::parse($pedido->created_at) : $now;
+        $minutosTranscurridos = (int) floor($createdAt->diffInSeconds($now) / 60);
+
         return response()->json([
             'id' => $id,
-            'estado' => $pedido->estado,
-            'tiempo' => $tiempo ?? 0,
-            'tieneMotorizado' => Pedido::find($id)->id_motorizado ? true : false,
+            'estado' => $ultimoTracking->estado,
+            'tiempo' => $pedido->tiempo ?? 0,
+            'minutos_transcurridos' => $minutosTranscurridos,
+            'tieneMotorizado' => $pedido->id_motorizado ? true : false,
             'direccionLocal' => $local ? $local->direccion_completa : null,
             'lat' => $local ? $local->latitud : null,
             'lon' => $local ? $local->longitud : null,
             'telefono' => $local ? $negocio->telefono : null,
+            'created_at' => $createdAt->toDateTimeString(),
+            'server_time' => $now->toDateTimeString(),
         ]);
     }
 
