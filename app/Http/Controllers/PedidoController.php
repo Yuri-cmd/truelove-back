@@ -853,6 +853,16 @@ class PedidoController extends Controller
             'estado' => 0 // Cancelado
         ]);
 
+        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
+
+        if ($local_fmc) {
+            $this->firebaseService->sendNotification(
+                $local_fmc,
+                'Pedido cancelado',
+                'El pedido #'.$pedido->id.' ha sido cancelado por el cliente.'
+            );
+        }
+
         return response()->json(['status' => 'success', 'message' => 'Pedido cancelado correctamente']);
     }
 }
