@@ -14,17 +14,23 @@ class KilometrosTarifa extends Model
     protected $fillable = [
         'precio_base_diurno',
         'precio_base_nocturno',
+        'precio_por_km_diurno',
+        'precio_por_km_nocturno',
         'precio_maximo',
         'distancia_maxima',
         'distancia_minima',
         'activo',
         'nombre',
-        'descripcion'
+        'descripcion',
+        'hora_inicio_nocturno',
+        'hora_fin_nocturno'
     ];
 
     protected $casts = [
         'precio_base_diurno' => 'decimal:2',
         'precio_base_nocturno' => 'decimal:2',
+        'precio_por_km_diurno' => 'decimal:2',
+        'precio_por_km_nocturno' => 'decimal:2',
         'precio_maximo' => 'decimal:2',
         'distancia_maxima' => 'decimal:2',
         'distancia_minima' => 'decimal:2',
@@ -53,5 +59,11 @@ class KilometrosTarifa extends Model
         $this->update(['activo' => true]);
 
         return $this;
+    }
+
+    // Relación con rangos de tarifa
+    public function rangos()
+    {
+        return $this->hasMany(TarifaRango::class, 'kilometros_tarifa_id', 'id')->orderBy('orden');
     }
 }

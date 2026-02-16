@@ -7,6 +7,7 @@ use App\Models\PagoCuotaSocio;
 use App\Models\PeriodoCuotaSocio;
 use App\Models\BusinessRegistration;
 use App\Services\PeriodoCuotaService;
+use App\Services\CalculoCuotaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -45,13 +46,23 @@ class CuotaSocioController extends Controller
     {
         $validated = $request->validate([
             'periodicidad' => 'required|in:diario,semanal,quincenal,mensual',
-            'monto_cuota' => 'required|numeric|min:0',
+            'tipo_cuota' => 'required|in:monto_fijo,porcentaje',
+            'monto_cuota' => 'required_if:tipo_cuota,monto_fijo|nullable|numeric|min:0',
+            'porcentaje_comision' => 'required_if:tipo_cuota,porcentaje|nullable|numeric|min:0|max:100',
+            'minimo_pedidos' => 'nullable|integer|min:0',
+            'exonerar_si_menos_pedidos' => 'nullable|boolean',
+            'monto_minimo' => 'nullable|numeric|min:0',
             'numero_cuenta' => 'required|string|max:50',
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
             'metodos_pago_disponibles' => 'nullable|array',
             'descripcion' => 'nullable|string'
         ]);
+
+        // Si el tipo es porcentaje y no se proporciona monto_cuota, establecer en 0
+        if ($validated['tipo_cuota'] === 'porcentaje' && !isset($validated['monto_cuota'])) {
+            $validated['monto_cuota'] = 0;
+        }
 
         // Si se marca como activa, desactivar otras cuotas activas
         // if ($request->estado === 'activo') {
@@ -79,12 +90,19 @@ class CuotaSocioController extends Controller
 
         $validated = $request->validate([
             'periodicidad' => 'sometimes|in:diario,semanal,quincenal,mensual',
-            'monto_cuota' => 'sometimes|numeric|min:0',
+            'tipo_cuota' => 'sometimes|in:monto_fijo,porcentaje',
+            'monto_cuota' => 'sometimes|nullable|numeric|min:0',
+            'porcentaje_comision' => 'sometimes|nullable|numeric|min:0|max:100',
+            'minimo_pedidos' => 'nullable|integer|min:0',
+            'exonerar_si_menos_pedidos' => 'nullable|boolean',
+            'monto_minimo' => 'nullable|numeric|min:0',
             'numero_cuenta' => 'sometimes|string|max:50',
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
             'metodos_pago_disponibles' => 'nullable|array',
             'estado' => 'sometimes|in:activo,inactivo',
+            'fecha_inicio' => 'sometimes|date',
+            'fecha_fin' => 'nullable|date',
             'descripcion' => 'nullable|string'
         ]);
 
@@ -777,6 +795,133 @@ class CuotaSocioController extends Controller
                     'fecha_vencimiento' => $fechaVencimiento
                 ]);
             }
+        }
+    }
+
+    // ==================== NUEVOS ENDPOINTS PARA COMISIONES POR PORCENTAJE ====================
+
+    /**
+     * POST /admin/cuotas-socios/calcular-periodo/{periodoId}
+     * Calcular manualmente la cuota/comisión de un período específico
+     */
+    public function calcularPeriodo($periodoId)
+    {
+        try {
+            $calculoService = app(CalculoCuotaService::class);
+            $periodo = $calculoService->calcularCuotaDelPeriodo($periodoId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cuota calculada exitosamente',
+                'data' => [
+                    'periodo_id' => $periodo->id,
+                    'total_ventas' => $periodo->total_ventas,
+                    'cantidad_pedidos' => $periodo->cantidad_pedidos,
+                    'monto_calculado' => $periodo->monto_calculado,
+                    'monto_esperado' => $periodo->monto_esperado,
+                    'fecha_calculo' => $periodo->fecha_calculo
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al calcular la cuota',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /admin/cuotas-socios/calcular-socio/{socioId}
+     * Calcular todas las cuotas pendientes de un socio
+     */
+    public function calcularCuotasSocio($socioId)
+    {
+        try {
+            $calculoService = app(CalculoCuotaService::class);
+            $resultados = $calculoService->calcularTodasLasCuotasPendientes($socioId);
+
+            $exitosos = collect($resultados)->where('success', true)->count();
+            $fallidos = collect($resultados)->where('success', false)->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Cálculo completado: {$exitosos} exitosos, {$fallidos} fallidos",
+                'data' => $resultados
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al calcular las cuotas del socio',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /admin/cuotas-socios/calcular-todos/{cuotaId}
+     * Calcular cuotas para todos los socios de una cuota específica
+     */
+    public function calcularTodasLasCuotas($cuotaId)
+    {
+        try {
+            $calculoService = app(CalculoCuotaService::class);
+            $resultados = $calculoService->calcularCuotasParaTodosLosSocios($cuotaId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cálculo masivo completado',
+                'data' => $resultados
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al calcular las cuotas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /admin/cuotas-socios/detalle-periodo/{periodoId}
+     * Obtener detalle completo de un período con cálculos
+     */
+    public function detallePeriodo($periodoId)
+    {
+        try {
+            $periodo = PeriodoCuotaSocio::with(['cuota', 'socio', 'pago'])->findOrFail($periodoId);
+            $calculoService = app(CalculoCuotaService::class);
+
+            // Obtener ventas y pedidos del período
+            $resultado = $calculoService->calcularVentasYPedidos(
+                $periodo->socio_id,
+                $periodo->periodo_inicio,
+                $periodo->periodo_fin
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'periodo' => $periodo,
+                    'detalle_calculo' => [
+                        'total_ventas' => $resultado['total_ventas'],
+                        'cantidad_pedidos' => $resultado['cantidad_pedidos'],
+                        'tipo_cuota' => $periodo->cuota->tipo_cuota,
+                        'porcentaje_comision' => $periodo->cuota->porcentaje_comision,
+                        'minimo_pedidos' => $periodo->cuota->minimo_pedidos,
+                        'exonerar_si_menos_pedidos' => $periodo->cuota->exonerar_si_menos_pedidos,
+                        'monto_minimo' => $periodo->cuota->monto_minimo,
+                        'monto_calculado' => $periodo->monto_calculado,
+                        'monto_esperado' => $periodo->monto_esperado
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener detalle del período',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

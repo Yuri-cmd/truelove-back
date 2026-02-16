@@ -22,6 +22,7 @@ use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\IdsController;
 use App\Http\Controllers\KilometrosTarifaController;
+use App\Http\Controllers\TarifaRangoController;
 use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MedioPagoController;
@@ -138,10 +139,27 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', 'destroy');
         });
 
-        // Rutas para Kilómetros Tarifa
+        // Rutas para Kilómetros Tarifa (sistema antiguo, mantener por compatibilidad)
         Route::controller(KilometrosTarifaController::class)->prefix('kilometros-tarifa')->group(function () {
             Route::get('/', 'index');
             Route::get('/activa', 'getActiva');
+            Route::get('/{id}', 'show');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+            Route::post('/{id}/activar', 'activar');
+        });
+
+        // Rutas para Tarifas por Rangos (sistema nuevo)
+        Route::controller(TarifaRangoController::class)->prefix('tarifas-rangos')->group(function () {
+            // Endpoints específicos PRIMERO (antes de las rutas con {id})
+            Route::get('/activa', 'getActiva');
+            Route::get('/locales', 'getLocales');
+            Route::get('/clientes', 'getClientes');
+            Route::post('/calcular-preview', 'calcularPreview');
+            
+            // Rutas CRUD (con {id} al final)
+            Route::get('/', 'index');
             Route::get('/{id}', 'show');
             Route::post('/', 'store');
             Route::put('/{id}', 'update');
@@ -187,6 +205,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Gestión de día de pago
             Route::put('/{id}/actualizar-dia-pago', 'actualizarDiaPago');
+
+            // Cálculo de comisiones por porcentaje
+            Route::post('/calcular-periodo/{periodoId}', 'calcularPeriodo');
+            Route::post('/calcular-socio/{socioId}', 'calcularCuotasSocio');
+            Route::post('/calcular-todos/{cuotaId}', 'calcularTodasLasCuotas');
+            Route::get('/detalle-periodo/{periodoId}', 'detallePeriodo');
 
             // IMPORTANTE: Esta ruta debe ir al final para evitar conflictos
             Route::get('/{id}', 'show');
