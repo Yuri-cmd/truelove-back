@@ -18,6 +18,10 @@ class PeriodoCuotaSocio extends Model
         'periodo_inicio',
         'periodo_fin',
         'monto_esperado',
+        'total_ventas',
+        'cantidad_pedidos',
+        'monto_calculado',
+        'fecha_calculo',
         'estado',
         'pago_id',
         'fecha_vencimiento',
@@ -29,6 +33,10 @@ class PeriodoCuotaSocio extends Model
         'periodo_fin' => 'date',
         'fecha_vencimiento' => 'date',
         'monto_esperado' => 'decimal:2',
+        'total_ventas' => 'decimal:2',
+        'cantidad_pedidos' => 'integer',
+        'monto_calculado' => 'decimal:2',
+        'fecha_calculo' => 'datetime',
         'notificado_vencimiento' => 'boolean'
     ];
 

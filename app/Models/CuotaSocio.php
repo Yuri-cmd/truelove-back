@@ -14,7 +14,12 @@ class CuotaSocio extends Model
 
     protected $fillable = [
         'periodicidad', // 'diario', 'semanal', 'quincenal', 'mensual'
+        'tipo_cuota', // 'monto_fijo', 'porcentaje'
         'monto_cuota',
+        'porcentaje_comision', // Porcentaje para tipo 'porcentaje'
+        'minimo_pedidos', // Mínimo de pedidos para cobrar
+        'exonerar_si_menos_pedidos', // Si TRUE, exonera si no alcanza el mínimo
+        'monto_minimo', // Monto mínimo para tipo mixto
         'numero_cuenta',
         'tipo_cuenta',
         'banco',
@@ -27,6 +32,10 @@ class CuotaSocio extends Model
 
     protected $casts = [
         'monto_cuota' => 'decimal:2',
+        'porcentaje_comision' => 'decimal:2',
+        'minimo_pedidos' => 'integer',
+        'exonerar_si_menos_pedidos' => 'boolean',
+        'monto_minimo' => 'decimal:2',
         'metodos_pago_disponibles' => 'array' // Convierte JSON a array automáticamente
     ];
 
