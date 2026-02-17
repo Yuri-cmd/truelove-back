@@ -23,7 +23,9 @@ class KilometrosTarifa extends Model
         'nombre',
         'descripcion',
         'hora_inicio_nocturno',
-        'hora_fin_nocturno'
+        'hora_fin_nocturno',
+        'business_registration_id',
+        'modo_tarifa',
     ];
 
     protected $casts = [
@@ -34,7 +36,8 @@ class KilometrosTarifa extends Model
         'precio_maximo' => 'decimal:2',
         'distancia_maxima' => 'decimal:2',
         'distancia_minima' => 'decimal:2',
-        'activo' => 'boolean'
+        'activo' => 'boolean',
+        'business_registration_id' => 'integer',
     ];
 
     // Scope para obtener solo configuraciones activas
@@ -44,9 +47,19 @@ class KilometrosTarifa extends Model
     }
 
     // Método estático para obtener la configuración activa
-    public static function getConfiguracionActiva()
+    // Si se pasa $idLocal, busca primero config propia del local; si no, usa la global
+    public static function getConfiguracionActiva($idLocal = null)
     {
-        return static::where('activo', true)->first();
+        if ($idLocal) {
+            $config = static::where('business_registration_id', $idLocal)
+                ->where('activo', true)
+                ->first();
+            if ($config) return $config;
+        }
+        // Fallback: config global (sin local asignado)
+        return static::whereNull('business_registration_id')
+            ->where('activo', true)
+            ->first();
     }
 
     // Método para activar esta configuración y desactivar las demás

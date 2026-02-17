@@ -191,7 +191,7 @@ class PedidoController extends Controller
 
         $distancia = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
 
-        $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia) : 0;
+        $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
         // Formatear con 2 decimales
         return response()->json(number_format((float) $precio_delivery, 2, '.', ''));

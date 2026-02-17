@@ -157,7 +157,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/locales', 'getLocales');
             Route::get('/clientes', 'getClientes');
             Route::post('/calcular-preview', 'calcularPreview');
-            
+            // Rutas para config por local
+            Route::get('/locales-con-config', 'getLocalesConConfig');
+            Route::get('/config-local/{idLocal}', 'getConfigLocal');
+            Route::post('/config-local/{idLocal}', 'saveConfigLocal');
+            Route::delete('/config-local/{idLocal}', 'deleteConfigLocal');
+
             // Rutas CRUD (con {id} al final)
             Route::get('/', 'index');
             Route::get('/{id}', 'show');

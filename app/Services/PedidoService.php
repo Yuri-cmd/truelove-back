@@ -63,41 +63,48 @@ class PedidoService
         return null;
     }
 
-    public function calcularPrecioPorDistancia($distanciaKm)
+    public function calcularPrecioPorDistancia($distanciaKm, $idLocal = null)
     {
-        // SISTEMA SIMPLIFICADO: Usar rangos de distancia desde kilometros_tarifa
-        
-        // Obtener hora actual
         $horaActual = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
-        
-        // Obtener configuración activa de kilometros_tarifa
-        $config = KilometrosTarifa::getConfiguracionActiva();
-        
-        // Si no hay configuración, usar valores por defecto
+
+        // Busca config propia del local primero; si no, usa la global
+        $config = KilometrosTarifa::getConfiguracionActiva($idLocal);
+
         if (!$config) {
             return 5.00;
         }
 
-        // Buscar el rango que aplica para esta distancia
+        // Modo precio por kilómetro: precio_base + precio_por_km * distancia
+        if ($config->modo_tarifa === 'precio_por_km') {
+            return $this->calcularPrecioPorKm($distanciaKm, $config, $horaActual);
+        }
+
+        // Modo rangos (lógica actual)
         $rango = TarifaRango::where('kilometros_tarifa_id', $config->id)
             ->where('distancia_desde', '<=', $distanciaKm)
             ->where(function($query) use ($distanciaKm) {
                 $query->where('distancia_hasta', '>=', $distanciaKm)
-                      ->orWhereNull('distancia_hasta'); // Sin límite superior
+                      ->orWhereNull('distancia_hasta');
             })
             ->orderBy('orden')
             ->first();
 
-        // Si no se encuentra rango, usar precio por defecto
         if (!$rango) {
             return 5.00;
         }
 
-        // Determinar si es horario nocturno según la configuración
         $esNocturno = $this->esHorarioNocturno($horaActual, $config->hora_inicio_nocturno, $config->hora_fin_nocturno);
-
-        // Retornar precio fijo del rango (no se calcula, es fijo)
         return $esNocturno ? $rango->precio_nocturno : $rango->precio_diurno;
+    }
+
+    private function calcularPrecioPorKm($distanciaKm, $config, $horaActual)
+    {
+        $esNocturno = $this->esHorarioNocturno($horaActual, $config->hora_inicio_nocturno, $config->hora_fin_nocturno);
+        $precioBase = $esNocturno ? (float) $config->precio_base_nocturno : (float) $config->precio_base_diurno;
+        $precioPorKm = $esNocturno ? (float) $config->precio_por_km_nocturno : (float) $config->precio_por_km_diurno;
+        $precioMaximo = $config->precio_maximo ? (float) $config->precio_maximo : 25.00;
+        $calculado = $precioBase + ($distanciaKm * $precioPorKm);
+        return round(min($calculado, $precioMaximo), 2);
     }
 
     /**
