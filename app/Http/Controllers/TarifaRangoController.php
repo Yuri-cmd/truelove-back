@@ -441,32 +441,43 @@ class TarifaRangoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No se pudo calcular la distancia'], 500);
             }
 
-            // Usar la config del local (o global si no tiene propia)
-            $config = KilometrosTarifa::getConfiguracionActiva($request->id_local);
-            if (!$config) {
-                return response()->json(['success' => false, 'message' => 'No hay configuración de tarifas activa'], 404);
-            }
-
             $precio = $this->pedidoService->calcularPrecioPorDistancia($distanciaKm, $request->id_local);
 
             $negocio = BusinessRegistration::find($request->id_local);
             $cliente = Cliente::find($request->id_cliente);
 
+            // Determinar si tiene config propia o usa global
+            $configPropia = KilometrosTarifa::where('business_registration_id', $request->id_local)->where('activo', true)->first();
+            $tieneConfigPropia = !is_null($configPropia);
+
+            // Para mostrar datos en el simulador
             $rangoAplicado = null;
-            if ($config->modo_tarifa === 'rangos') {
-                $rango = TarifaRango::where('kilometros_tarifa_id', $config->id)
-                    ->where('distancia_desde', '<=', $distanciaKm)
-                    ->where(function($q) use ($distanciaKm) {
-                        $q->where('distancia_hasta', '>=', $distanciaKm)->orWhereNull('distancia_hasta');
-                    })
-                    ->orderBy('orden')->first();
-                if ($rango) {
-                    $rangoAplicado = [
-                        'distancia_desde' => number_format($rango->distancia_desde, 2, '.', ''),
-                        'distancia_hasta' => $rango->distancia_hasta ? number_format($rango->distancia_hasta, 2, '.', '') : null,
-                        'precio_diurno' => number_format($rango->precio_diurno, 2, '.', ''),
-                        'precio_nocturno' => number_format($rango->precio_nocturno, 2, '.', '')
-                    ];
+            $modoTarifa = 'global';
+            $configNombre = 'Configuración Global';
+            $horarioNocturno = null;
+
+            if ($tieneConfigPropia) {
+                $modoTarifa = $configPropia->modo_tarifa;
+                $configNombre = $configPropia->nombre;
+                $horarioNocturno = [
+                    'inicio' => substr($configPropia->hora_inicio_nocturno, 0, 5),
+                    'fin' => substr($configPropia->hora_fin_nocturno, 0, 5),
+                ];
+                if ($configPropia->modo_tarifa === 'rangos') {
+                    $rango = TarifaRango::where('kilometros_tarifa_id', $configPropia->id)
+                        ->where('distancia_desde', '<=', $distanciaKm)
+                        ->where(function($q) use ($distanciaKm) {
+                            $q->where('distancia_hasta', '>=', $distanciaKm)->orWhereNull('distancia_hasta');
+                        })
+                        ->orderBy('orden')->first();
+                    if ($rango) {
+                        $rangoAplicado = [
+                            'distancia_desde' => number_format($rango->distancia_desde, 2, '.', ''),
+                            'distancia_hasta' => $rango->distancia_hasta ? number_format($rango->distancia_hasta, 2, '.', '') : null,
+                            'precio_diurno' => number_format($rango->precio_diurno, 2, '.', ''),
+                            'precio_nocturno' => number_format($rango->precio_nocturno, 2, '.', ''),
+                        ];
+                    }
                 }
             }
 
@@ -476,7 +487,7 @@ class TarifaRangoController extends Controller
                     'local' => [
                         'id' => $negocio->id,
                         'nombre' => $negocio->name ?? 'Sin nombre',
-                        'tiene_config_propia' => !is_null(KilometrosTarifa::where('business_registration_id', $request->id_local)->first()),
+                        'tiene_config_propia' => $tieneConfigPropia,
                     ],
                     'cliente' => [
                         'id' => $cliente->id,
@@ -485,13 +496,10 @@ class TarifaRangoController extends Controller
                     ],
                     'distancia_km' => round($distanciaKm, 2),
                     'precio_calculado' => number_format($precio, 2, '.', ''),
-                    'modo_tarifa' => $config->modo_tarifa,
+                    'modo_tarifa' => $modoTarifa,
                     'rango_aplicado' => $rangoAplicado,
-                    'horario_nocturno' => [
-                        'inicio' => substr($config->hora_inicio_nocturno, 0, 5),
-                        'fin' => substr($config->hora_fin_nocturno, 0, 5)
-                    ],
-                    'config_nombre' => $config->nombre,
+                    'horario_nocturno' => $horarioNocturno,
+                    'config_nombre' => $configNombre,
                 ]
             ]);
 

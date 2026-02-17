@@ -65,36 +65,69 @@ class PedidoService
 
     public function calcularPrecioPorDistancia($distanciaKm, $idLocal = null)
     {
-        $horaActual = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
+        // Si hay local, buscar si tiene config propia (rangos o precio_por_km)
+        if ($idLocal) {
+            $configLocal = KilometrosTarifa::where('business_registration_id', $idLocal)
+                ->where('activo', true)
+                ->first();
 
-        // Busca config propia del local primero; si no, usa la global
-        $config = KilometrosTarifa::getConfiguracionActiva($idLocal);
+            if ($configLocal) {
+                $horaActual = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
 
-        if (!$config) {
-            return 5.00;
+                if ($configLocal->modo_tarifa === 'precio_por_km') {
+                    return $this->calcularPrecioPorKm($distanciaKm, $configLocal, $horaActual);
+                }
+
+                // Modo rangos
+                $rango = TarifaRango::where('kilometros_tarifa_id', $configLocal->id)
+                    ->where('distancia_desde', '<=', $distanciaKm)
+                    ->where(function($query) use ($distanciaKm) {
+                        $query->where('distancia_hasta', '>=', $distanciaKm)
+                              ->orWhereNull('distancia_hasta');
+                    })
+                    ->orderBy('orden')
+                    ->first();
+
+                if (!$rango) return 5.00;
+
+                $esNocturno = $this->esHorarioNocturno($horaActual, $configLocal->hora_inicio_nocturno, $configLocal->hora_fin_nocturno);
+                return $esNocturno ? $rango->precio_nocturno : $rango->precio_diurno;
+            }
         }
 
-        // Modo precio por kilómetro: precio_base + precio_por_km * distancia
-        if ($config->modo_tarifa === 'precio_por_km') {
-            return $this->calcularPrecioPorKm($distanciaKm, $config, $horaActual);
-        }
+        // Sin config propia → usar config GLOBAL con cálculo proporcional original
+        return $this->calcularPrecioGlobal($distanciaKm);
+    }
 
-        // Modo rangos (lógica actual)
-        $rango = TarifaRango::where('kilometros_tarifa_id', $config->id)
-            ->where('distancia_desde', '<=', $distanciaKm)
-            ->where(function($query) use ($distanciaKm) {
-                $query->where('distancia_hasta', '>=', $distanciaKm)
-                      ->orWhereNull('distancia_hasta');
-            })
-            ->orderBy('orden')
+    private function calcularPrecioGlobal($distanciaKm)
+    {
+        $hora = (int) \Carbon\Carbon::now('America/Lima')->format('G');
+        $esNocturno = ($hora >= 23 || $hora < 5);
+
+        $config = KilometrosTarifa::whereNull('business_registration_id')
+            ->where('activo', true)
             ->first();
 
-        if (!$rango) {
-            return 5.00;
+        if (!$config) {
+            $precioBase = $esNocturno ? 5.50 : 4.00;
+            $precioMax  = 10.00;
+            $distanciaMax = 10.00;
+            $distanciaMin = 1.00;
+        } else {
+            $precioBase   = $esNocturno ? (float) $config->precio_base_nocturno : (float) $config->precio_base_diurno;
+            $precioMax    = (float) $config->precio_maximo;
+            $distanciaMax = (float) $config->distancia_maxima;
+            $distanciaMin = (float) $config->distancia_minima;
         }
 
-        $esNocturno = $this->esHorarioNocturno($horaActual, $config->hora_inicio_nocturno, $config->hora_fin_nocturno);
-        return $esNocturno ? $rango->precio_nocturno : $rango->precio_diurno;
+        $epsilon = 0.0001;
+
+        if ($distanciaKm <= $distanciaMin + $epsilon) return $precioBase;
+        if ($distanciaKm >= $distanciaMax - $epsilon) return $precioMax;
+
+        // Cálculo proporcional, redondeado al 0.50 más cercano
+        $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - $distanciaMin)) * ($distanciaKm - $distanciaMin);
+        return round($precio * 2) / 2;
     }
 
     private function calcularPrecioPorKm($distanciaKm, $config, $horaActual)
