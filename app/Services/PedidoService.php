@@ -104,7 +104,8 @@ class PedidoService
         $precioPorKm = $esNocturno ? (float) $config->precio_por_km_nocturno : (float) $config->precio_por_km_diurno;
         $precioMaximo = $config->precio_maximo ? (float) $config->precio_maximo : 25.00;
         $calculado = $precioBase + ($distanciaKm * $precioPorKm);
-        return round(min($calculado, $precioMaximo));
+        $limitado = min($calculado, $precioMaximo);
+        return round($limitado * 2) / 2;
     }
 
     /**
