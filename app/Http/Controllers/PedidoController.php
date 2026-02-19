@@ -425,7 +425,9 @@ class PedidoController extends Controller
             if ($pedidoTracking && $local) {
                 $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                $total = $pedidoDetalles->sum('precio');
+                $total = $pedidoDetalles->sum(function ($detalle) {
+                    return $detalle->precio * $detalle->cantidad;
+                });
                 $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
                 if ($pedidoTracking->estado !== 8) {
                     $existeCalificacion = true;
@@ -565,7 +567,7 @@ class PedidoController extends Controller
         if (!$pedido) {
             return response()->json(['message' => 'Pedido no encontrado'], 404);
         }
-        $pedido->total = PedidoDetalle::where('pedido_id', $pedido->id)->sum('precio');
+        $pedido->total = PedidoDetalle::where('pedido_id', $pedido->id)->sum(DB::raw('precio * cantidad'));
         $pedido->fecha_entrega = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first()->created_at;
         $pedido->cliente = Cliente::find($pedido->id_cliente)->only(['nombre', 'apellido', 'email']);
         $pedido->motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
@@ -748,7 +750,9 @@ class PedidoController extends Controller
 
                 $nombre = $motorizado->nombres;
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                $total = number_format($pedidoDetalles->sum('precio'), 2);
+                $total = number_format($pedidoDetalles->sum(function ($detalle) {
+                    return $detalle->precio * $detalle->cantidad;
+                }), 2);
                 $direccion = $pedido->direccion ?? 'la dirección que nos brindaste';
 
                 $mensaje = "Hola soy {$nombre}, tú Driver de TRUE LOVE DELIVERY. Acabo de llegar con tu pedido de {$negocio->nombre_establecimiento}. El subtotal a pagar incluyendo el delivery sería S/{$total}.";
@@ -859,7 +863,7 @@ class PedidoController extends Controller
             $this->firebaseService->sendNotification(
                 $local_fmc,
                 'Pedido cancelado',
-                'El pedido #'.$pedido->id.' ha sido cancelado por el cliente.'
+                'El pedido #' . $pedido->id . ' ha sido cancelado por el cliente.'
             );
         }
 
