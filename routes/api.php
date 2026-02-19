@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDeletionController;
+use App\Http\Controllers\AppVersionController;
 use App\Http\Controllers\ClienteDeletionAdminController;
 use App\Http\Controllers\AdicionalController;
 use App\Http\Controllers\AuthAdminController;
@@ -56,6 +57,9 @@ Route::post('/admin/login', [AuthAdminController::class, 'login']);
 Route::post('/admin/verify-email', [AuthAdminController::class, 'verifyEmail']);
 Route::post('/admin/verify-code', [AuthAdminController::class, 'verifyCode']);
 Route::post('/admin/reset-password', [AuthAdminController::class, 'resetPassword']);
+
+Route::get('/app-version/{app_name}', [AppVersionController::class, 'getVersion']);
+
 Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);
 
 Route::middleware('auth:sanctum')->group(function () {
