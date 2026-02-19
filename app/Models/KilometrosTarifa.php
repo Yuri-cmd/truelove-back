@@ -14,21 +14,30 @@ class KilometrosTarifa extends Model
     protected $fillable = [
         'precio_base_diurno',
         'precio_base_nocturno',
+        'precio_por_km_diurno',
+        'precio_por_km_nocturno',
         'precio_maximo',
         'distancia_maxima',
         'distancia_minima',
         'activo',
         'nombre',
-        'descripcion'
+        'descripcion',
+        'hora_inicio_nocturno',
+        'hora_fin_nocturno',
+        'business_registration_id',
+        'modo_tarifa',
     ];
 
     protected $casts = [
         'precio_base_diurno' => 'decimal:2',
         'precio_base_nocturno' => 'decimal:2',
+        'precio_por_km_diurno' => 'decimal:2',
+        'precio_por_km_nocturno' => 'decimal:2',
         'precio_maximo' => 'decimal:2',
         'distancia_maxima' => 'decimal:2',
         'distancia_minima' => 'decimal:2',
-        'activo' => 'boolean'
+        'activo' => 'boolean',
+        'business_registration_id' => 'integer',
     ];
 
     // Scope para obtener solo configuraciones activas
@@ -38,9 +47,19 @@ class KilometrosTarifa extends Model
     }
 
     // Método estático para obtener la configuración activa
-    public static function getConfiguracionActiva()
+    // Si se pasa $idLocal, busca primero config propia del local; si no, usa la global
+    public static function getConfiguracionActiva($idLocal = null)
     {
-        return static::where('activo', true)->first();
+        if ($idLocal) {
+            $config = static::where('business_registration_id', $idLocal)
+                ->where('activo', true)
+                ->first();
+            if ($config) return $config;
+        }
+        // Fallback: config global (sin local asignado)
+        return static::whereNull('business_registration_id')
+            ->where('activo', true)
+            ->first();
     }
 
     // Método para activar esta configuración y desactivar las demás
@@ -53,5 +72,11 @@ class KilometrosTarifa extends Model
         $this->update(['activo' => true]);
 
         return $this;
+    }
+
+    // Relación con rangos de tarifa
+    public function rangos()
+    {
+        return $this->hasMany(TarifaRango::class, 'kilometros_tarifa_id', 'id')->orderBy('orden');
     }
 }

@@ -59,9 +59,11 @@ class KilometrosTarifaController extends Controller
             $validator = Validator::make($request->all(), [
                 'precio_base_diurno' => 'required|numeric|min:0',
                 'precio_base_nocturno' => 'required|numeric|min:0',
-                'precio_maximo' => 'required|numeric|min:0',
-                'distancia_maxima' => 'required|numeric|min:0',
-                'distancia_minima' => 'required|numeric|min:0',
+                'precio_por_km_diurno' => 'required|numeric|min:0',
+                'precio_por_km_nocturno' => 'required|numeric|min:0',
+                'precio_maximo' => 'nullable|numeric|min:0',
+                'distancia_maxima' => 'nullable|numeric|min:0',
+                'distancia_minima' => 'nullable|numeric|min:0',
                 'nombre' => 'required|string|max:100',
                 'descripcion' => 'nullable|string',
                 'activo' => 'boolean'
@@ -107,10 +109,12 @@ class KilometrosTarifaController extends Controller
             $validator = Validator::make($request->all(), [
                 'precio_base_diurno' => 'required|numeric|min:0',
                 'precio_base_nocturno' => 'required|numeric|min:0',
-                'precio_maximo' => 'required|numeric|min:0',
-                'distancia_maxima' => 'required|numeric|min:0',
-                'distancia_minima' => 'required|numeric|min:0',
-                'nombre' => 'required|string|max:100',
+                'precio_por_km_diurno' => 'nullable|numeric|min:0',
+                'precio_por_km_nocturno' => 'nullable|numeric|min:0',
+                'precio_maximo' => 'nullable|numeric|min:0',
+                'distancia_maxima' => 'nullable|numeric|min:0',
+                'distancia_minima' => 'nullable|numeric|min:0',
+                'nombre' => 'nullable|string|max:100',
                 'descripcion' => 'nullable|string',
                 'activo' => 'boolean'
             ]);
@@ -130,7 +134,16 @@ class KilometrosTarifaController extends Controller
                     ->update(['activo' => false]);
             }
 
-            $tarifa->update($request->all());
+            $tarifa->update($request->only([
+                'precio_base_diurno',
+                'precio_base_nocturno',
+                'precio_maximo',
+                'distancia_maxima',
+                'distancia_minima',
+                'nombre',
+                'descripcion',
+                'activo',
+            ]));
 
             return response()->json([
                 'success' => true,

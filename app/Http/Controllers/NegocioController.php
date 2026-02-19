@@ -182,57 +182,58 @@ class NegocioController extends Controller
 
     public function localEstaAbierto($idLocal)
     {
-        $abierto = false;
+        $now = \Carbon\Carbon::now();
+        $diaSemana = strtolower($now->format('l')); // "monday", "tuesday"...
 
+        // Diccionario para mapear días de Carbon a tus nombres de columnas o filtros
+        $diasMap = [
+            'monday' => 'Lun',
+            'tuesday' => 'Mar',
+            'wednesday' => 'Mié',
+            'thursday' => 'Jue',
+            'friday' => 'Vie',
+            'saturday' => 'Sáb',
+            'sunday' => 'Dom'
+        ];
+
+        $negocio = PerfilNegocio::where('business_registration_id', $idLocal)->firstOrFail();
+        
+        $estaAbierto = false;
+
+        // 1. Buscamos TODOS los horarios activos de este negocio
+        $horarios = HorarioNegocio::where('perfil_negocio_id', $negocio->id)
+            ->where('activo', 1)
+            ->get();
+            
         $businessRegistration = BusinessRegistration::findOrFail($idLocal);
-        $negocio = PerfilNegocio::where('business_registration_id', $idLocal)->first();
-        $horarioNegocio = HorarioNegocio::where('perfil_negocio_id', $negocio->id)->first();
-        // 1. Default: usar el estado activo del registro de negocio (si no hay horario detallado)
-        $abierto = $businessRegistration->activo == 1;
+        $estaAbierto = $businessRegistration->activo == 1;
 
-        // 2. Si existe un horario definido, verificamos días y horas
-        if ($horarioNegocio && $horarioNegocio->activo) {
-            $now = \Carbon\Carbon::now();
-            $dias = [
-                'Monday' => 'lunes',
-                'Tuesday' => 'martes',
-                'Wednesday' => 'miercoles',
-                'Thursday' => 'jueves',
-                'Friday' => 'viernes',
-                'Saturday' => 'sabado',
-                'Sunday' => 'domingo',
-            ];
+        $horaActual = $now->format('H:i:s');
 
-            $diaActualEnglish = $now->format('l'); // Monday, Tuesday...
-            $campoDia = $dias[$diaActualEnglish];
-            // Verificamos si abre hoy
-            if ($horarioNegocio->$campoDia) {
-                // Verificamos el rango de hora
-                $horaActual = $now->format('H:i:s');
+        foreach ($horarios as $horario) {
+            // Asumiendo que guardas los días en un array o string (ej: "Lun,Mar,Jue")
+            // Si tu estructura es diferente, ajusta esta validación de día:
+            if (str_contains($horario->dias, $diasMap[$diaSemana])) {
 
-                if ($horarioNegocio->hora_cierre < $horarioNegocio->hora_apertura) {
-                    // El horario cruza la medianoche (ej: 09:00 a 01:00)
-                    if ($horaActual >= $horarioNegocio->hora_apertura || $horaActual <= $horarioNegocio->hora_cierre) {
-                        $abierto = true;
-                    } else {
-                        $abierto = false;
+                $inicio = $horario->hora_apertura;
+                $fin = $horario->hora_cierre;
+
+                if ($fin < $inicio) {
+                    // Cruza medianoche
+                    if ($horaActual >= $inicio || $horaActual <= $fin) {
+                        $estaAbierto = true;
+                        break;
                     }
                 } else {
-                    // Horario normal (ej: 09:00 a 22:00)
-                    if ($horaActual >= $horarioNegocio->hora_apertura && $horaActual <= $horarioNegocio->hora_cierre) {
-                        $abierto = true;
-                    } else {
-                        $abierto = false;
+                    // Rango normal
+                    if ($horaActual >= $inicio && $horaActual <= $fin) {
+                        $estaAbierto = true;
+                        break;
                     }
                 }
-            } else {
-                // No abre hoy
-                $abierto = false;
             }
         }
 
-        return response()->json([
-            'abierto' => $abierto
-        ]);
+        return response()->json(['abierto' => $estaAbierto]);
     }
 }

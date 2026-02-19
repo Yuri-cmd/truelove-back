@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\KilometrosTarifa;
+use App\Models\TarifaRango;
 use App\Models\Location;
 use App\Models\Pedido;
 use App\Models\PedidoDetalle;
@@ -62,46 +63,131 @@ class PedidoService
         return null;
     }
 
-    public function calcularPrecioPorDistancia($distanciaKm)
+    public function calcularPrecioPorDistancia($distanciaKm, $idLocal = null)
+    {
+        // Si hay local, buscar si tiene config propia (rangos o precio_por_km)
+        if ($idLocal) {
+            $configLocal = KilometrosTarifa::where('business_registration_id', $idLocal)
+                ->where('activo', true)
+                ->first();
+
+            if ($configLocal) {
+                $horaActual = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
+
+                if ($configLocal->modo_tarifa === 'precio_por_km') {
+                    return $this->calcularPrecioPorKm($distanciaKm, $configLocal, $horaActual);
+                }
+
+                // Modo rangos
+                $rango = TarifaRango::where('kilometros_tarifa_id', $configLocal->id)
+                    ->where('distancia_desde', '<=', $distanciaKm)
+                    ->where(function($query) use ($distanciaKm) {
+                        $query->where('distancia_hasta', '>=', $distanciaKm)
+                              ->orWhereNull('distancia_hasta');
+                    })
+                    ->orderBy('orden')
+                    ->first();
+
+                if (!$rango) return 5.00;
+
+                $esNocturno = $this->esHorarioNocturno($horaActual, $configLocal->hora_inicio_nocturno, $configLocal->hora_fin_nocturno);
+                return $esNocturno ? $rango->precio_nocturno : $rango->precio_diurno;
+            }
+        }
+
+        // Sin config propia → usar config GLOBAL con cálculo proporcional original
+        return $this->calcularPrecioGlobal($distanciaKm);
+    }
+
+    private function calcularPrecioGlobal($distanciaKm)
     {
         $hora = (int) \Carbon\Carbon::now('America/Lima')->format('G');
+        $esNocturno = ($hora >= 23 || $hora < 5);
 
-        $config = KilometrosTarifa::getConfiguracionActiva();
+        $config = KilometrosTarifa::whereNull('business_registration_id')
+            ->where('activo', true)
+            ->first();
+
         if (!$config) {
-            if ($hora >= 23 || $hora < 5) {
-                $precioBase = 5.50;
-            } else {
-                $precioBase = 4.00;
-            }
-            $precioMax = 10.00;
+            $precioBase = $esNocturno ? 5.50 : 4.00;
+            $precioMax  = 10.00;
             $distanciaMax = 10.00;
             $distanciaMin = 1.00;
         } else {
-            if ($hora >= 23 || $hora < 5) {
-                $precioBase = $config->precio_base_nocturno;
-            } else {
-                $precioBase = $config->precio_base_diurno;
-            }
-            $precioMax = $config->precio_maximo;
-            $distanciaMax = $config->distancia_maxima;
-            $distanciaMin = $config->distancia_minima;
+            $precioBase   = $esNocturno ? (float) $config->precio_base_nocturno : (float) $config->precio_base_diurno;
+            $precioMax    = (float) $config->precio_maximo;
+            $distanciaMax = (float) $config->distancia_maxima;
+            $distanciaMin = (float) $config->distancia_minima;
         }
 
-        // Tolerancia para evitar que 1.0000001 pase a la siguiente categoría
         $epsilon = 0.0001;
 
-        if ($distanciaKm <= $distanciaMin + $epsilon)
-            return $precioBase;
-        if ($distanciaKm >= $distanciaMax - $epsilon)
-            return $precioMax;
+        if ($distanciaKm <= $distanciaMin + $epsilon) return $precioBase;
+        if ($distanciaKm >= $distanciaMax - $epsilon) return $precioMax;
 
-        // Cálculo proporcional
+        // Cálculo proporcional, redondeado al 0.50 más cercano
         $precio = $precioBase + (($precioMax - $precioBase) / ($distanciaMax - $distanciaMin)) * ($distanciaKm - $distanciaMin);
+        return round($precio * 2) / 2;
+    }
 
-        // Si quieres redondear al .5 más cercano (en lugar de truncar hacia abajo), usar round()
-        // return round($precio * 2) / 2;
-        // Si quieres mantener comportamiento actual (siempre hacia abajo), conserva floor:
-        return floor($precio * 2) / 2;
+    private function calcularPrecioPorKm($distanciaKm, $config, $horaActual)
+    {
+        $esNocturno = $this->esHorarioNocturno($horaActual, $config->hora_inicio_nocturno, $config->hora_fin_nocturno);
+        $precioBase = $esNocturno ? (float) $config->precio_base_nocturno : (float) $config->precio_base_diurno;
+        $precioPorKm = $esNocturno ? (float) $config->precio_por_km_nocturno : (float) $config->precio_por_km_diurno;
+        $precioMaximo = $config->precio_maximo ? (float) $config->precio_maximo : 25.00;
+        $calculado = $precioBase + ($distanciaKm * $precioPorKm);
+        $limitado = min($calculado, $precioMaximo);
+        return round($limitado * 2) / 2;
+    }
+
+    /**
+     * Determinar si una hora está en el rango nocturno
+     */
+    private function esHorarioNocturno($horaActual, $horaInicio, $horaFin)
+    {
+        // Convertir a objetos Carbon para comparar
+        $actual = \Carbon\Carbon::createFromFormat('H:i:s', $horaActual);
+        $inicio = \Carbon\Carbon::createFromFormat('H:i:s', $horaInicio);
+        $fin = \Carbon\Carbon::createFromFormat('H:i:s', $horaFin);
+
+        // Si el rango cruza la medianoche (ej: 23:00 - 05:00)
+        if ($inicio->greaterThan($fin)) {
+            return $actual->greaterThanOrEqualTo($inicio) || $actual->lessThanOrEqualTo($fin);
+        }
+
+        // Rango normal (ej: 19:00 - 23:59)
+        return $actual->between($inicio, $fin);
+    }
+
+    /**
+     * Método legacy (antiguo) por si no hay configuración de rangos
+     * Se mantiene como fallback
+     */
+    private function calcularPrecioPorDistanciaLegacy($distanciaKm)
+    {
+        $hora = (int) \Carbon\Carbon::now('America/Lima')->format('G');
+        $esNocturno = ($hora >= 23 || $hora < 5);
+
+        $config = KilometrosTarifa::getConfiguracionActiva();
+        
+        if (!$config) {
+            $precioBase = $esNocturno ? 5.50 : 4.00;
+            $precioPorKm = $esNocturno ? 1.00 : 0.80;
+            $precioMaximo = 25.00;
+        } else {
+            $precioBase = $esNocturno ? $config->precio_base_nocturno : $config->precio_base_diurno;
+            $precioPorKm = $esNocturno ? $config->precio_por_km_nocturno : $config->precio_por_km_diurno;
+            $precioMaximo = $config->precio_maximo ?? 25.00;
+        }
+
+        $precioCalculado = $precioBase + ($distanciaKm * $precioPorKm);
+
+        if ($precioMaximo && $precioCalculado > $precioMaximo) {
+            $precioCalculado = $precioMaximo;
+        }
+
+        return round($precioCalculado, 2);
     }
 
     // Método para obtener el tiempo estimado de llegada desde el motorizado al local

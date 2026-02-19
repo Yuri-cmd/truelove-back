@@ -189,9 +189,11 @@ class PedidoController extends Controller
         // opcional: loguear para debug
         \Log::debug('Coords used for routing', compact('lat1', 'lon1', 'lat2', 'lon2'));
 
-        $distancia = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
+        // TODO: revisar si conviene volver a Mapbox (ruta real) — comentado 2026-02-17
+        // $distancia = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
+        $distancia = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
-        $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia) : 0;
+        $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
         // Formatear con 2 decimales
         return response()->json(number_format((float) $precio_delivery, 2, '.', ''));
