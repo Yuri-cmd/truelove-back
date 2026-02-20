@@ -20,6 +20,8 @@ class CuotaSocio extends Model
         'minimo_pedidos', // Mínimo de pedidos para cobrar
         'exonerar_si_menos_pedidos', // Si TRUE, exonera si no alcanza el mínimo
         'monto_minimo', // Monto mínimo para tipo mixto
+        'monto_uso_app', // Monto por uso de app cuando no alcanza mínimo
+        'monto_maximo', // Tope máximo de comisión por período
         'numero_cuenta',
         'tipo_cuenta',
         'banco',
@@ -36,6 +38,8 @@ class CuotaSocio extends Model
         'minimo_pedidos' => 'integer',
         'exonerar_si_menos_pedidos' => 'boolean',
         'monto_minimo' => 'decimal:2',
+        'monto_uso_app' => 'decimal:2',
+        'monto_maximo' => 'decimal:2',
         'metodos_pago_disponibles' => 'array' // Convierte JSON a array automáticamente
     ];
 

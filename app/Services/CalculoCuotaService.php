@@ -146,13 +146,24 @@ class CalculoCuotaService
         $porcentajeDecimal = $cuota->porcentaje_comision / 100;
         $montoCalculado = $totalVentas * $porcentajeDecimal;
         
-        // CASO 3: Aplicar monto mínimo (tipo mixto)
+        // CASO 3: Si no llega al monto mínimo, cobrar solo el uso de aplicación
         if ($cuota->monto_minimo && $montoCalculado < $cuota->monto_minimo) {
-            Log::info("Aplicando monto mínimo", [
+            $montoUsoApp = $cuota->monto_uso_app ?? 0;
+            Log::info("Comisión no alcanza monto mínimo, cobrando uso de app", [
                 'monto_calculado' => $montoCalculado,
-                'monto_minimo' => $cuota->monto_minimo
+                'monto_minimo' => $cuota->monto_minimo,
+                'monto_uso_app' => $montoUsoApp
             ]);
-            return $cuota->monto_minimo;
+            $montoCalculado = (float) $montoUsoApp;
+        }
+
+        // CASO 4: Aplicar tope máximo
+        if ($cuota->monto_maximo && $montoCalculado > $cuota->monto_maximo) {
+            Log::info("Aplicando tope máximo de comisión", [
+                'monto_calculado' => $montoCalculado,
+                'monto_maximo' => $cuota->monto_maximo
+            ]);
+            return (float) $cuota->monto_maximo;
         }
         
         return round($montoCalculado, 2);

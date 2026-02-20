@@ -52,6 +52,8 @@ class CuotaSocioController extends Controller
             'minimo_pedidos' => 'nullable|integer|min:0',
             'exonerar_si_menos_pedidos' => 'nullable|boolean',
             'monto_minimo' => 'nullable|numeric|min:0',
+            'monto_uso_app' => 'nullable|numeric|min:0',
+            'monto_maximo' => 'nullable|numeric|min:0',
             'numero_cuenta' => 'required|string|max:50',
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
@@ -96,13 +98,15 @@ class CuotaSocioController extends Controller
             'minimo_pedidos' => 'nullable|integer|min:0',
             'exonerar_si_menos_pedidos' => 'nullable|boolean',
             'monto_minimo' => 'nullable|numeric|min:0',
+            'monto_uso_app' => 'nullable|numeric|min:0',
+            'monto_maximo' => 'nullable|numeric|min:0',
             'numero_cuenta' => 'sometimes|string|max:50',
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
             'metodos_pago_disponibles' => 'nullable|array',
             'estado' => 'sometimes|in:activo,inactivo',
-            'fecha_inicio' => 'sometimes|date',
-            'fecha_fin' => 'nullable|date',
+            'fecha_inicio' => 'sometimes|nullable|date',
+            'fecha_fin' => 'sometimes|nullable|date',
             'descripcion' => 'nullable|string'
         ]);
 
