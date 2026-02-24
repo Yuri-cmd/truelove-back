@@ -24,16 +24,18 @@ class BusinessRegistration extends Model
         'token_fmc',
         'token_fmc_web',
         'cuota_socio_id',
-        'fecha_asignacion_cuota'
+        'fecha_asignacion_cuota',
+        'omitir_pago_adelantado'
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
         'estado' => 'integer',
         'aprobado' => 'boolean',
-       'posToDriver' => 'integer', // puede tener valores 0 (No facilitar POS), 1 (POS estilos) y 2 (POS visa) y 3 envia ambos
+        'posToDriver' => 'integer', // puede tener valores 0 (No facilitar POS), 1 (POS estilos) y 2 (POS visa) y 3 envia ambos
         'activo' => 'boolean',
-       'entrega_documento_venta' => 'integer', //  valores 0 (No emite documentos de venta) , 1 emite boleta ,2 emite factura , 3 emite ambos
+        'omitir_pago_adelantado' => 'boolean',
+        'entrega_documento_venta' => 'integer', //  valores 0 (No emite documentos de venta) , 1 emite boleta ,2 emite factura , 3 emite ambos
         'fecha_asignacion_cuota' => 'datetime'
     ];
     public function user()

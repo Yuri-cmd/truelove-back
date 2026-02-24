@@ -82,11 +82,11 @@ class LocalesController extends Controller
 
         }
 
-       /* $where[] = "(6371 * acos(
-                    cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
-                    cos(radians(establecimientos.longitud) - radians($lng)) +
-                    sin(radians($lat)) * sin(radians(establecimientos.latitud))
-                )) <= $radio";*/
+        /* $where[] = "(6371 * acos(
+                     cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
+                     cos(radians(establecimientos.longitud) - radians($lng)) +
+                     sin(radians($lat)) * sin(radians(establecimientos.latitud))
+                 )) <= $radio";*/
 
         // Armamos el WHERE final
         $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -107,6 +107,7 @@ class LocalesController extends Controller
             perfiles_negocio.banner,
             perfiles_negocio.foto_perfil,
             business_registrations.businessType,
+            business_registrations.omitir_pago_adelantado,
             CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
             local_priorities.prioridad,
             (6371 * acos(

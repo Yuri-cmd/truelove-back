@@ -113,7 +113,14 @@ class PedidoController extends Controller
             ]);
         }
 
+        $comercio = BusinessRegistration::find($request->id_local);
+
         $requiereConfirmacion = $totalPedido >= 100;
+
+        // Si el comercio tiene el flag de omitir pago adelantado, forzamos requiereConfirmacion a false
+        if ($comercio && $comercio->omitir_pago_adelantado) {
+            $requiereConfirmacion = false;
+        }
 
         $pedido->requiere_confirmacion_local = $requiereConfirmacion;
 
@@ -137,8 +144,6 @@ class PedidoController extends Controller
 
         PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
         $pedido->save();
-
-        $comercio = BusinessRegistration::find($request->id_local);
 
         $nombreCliente = Cliente::where('id', $request->id_cliente)->first()->nombre;
         $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
@@ -722,6 +727,7 @@ class PedidoController extends Controller
             'tipo_pago_digital' => $tipoPago,
             'titular' => $negocio->nombre_titular_pago_digital ?? $businessRegistration->name . '  ' . $businessRegistration->lastName ?? '',
             'estado' => $estadoPedido,
+            'omitir_pago_adelantado' => $businessRegistration->omitir_pago_adelantado ?? false,
         ]);
     }
 
