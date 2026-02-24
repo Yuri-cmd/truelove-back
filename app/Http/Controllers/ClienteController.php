@@ -93,6 +93,7 @@ class ClienteController extends Controller
             'nacionalidad' => 'required|string|max:255',
             'type' => 'required|string|in:celular,email', // Validación adicional
             'content' => 'required|string',
+            'celular_whatsapp' => 'nullable|string',
         ]);
 
         $profile = new Cliente();
@@ -100,9 +101,10 @@ class ClienteController extends Controller
         $profile->apellido = $validatedData['apellido'];
         $profile->fecha_nacimiento = $validatedData['fecha_nacimiento'];
         $profile->genero = $validatedData['genero'];
-        $profile->{$validatedData['type']} = $validatedData['content']; // Asignación dinámica
+        $profile->{$validatedData['type']} = $validatedData['content']; // Asignación dinámica (si type=celular, guarda en celular)
         $profile->documento = $validatedData['documento'];
         $profile->nacionalidad = $validatedData['nacionalidad'];
+        $profile->celular_whatsapp = $validatedData['celular_whatsapp'];
         $profile->save();
 
         return response()->json([
@@ -142,6 +144,7 @@ class ClienteController extends Controller
     {
         $profile = Cliente::find($request->idCliente);
         $profile->celular = $request->celular;
+        $profile->celular_whatsapp = $request->celular_whatsapp ?? $profile->celular_whatsapp;
         $profile->save();
 
         $direccion = new ClienteDireccion();
@@ -171,7 +174,7 @@ class ClienteController extends Controller
                 );
             } catch (\Exception $e) {
                 Log::error('Error al enviar credenciales al cliente: ' . $e->getMessage());
-                
+
                 // Registrar error en logs
                 EmailLog::logFailure(
                     $profile->email,
@@ -371,7 +374,7 @@ class ClienteController extends Controller
                 $cliente->celular = $request->valor;
                 break;
             default:
-                return response()->json(['success' => false, 'message' => 'Tipo no válido'],);
+                return response()->json(['success' => false, 'message' => 'Tipo no válido'], );
         }
 
         $cliente->save();

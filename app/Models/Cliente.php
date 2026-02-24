@@ -18,6 +18,7 @@ class Cliente extends Model
         'documento',
         'nacionalidad',
         'celular',
+        'celular_whatsapp',
         'dni_photo',
         'selfie_photo',
         'foto_perfil',
