@@ -104,7 +104,7 @@ class ClienteController extends Controller
         $profile->{$validatedData['type']} = $validatedData['content']; // Asignación dinámica (si type=celular, guarda en celular)
         $profile->documento = $validatedData['documento'];
         $profile->nacionalidad = $validatedData['nacionalidad'];
-        $profile->celular_whatsapp = $validatedData['celular_whatsapp'];
+        $profile->celular_whatsapp = $request->celular_whatsapp ?? null;
         $profile->save();
 
         return response()->json([
