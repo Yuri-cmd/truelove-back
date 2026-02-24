@@ -65,14 +65,17 @@ class PedidoTrackingController extends Controller
             'estado' => $request->estado
         ]);
 
-        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
-        $cliente_fmc = Cliente::find($pedido->id_cliente)->token_fmc;
+        $local = BusinessRegistration::find($pedido->id_local);
+        $cliente = Cliente::find($pedido->id_cliente);
+
+        $local_fmc = $local ? $local->token_fmc : null;
+        $cliente_fmc = $cliente ? $cliente->token_fmc : null;
 
         $estadoTitulo = estadoPedido($request->estado);
         $mensajeLocal = mensajeNotificacionPedido($request->estado, $pedido->id, 'local');
         $mensajeCliente = mensajeNotificacionPedido($request->estado, $pedido->id, 'cliente');
 
-        if ($local_fmc) {
+        if ($local_fmc && !empty($local_fmc)) {
             $this->firebaseService->sendNotification(
                 $local_fmc,
                 $estadoTitulo,
@@ -80,7 +83,7 @@ class PedidoTrackingController extends Controller
             );
         }
 
-        if ($cliente_fmc) {
+        if ($cliente_fmc && !empty($cliente_fmc)) {
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
                 $estadoTitulo,

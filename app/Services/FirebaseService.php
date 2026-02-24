@@ -60,31 +60,37 @@ class FirebaseService
             'Content-Type' => 'application/json',
         ];
 
-        $payload = [
-            "message" => [
-                "token" => $token,
+        $message = [
+            "token" => $token,
+            "notification" => [
+                "title" => $title,
+                "body" => $body
+            ],
+            "android" => [
+                "priority" => "high",
                 "notification" => [
-                    "title" => $title,
-                    "body" => $body
+                    "sound" => "default",
+                    "channel_id" => "general_channel"
+                ]
+            ],
+            "apns" => [
+                "headers" => [
+                    "apns-priority" => "10"
                 ],
-                "android" => [
-                    "priority" => "high",
-                    "notification" => [
-                        "sound" => "default",
-                        "channel_id" => "general_channel"
-                    ]
-                ],
-                "apns" => [
-                    "headers" => [
-                        "apns-priority" => "10"
-                    ],
-                    "payload" => [
-                        "aps" => [
-                            "sound" => "default"
-                        ]
+                "payload" => [
+                    "aps" => [
+                        "sound" => "default"
                     ]
                 ]
             ]
+        ];
+
+        if (!empty($data)) {
+            $message["data"] = array_map('strval', $data);
+        }
+
+        $payload = [
+            "message" => $message
         ];
 
         $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
@@ -127,7 +133,7 @@ class FirebaseService
                 "android" => [
                     "priority" => "high",
                     "notification" => [
-                        "channel_id" => $channelId // Updated to match Flutter app
+                        "channel_id" => $channelId
                     ]
                 ],
                 "apns" => [
