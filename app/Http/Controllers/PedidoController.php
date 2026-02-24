@@ -620,6 +620,7 @@ class PedidoController extends Controller
         $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
         $pedido->cliente = $cliente ? "{$cliente->nombre} {$cliente->apellido}" : '';
         $pedido->celular = $cliente->celular ?? '';
+        $pedido->celular_whatsapp = ($cliente && $cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
         $pedido->lat_local = $local->latitud ?? '';
         $pedido->lon_local = $local->longitud ?? '';
         $pedido->tiempo = $pedido->tiempo ?? 0;

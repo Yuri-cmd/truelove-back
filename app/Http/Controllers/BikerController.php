@@ -180,6 +180,7 @@ class BikerController extends Controller
                 $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
                 $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
                 $pedido->celular = $cliente->celular;
+                $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
                 $pedido->lat_local = (float) $local->latitud;
                 $pedido->lon_local = (float) $local->longitud;
                 $pedido->latitud = $coordenadasCliente->coordinates[1];
@@ -188,7 +189,6 @@ class BikerController extends Controller
                 $pedido->nota = $pedido->nota ?? 'Sin nota';
                 $pedido->tiempo = $pedido->tiempo ?? 0;
                 $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
-                $pedido->precio_delivery = $pedido->precio_delivery;
                 $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
                 $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
 
@@ -608,7 +608,7 @@ class BikerController extends Controller
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-  
+
             $pedido = [
                 'id' => $pedido->id,
                 'local' => $establecimiento->nombre_establecimiento,
@@ -617,6 +617,7 @@ class BikerController extends Controller
                 'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                 'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                 'celular' => $cliente->celular,
+                'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
                 'tiempoEstimado' => $pedido->tiempo_estimado,
                 'detalle' => $pedido->nota,
                 'latLocal' => $establecimiento->latitud,
@@ -679,6 +680,7 @@ class BikerController extends Controller
                     'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
+                    'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
                     'tiempoEstimado' => $pedido->tiempo_estimado,
                     'detalle' => $pedido->nota,
                     'latLocal' => $establecimiento->latitud,
@@ -746,6 +748,7 @@ class BikerController extends Controller
                     'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
+                    'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
                     'tiempoEstimado' => $pedido->tiempo_estimado,
                     'detalle' => $pedido->nota,
                     'latLocal' => $establecimiento->latitud,

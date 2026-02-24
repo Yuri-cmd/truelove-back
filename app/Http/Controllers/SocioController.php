@@ -230,8 +230,8 @@ class SocioController extends Controller
             $apellidosArray = explode(' ', trim($lastName));
 
             $primeraNombre = ucfirst(substr($nombresArray[0], 0, 1));
-            $primeraApellido = isset($apellidosArray[0]) && !empty($apellidosArray[0]) 
-                ? strtolower($apellidosArray[0]) 
+            $primeraApellido = isset($apellidosArray[0]) && !empty($apellidosArray[0])
+                ? strtolower($apellidosArray[0])
                 : strtolower($nombresArray[0]);
 
             $baseUsername = $primeraNombre . $primeraApellido;
@@ -380,6 +380,7 @@ class SocioController extends Controller
             $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
             $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
             $pedido->celular = $cliente->celular;
+            $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
             $pedido->lat_local = $local->latitud;
             $pedido->lon_local = $local->longitud;
             $pedido->tiempo = $pedido->tiempo ?? 0;
@@ -946,6 +947,7 @@ class SocioController extends Controller
         $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
         $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
         $pedido->celular = $cliente->celular;
+        $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
         $pedido->lat_local = $local->latitud;
         $pedido->lon_local = $local->longitud;
         $pedido->tiempo = $pedido->tiempo ?? 0;
