@@ -77,9 +77,15 @@ class KilometrosTarifaController extends Controller
                 ], 422);
             }
 
-            // Si se marca como activo, desactivar las demás
+            // Si se marca como activo, desactivar solo las demás del mismo ámbito
             if ($request->get('activo', false)) {
-                KilometrosTarifa::where('activo', true)->update(['activo' => false]);
+                $query = KilometrosTarifa::where('activo', true);
+                if ($request->has('business_registration_id') && $request->business_registration_id) {
+                    $query->where('business_registration_id', $request->business_registration_id);
+                } else {
+                    $query->whereNull('business_registration_id');
+                }
+                $query->update(['activo' => false]);
             }
 
             $tarifa = KilometrosTarifa::create($request->all());
@@ -127,11 +133,16 @@ class KilometrosTarifaController extends Controller
                 ], 422);
             }
 
-            // Si se marca como activo, desactivar las demás
+            // Si se marca como activo, desactivar solo las demás del mismo ámbito
             if ($request->get('activo', false)) {
-                KilometrosTarifa::where('id', '!=', $id)
-                    ->where('activo', true)
-                    ->update(['activo' => false]);
+                $query = KilometrosTarifa::where('id', '!=', $id)
+                    ->where('activo', true);
+                if ($tarifa->business_registration_id) {
+                    $query->where('business_registration_id', $tarifa->business_registration_id);
+                } else {
+                    $query->whereNull('business_registration_id');
+                }
+                $query->update(['activo' => false]);
             }
 
             $tarifa->update($request->only([
