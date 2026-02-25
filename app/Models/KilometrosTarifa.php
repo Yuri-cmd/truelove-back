@@ -62,11 +62,20 @@ class KilometrosTarifa extends Model
             ->first();
     }
 
-    // Método para activar esta configuración y desactivar las demás
+    // Método para activar esta configuración y desactivar las demás del mismo ámbito
     public function activar()
     {
-        // Desactivar todas las demás configuraciones
-        static::where('id', '!=', $this->id)->update(['activo' => false]);
+        if ($this->business_registration_id) {
+            // Es config de un local: solo desactivar otras configs del MISMO local
+            static::where('id', '!=', $this->id)
+                ->where('business_registration_id', $this->business_registration_id)
+                ->update(['activo' => false]);
+        } else {
+            // Es config global: solo desactivar otras configs globales (sin local)
+            static::where('id', '!=', $this->id)
+                ->whereNull('business_registration_id')
+                ->update(['activo' => false]);
+        }
 
         // Activar esta configuración
         $this->update(['activo' => true]);
