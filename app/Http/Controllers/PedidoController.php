@@ -155,7 +155,10 @@ class PedidoController extends Controller
                 $comercio->token_fmc,
                 $tituloNotif,
                 $cuerpoNotif,
-                'nuevo_pedido'
+                'nuevo_pedido',
+                'pedidos_v3',
+                [],
+                'socio'
             );
         }
 
@@ -165,7 +168,10 @@ class PedidoController extends Controller
                 $comercio->token_fmc_web,
                 $tituloNotif,
                 $cuerpoNotif,
-                'nuevo_pedido'
+                'nuevo_pedido',
+                'pedidos_v3',
+                [],
+                'socio_web'
             );
         }
 
@@ -209,7 +215,7 @@ class PedidoController extends Controller
         if ($request->sonido == 'true') {
             $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido', $request->channel_id);
         } else {
-            $this->firebaseService->sendNotification($request->token, 'Prueba', 'Notificacion sin sonido');
+            $this->firebaseService->sendNotification($request->token, 'Prueba', 'Notificacion sin sonido', [], 'prueba');
         }
     }
 
@@ -218,7 +224,15 @@ class PedidoController extends Controller
         $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
         foreach ($motorizadosToken as $token) {
             if ($token) {
-                $this->firebaseService->sendNotificationWithSound($token, '🛵 Nuevo Pedido Disponible', '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 'nuevo_pedido', 'pedidos_v7');
+                $this->firebaseService->sendNotificationWithSound(
+                    $token, 
+                    '🛵 Nuevo Pedido Disponible', 
+                    '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 
+                    'nuevo_pedido', 
+                    'pedidos_v7',
+                    [],
+                    'motorizado'
+                );
             }
         }
     }
@@ -274,11 +288,11 @@ class PedidoController extends Controller
             $mensajeCliente = mensajeNotificacionPedido($request->estado ?? null, $pedido->id, 'cliente');
 
             if ($local_fmc) {
-                $this->firebaseService->sendNotification($local_fmc, $estado, $mensajeLocal);
+                $this->firebaseService->sendNotification($local_fmc, $estado, $mensajeLocal, [], 'socio');
             }
 
             if ($cliente_fmc) {
-                $this->firebaseService->sendNotification($cliente_fmc, $estado, $mensajeCliente);
+                $this->firebaseService->sendNotification($cliente_fmc, $estado, $mensajeCliente, [], 'cliente');
             }
 
             // Registrar el tracking del pedido (con chequeo si no hay trackings)
@@ -350,7 +364,9 @@ class PedidoController extends Controller
                 $this->firebaseService->sendNotification(
                     $biker->token_fmc,
                     'Hola ' . $biker->nombre,
-                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.'
+                    'El restauranete termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.',
+                    [],
+                    'motorizado'
                 );
             }
 
@@ -375,7 +391,9 @@ class PedidoController extends Controller
                 $this->firebaseService->sendNotification(
                     $cliente->token_fmc,
                     'Hola ' . $cliente->nombre,
-                    'El restaurante termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.'
+                    'El restaurante termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.',
+                    [],
+                    'cliente'
                 );
             }
 
@@ -396,7 +414,9 @@ class PedidoController extends Controller
                 $this->firebaseService->sendNotification(
                     $cliente->token_fmc,
                     'Hola ' . $cliente->nombre,
-                    'Tu pedido #' . $pedido->id . ' ha sido cancelado por el restaurante.'
+                    'Tu pedido #' . $pedido->id . ' ha sido cancelado por el restaurante.',
+                    [],
+                    'cliente'
                 );
             }
         }
@@ -645,7 +665,13 @@ class PedidoController extends Controller
         }
 
         foreach ($motorizadosToken as $token) {
-            $this->firebaseService->sendNotification($token, '🛵 Alerta!', "📍 El motorizado {$nombre} todavia no finaliza su viaje");
+            $this->firebaseService->sendNotification(
+                $token, 
+                '🛵 Alerta!', 
+                "📍 El motorizado {$nombre} todavia no finaliza su viaje",
+                [],
+                'motorizado'
+            );
         }
         return response()->json(['status' => 'success']);
     }

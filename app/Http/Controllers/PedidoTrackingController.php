@@ -79,7 +79,9 @@ class PedidoTrackingController extends Controller
             $this->firebaseService->sendNotification(
                 $local_fmc,
                 $estadoTitulo,
-                $mensajeLocal
+                $mensajeLocal,
+                [],
+                'socio'
             );
         }
 
@@ -87,7 +89,9 @@ class PedidoTrackingController extends Controller
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
                 $estadoTitulo,
-                $mensajeCliente
+                $mensajeCliente,
+                [],
+                'cliente'
             );
         }
 

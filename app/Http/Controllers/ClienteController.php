@@ -62,7 +62,7 @@ class ClienteController extends Controller
                 'status' => 200,
                 'verification_code' => $newVerificationCode,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Registrar error en logs
             EmailLog::logFailure(
                 $request->email ?? 'unknown',
@@ -172,7 +172,7 @@ class ClienteController extends Controller
                     'ClienteController',
                     'actualizarInfoCliente'
                 );
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Error al enviar credenciales al cliente: ' . $e->getMessage());
 
                 // Registrar error en logs
@@ -227,7 +227,7 @@ class ClienteController extends Controller
                 'status' => 200,
                 'verification_code' => (string) $newVerificationCode,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Hubo un problema al reenviar el código de verificación. Por favor, intente nuevamente.',
                 'error' => $e->getMessage(),
@@ -275,7 +275,7 @@ class ClienteController extends Controller
                 'dni_photo' => $dniPath,
                 'selfie_photo' => $selfiePath
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error al subir fotos: ' . $e->getMessage());
             return response()->json(['error' => 'Error interno del servidor'], 500);
         }
@@ -460,7 +460,7 @@ class ClienteController extends Controller
                 'verification_code' => $newVerificationCode,
                 'id' => $user->id
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Registrar error en logs
             EmailLog::logFailure(
                 $request->email ?? 'unknown',
@@ -535,7 +535,7 @@ class ClienteController extends Controller
                     'documento' => $cliente->documento,
                 ]
             ], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al buscar cliente',
@@ -616,7 +616,7 @@ class ClienteController extends Controller
                 'email' => substr($cliente->email, 0, 3) . '***@***' . substr($cliente->email, strpos($cliente->email, '@')),
                 'deletion_request_id' => $deletionRequest->id,
             ], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error al solicitar eliminación de cuenta: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -679,7 +679,7 @@ class ClienteController extends Controller
                 'message' => 'Código verificado exitosamente',
                 'request_id' => $deletionRequest->request_id,
             ], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error al verificar código: ' . $e->getMessage());
             return response()->json([
                 'success' => false,

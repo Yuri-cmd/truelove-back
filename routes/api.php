@@ -58,6 +58,8 @@ Route::post('/admin/verify-email', [AuthAdminController::class, 'verifyEmail']);
 Route::post('/admin/verify-code', [AuthAdminController::class, 'verifyCode']);
 Route::post('/admin/reset-password', [AuthAdminController::class, 'resetPassword']);
 
+Route::post('/notifications/update-status', [App\Http\Controllers\NotificationTrackingController::class, 'updateStatus']);
+
 Route::get('/app-version/{app_name}', [AppVersionController::class, 'getVersion']);
 
 Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);

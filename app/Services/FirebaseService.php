@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Google\Client as GoogleClient;
+use App\Models\NotificationLog;
 
 class FirebaseService
 {
@@ -48,8 +49,31 @@ class FirebaseService
         }
     }
 
-    public function sendNotification($token, $title, $body, $data = [])
+    private function createLog($token, $title, $body, $data, $appName = null)
     {
+        try {
+            return NotificationLog::create([
+                'fcm_token' => $token,
+                'app_name' => $appName,
+                'title' => $title,
+                'body' => $body,
+                'data' => $data,
+                'sent_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error creando log de notificación: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function sendNotification($token, $title, $body, $data = [], $appName = null)
+    {
+        $log = $this->createLog($token, $title, $body, $data, $appName);
+        
+        if ($log) {
+            $data['notification_id'] = (string)$log->id;
+        }
+
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
             return null;
@@ -106,8 +130,14 @@ class FirebaseService
         }
     }
 
-    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', $data = [])
+    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', $data = [], $appName = null)
     {
+        $log = $this->createLog($token, $title, $body, $data, $appName);
+        
+        if ($log) {
+            $data['notification_id'] = (string)$log->id;
+        }
+
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
             return null;
@@ -125,11 +155,11 @@ class FirebaseService
                     "title" => $title,
                     "body" => $body
                 ],
-                "data" => array_merge($data, [
+                "data" => array_map('strval', array_merge($data, [
                     'sound' => $soundFile,
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'tipo' => 'nuevo_pedido' // Agregar tipo para identificación
-                ]),
+                ])),
                 "android" => [
                     "priority" => "high",
                     "notification" => [
