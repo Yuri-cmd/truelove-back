@@ -124,6 +124,7 @@ class EmailVerificationController extends Controller
                 'verification_code' => $verificationCode,
                 'posToDriver' => $request->has('posToDriver') ? (int)$request->posToDriver : 0,
                 'entrega_documento_venta' => $request->has('entrega_documento_venta') ? (int)$request->entrega_documento_venta : 0,
+                'omitir_pago_adelantado' => $request->has('omitir_pago_adelantado') ? (bool)$request->omitir_pago_adelantado : false,
             ]);
     
             // Enviar correo de verificación
