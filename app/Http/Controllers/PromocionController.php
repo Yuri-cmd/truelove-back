@@ -101,7 +101,7 @@ class PromocionController extends Controller
                     $subtitulo = $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.";
                 
                     // Envía la notificación y guarda el resultado
-                    $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo);
+                    $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo, [], 'cliente', $cliente->id, 'cliente');
                 
                     // Registra si hubo éxito o error
                     if (!$resultado) {

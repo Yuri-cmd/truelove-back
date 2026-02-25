@@ -9,6 +9,8 @@ class NotificationLog extends Model
     protected $fillable = [
         'fcm_token',
         'app_name',
+        'user_id',
+        'user_type',
         'title',
         'body',
         'data',

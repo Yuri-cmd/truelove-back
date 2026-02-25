@@ -65,7 +65,11 @@ class DescuentoClienteController extends Controller
                 $this->firebaseService->sendNotification(
                     $cliente->token_fmc,
                     '¡Tienes un nuevo descuento disponible! 🎉',
-                    "¡Hola {$cliente->nombre}! Hemos agregado un nuevo descuento a tu cuenta. Utiliza el código: {$codigo} y disfruta de tus beneficios exclusivos. ¡Aprovéchalo antes de que expire!"
+                    "¡Hola {$cliente->nombre}! Hemos agregado un nuevo descuento a tu cuenta. Utiliza el código: {$codigo} y disfruta de tus beneficios exclusivos. ¡Aprovéchalo antes de que expire!",
+                    [],
+                    'cliente',
+                    $cliente->id,
+                    'cliente'
                 );
             }
         }

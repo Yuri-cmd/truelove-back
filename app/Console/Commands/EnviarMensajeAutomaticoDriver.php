@@ -95,7 +95,11 @@ class EnviarMensajeAutomaticoDriver extends Command
                         $this->firebaseService->sendNotification(
                             $cliente->token_fmc,
                             'Hola ' . ($cliente->nombre ?? ''),
-                            $mensaje
+                            $mensaje,
+                            [],
+                            'cliente',
+                            $cliente->id,
+                            'cliente'
                         );
                     }
 

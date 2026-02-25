@@ -81,6 +81,8 @@ class PedidoTrackingController extends Controller
                 $estadoTitulo,
                 $mensajeLocal,
                 [],
+                'socio',
+                $pedido->id_local,
                 'socio'
             );
         }
@@ -91,6 +93,8 @@ class PedidoTrackingController extends Controller
                 $estadoTitulo,
                 $mensajeCliente,
                 [],
+                'cliente',
+                $pedido->id_cliente,
                 'cliente'
             );
         }

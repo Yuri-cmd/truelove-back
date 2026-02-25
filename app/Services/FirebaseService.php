@@ -49,12 +49,14 @@ class FirebaseService
         }
     }
 
-    private function createLog($token, $title, $body, $data, $appName = null)
+    private function createLog($token, $title, $body, $data, $appName = null, $userId = null, $userType = null)
     {
         try {
             return NotificationLog::create([
                 'fcm_token' => $token,
                 'app_name' => $appName,
+                'user_id' => $userId,
+                'user_type' => $userType,
                 'title' => $title,
                 'body' => $body,
                 'data' => $data,
@@ -66,9 +68,9 @@ class FirebaseService
         }
     }
 
-    public function sendNotification($token, $title, $body, $data = [], $appName = null)
+    public function sendNotification($token, $title, $body, $data = [], $appName = null, $userId = null, $userType = null)
     {
-        $log = $this->createLog($token, $title, $body, $data, $appName);
+        $log = $this->createLog($token, $title, $body, $data, $appName, $userId, $userType);
         
         if ($log) {
             $data['notification_id'] = (string)$log->id;
@@ -130,9 +132,9 @@ class FirebaseService
         }
     }
 
-    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', $data = [], $appName = null)
+    public function sendNotificationWithSound($token, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', $data = [], $appName = null, $userId = null, $userType = null)
     {
-        $log = $this->createLog($token, $title, $body, $data, $appName);
+        $log = $this->createLog($token, $title, $body, $data, $appName, $userId, $userType);
         
         if ($log) {
             $data['notification_id'] = (string)$log->id;
