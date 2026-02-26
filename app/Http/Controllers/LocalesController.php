@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\DB;
 
 class LocalesController extends Controller
 {
+    private $pedidoService;
+
+    public function __construct(\App\Services\PedidoService $pedidoService)
+    {
+        $this->pedidoService = $pedidoService;
+    }
+
     public function getLocalesTop($idCliente)
     {
         $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
@@ -125,6 +132,46 @@ class LocalesController extends Controller
         $whereSql
         ORDER BY local_priorities.prioridad DESC, distancia ASC
         $limite");
+
+        if (!empty($query)) {
+            // Google Distance Matrix API permite hasta 25 destinos por solicitud en el plan estándar
+            $batchSize = 25;
+            $allGoogleDistances = [];
+            
+            $chunks = array_chunk($query, $batchSize);
+            
+            foreach ($chunks as $chunk) {
+                $destinations = array_map(function($local) {
+                    return [
+                        'lat' => $local->latitud,
+                        'lng' => $local->longitud
+                    ];
+                }, $chunk);
+
+                $googleDistances = $this->pedidoService->obtenerDistanciaGoogle($lat, $lng, $destinations);
+                $allGoogleDistances = array_merge($allGoogleDistances, $googleDistances);
+            }
+
+            foreach ($query as $index => $local) {
+                if (isset($allGoogleDistances[$index]) && $allGoogleDistances[$index] !== null) {
+                    $local->distancia = $allGoogleDistances[$index];
+                }
+            }
+
+            // Re-ordenar por la nueva distancia real (Google)
+            usort($query, function($a, $b) {
+                // Primero por prioridad (si existe y es diferente)
+                $pA = isset($a->prioridad) ? (int)$a->prioridad : 0;
+                $pB = isset($b->prioridad) ? (int)$b->prioridad : 0;
+                
+                if ($pA != $pB) {
+                    return $pB <=> $pA;
+                }
+                
+                // Luego por distancia real
+                return $a->distancia <=> $b->distancia;
+            });
+        }
 
         return $query;
     }

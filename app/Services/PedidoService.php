@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Http;
 class PedidoService
 {
     protected $apiKey = '***MAPBOX_TOKEN_REMOVED***';
+    protected $googleApiKey = '***GOOGLE_API_KEY_REMOVED***';
 
     // Método para calcular la distancia entre dos puntos usando la fórmula de Haversine
     public function calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2)
@@ -42,6 +43,39 @@ class PedidoService
         $distancia = $radioTierra * $c;
 
         return $distancia;
+    }
+
+    public function obtenerDistanciaGoogle($lat1, $lon1, $destinations)
+    {
+        // $destinations debe ser un array de arrays [['lat' => ..., 'lng' => ...], ...]
+        if (empty($destinations)) return [];
+
+        $destStr = implode('|', array_map(function($d) {
+            return $d['lat'] . ',' . $d['lng'];
+        }, $destinations));
+
+        $url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={$lat1},{$lon1}&destinations={$destStr}&key={$this->googleApiKey}";
+
+        try {
+            $response = Http::get($url);
+            $data = $response->json();
+
+            if ($data['status'] === 'OK') {
+                $distances = [];
+                foreach ($data['rows'][0]['elements'] as $element) {
+                    if ($element['status'] === 'OK') {
+                        $distances[] = $element['distance']['value'] / 1000; // a km
+                    } else {
+                        $distances[] = null;
+                    }
+                }
+                return $distances;
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error calling Google Distance Matrix API: ' . $e->getMessage());
+        }
+
+        return array_fill(0, count($destinations), null);
     }
 
     public function obtenerDistancia($lat1, $lon1, $lat2, $lon2)
