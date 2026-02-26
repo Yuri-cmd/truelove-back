@@ -86,37 +86,34 @@ class FirebaseService
             'Content-Type' => 'application/json',
         ];
 
-        $message = [
-            "token" => $token,
-            "notification" => [
-                "title" => $title,
-                "body" => $body
-            ],
-            "android" => [
-                "priority" => "high",
-                "notification" => [
-                    "sound" => "default",
-                    "channel_id" => "general_channel"
-                ]
-            ],
-            "apns" => [
-                "headers" => [
-                    "apns-priority" => "10"
+        // Mensaje data-only: Android lo entrega de inmediato con priority=high
+        // El campo "notification" queda sujeto al Doze Mode del SO (causa retrasos)
+        $dataPayload = array_map('strval', array_merge($data, [
+            'title'  => $title,
+            'body'   => $body,
+            'sound'  => 'default',
+            'channel_id' => 'general_channel',
+        ]));
+
+        $payload = [
+            "message" => [
+                "token" => $token,
+                "data"  => $dataPayload,
+                "android" => [
+                    "priority" => "high",
                 ],
-                "payload" => [
-                    "aps" => [
-                        "sound" => "default"
+                "apns" => [
+                    "headers" => [
+                        "apns-priority" => "10"
+                    ],
+                    "payload" => [
+                        "aps" => [
+                            "content-available" => 1,
+                            "sound" => "default"
+                        ]
                     ]
                 ]
             ]
-        ];
-
-        if (!empty($data)) {
-            $message["data"] = array_map('strval', $data);
-        }
-
-        $payload = [
-            "message" => $message
         ];
 
         $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
@@ -150,23 +147,23 @@ class FirebaseService
             'Content-Type' => 'application/json',
         ];
 
+        // Mensaje data-only: Android lo entrega de inmediato con priority=high
+        // El campo "notification" queda sujeto al Doze Mode del SO (causa retrasos)
+        $dataPayload = array_map('strval', array_merge($data, [
+            'title'        => $title,
+            'body'         => $body,
+            'sound'        => $soundFile,
+            'channel_id'   => $channelId,
+            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+            'tipo'         => 'nuevo_pedido',
+        ]));
+
         $payload = [
             "message" => [
                 "token" => $token,
-                "notification" => [
-                    "title" => $title,
-                    "body" => $body
-                ],
-                "data" => array_map('strval', array_merge($data, [
-                    'sound' => $soundFile,
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                    'tipo' => 'nuevo_pedido' // Agregar tipo para identificación
-                ])),
+                "data"  => $dataPayload,
                 "android" => [
                     "priority" => "high",
-                    "notification" => [
-                        "channel_id" => $channelId
-                    ]
                 ],
                 "apns" => [
                     "headers" => [
@@ -174,6 +171,7 @@ class FirebaseService
                     ],
                     "payload" => [
                         "aps" => [
+                            "content-available" => 1,
                             "sound" => $soundFile . ".wav"
                         ]
                     ]
