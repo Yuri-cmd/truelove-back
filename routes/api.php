@@ -366,6 +366,7 @@ Route::get('/get/pedidos/{id}', [PedidoController::class, 'getPedido']);
 Route::post('/update-info-cliente', [ClienteController::class, 'updateProfile']);
 Route::post('/update-direccion', [ClienteController::class, 'actualizarDireccion']);
 Route::post('/perfil/foto', [ClienteController::class, 'actualizarFotoPerfil']);
+Route::post('/delete-account-app', [ClienteController::class, 'deleteAccountApp']);
 Route::get('get/menu/adicionales/{id}', [MenuController::class, 'getAdicionales']);
 
 // Rutas para adicionales por menú (producto) - CRUD directo

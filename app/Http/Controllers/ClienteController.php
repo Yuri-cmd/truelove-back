@@ -688,4 +688,35 @@ class ClienteController extends Controller
             ], 500);
         }
     }
+
+    public function deleteAccountApp(Request $request)
+    {
+        try {
+            $request->validate([
+                'id_cliente' => 'required|integer',
+            ]);
+
+            $cliente = Cliente::find($request->id_cliente);
+
+            if (!$cliente) {
+                return response()->json(['success' => false, 'message' => 'Cliente no encontrado'], 404);
+            }
+
+            // Eliminar registros relacionados
+            ClienteDireccion::where('id_cliente', $cliente->id)->delete();
+            ClienteDeletionRequest::where('cliente_id', $cliente->id)->delete();
+            
+            // Eliminar el cliente permanentemente
+            $cliente->delete();
+
+            return response()->json(['success' => true, 'message' => 'Tu cuenta ha sido eliminada permanentemente.'], 200);
+        } catch (Exception $e) {
+            Log::error('Error al eliminar cuenta desde app: ' . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error al eliminar la cuenta', 
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -225,16 +225,18 @@ class PedidoController extends Controller
 
     public function sendMotorizadosCerca()
     {
-        $motorizadosToken = $this->pedidoService->obtenerPedidosCercanos();
-        foreach ($motorizadosToken as $token) {
-            if ($token) {
+        $motorizados = $this->pedidoService->obtenerPedidosCercanos();
+        foreach ($motorizados as $motorizado) {
+            if ($motorizado['token']) {
                 $this->firebaseService->sendNotificationWithSound(
-                    $token, 
+                    $motorizado['token'], 
                     '🛵 Nuevo Pedido Disponible', 
                     '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 
                     'nuevo_pedido', 
                     'pedidos_v7',
                     [],
+                    'motorizado',
+                    $motorizado['id'],
                     'motorizado'
                 );
             }
@@ -669,21 +671,19 @@ class PedidoController extends Controller
         $motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
         $nombre = $motorizado['nombres'] . ' ' . $motorizado['apellidos'];
         $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->get();
-        $motorizadosToken = [];
+        
         foreach ($motorizados as $motorizado) {
-            $motorizadosToken[] = $motorizado->token_fmc;
-        }
-
-        foreach ($motorizadosToken as $token) {
-            $this->firebaseService->sendNotification(
-                $token, 
-                '🛵 Alerta!', 
-                "📍 El motorizado {$nombre} todavia no finaliza su viaje",
-                [],
-                'motorizado',
-                null, // No específico a un motorizado en este bucle de alerta general
-                'motorizado'
-            );
+            if ($motorizado->token_fmc) {
+                $this->firebaseService->sendNotification(
+                    $motorizado->token_fmc, 
+                    '🛵 Alerta!', 
+                    "📍 El motorizado {$nombre} todavia no finaliza su viaje",
+                    [],
+                    'motorizado',
+                    $motorizado->id,
+                    'motorizado'
+                );
+            }
         }
         return response()->json(['status' => 'success']);
     }

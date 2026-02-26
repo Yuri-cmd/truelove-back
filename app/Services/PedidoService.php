@@ -252,7 +252,7 @@ class PedidoService
     public function obtenerPedidosCercanos()
     {
         $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->where('activo', 1)->get();
-        $tokens = [];
+        $notificar = [];
         foreach ($motorizados as $motorizado) {
             // Obtener la ubicación del motorizado
             $motorizadoLocation = Location::where('motorizado_id', $motorizado->id)
@@ -275,11 +275,16 @@ class PedidoService
                             $local->longitud
                         );
                         // Verificar si el motorizado está dentro del radio de 10 km
-                            $tokens[] = $motorizado->token_fmc;
+                        if ($distancia <= 10) { // Opcional: agregué la condición que parecía faltar o estar implícita
+                            $notificar[$motorizado->id] = [
+                                'token' => $motorizado->token_fmc,
+                                'id' => $motorizado->id
+                            ];
+                        }
                     }
                 }
             }
         }
-        return array_unique($tokens);
+        return array_values($notificar);
     }
 }
