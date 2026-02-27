@@ -192,11 +192,11 @@ class BikerController extends Controller
                 $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
                 $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
                 if ($pedido->fecha_hora_inicio) {
-                    $pedido->fecha_inicio = $pedido->fecha_hora_inicio->toIso8601String();
-                    $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+                    $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
+                    $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
                 } else {
                     $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
-                    $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at->toIso8601String() : null;
+                    $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
                     $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
                 }
 
@@ -640,8 +640,8 @@ class BikerController extends Controller
                 'precioDelivery' => $pedido->precio_delivery,
                 'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                 'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
-                'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
-                'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
+                'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
+                'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
             ];
         }
         $data = [
@@ -710,8 +710,8 @@ class BikerController extends Controller
                     'actualizado' => $pedido->updated_at,
                     'descuento' => $pedido->descuento,
                     'celularLocal' => Negocio::where('business_registration_id', $establecimiento->business_registration_id)->first()->telefono ?? '',
-                    'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
-                    'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
+                    'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
+                    'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
                 ];
             }
         }
@@ -779,8 +779,8 @@ class BikerController extends Controller
                     'productos' => implode(', ', $productosList->toArray()),
                     'actualizado' => $pedido->updated_at,
                     'descuento' => $pedido->descuento,
-                    'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
-                    'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at->toIso8601String(),
+                    'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
+                    'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
                 ];
             }
         }

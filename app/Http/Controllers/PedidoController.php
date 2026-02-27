@@ -661,11 +661,11 @@ class PedidoController extends Controller
         $pedido->lon_local = $local->longitud ?? '';
         $pedido->tiempo = $pedido->tiempo ?? 0;
         if ($pedido->fecha_hora_inicio) {
-            $pedido->fecha_inicio = $pedido->fecha_hora_inicio->toIso8601String();
-            $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+            $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
+            $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
         } else {
             $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
-            $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at->toIso8601String() : null;
+            $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
             $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
         }
 

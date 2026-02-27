@@ -18,9 +18,9 @@ use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\MedioPago;
 use App\Models\Pedido;
+use Carbon\Carbon;
 use App\Models\PedidoDetalle;
 use App\Models\RepartoRegistro;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage; // <-- Importación añadida
@@ -389,11 +389,11 @@ class SocioController extends Controller
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
             $pedido->foto_pago = $pedido->foto_pago ? config('app.url') . ($pedido->foto_pago ?? '') : null;
             if ($pedido->fecha_hora_inicio) {
-                $pedido->fecha_inicio = $pedido->fecha_hora_inicio->toIso8601String();
-                $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+                $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
+                $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
             } else {
                 $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
-                $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at->toIso8601String() : null;
+                $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
                 $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
             }
         }
