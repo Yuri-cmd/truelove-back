@@ -252,6 +252,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas de períodos para socios
         Route::get('/socio/mi-periodo-actual', [CuotaSocioController::class, 'miPeriodoActual']);
         Route::get('/socio/mis-periodos', [CuotaSocioController::class, 'misPeriodos']);
+        Route::get('/socio/pedidos-periodo/{periodoId}', [CuotaSocioController::class, 'pedidosPeriodo']);
         Route::get('/socio/verificar-acceso', [CuotaSocioController::class, 'verificarAcceso']);
         Route::post('/socio/subir-comprobante-periodo', [CuotaSocioController::class, 'subirComprobantePeriodo']);
     });

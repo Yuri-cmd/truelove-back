@@ -83,17 +83,13 @@ class CalculoCuotaService
             ->get();
         
         $cantidadPedidos = $pedidosCompletados->count();
-        
-        // Sumar el total de ventas (solo lo que vende el socio, sin delivery)
-        $totalVentas = 0;
-        foreach ($pedidosCompletados as $pedido) {
-            $subtotalPedido = PedidoDetalle::where('pedido_id', $pedido->id)
-                ->sum('precio');
-            $totalVentas += $subtotalPedido;
-        }
-        
+
+        // Sumar el total de ventas usando pedidos.subtotal (ya tiene descuento aplicado)
+        // NO usar pedido_detalles.precio porque son precios brutos sin descuento
+        $totalVentas = $pedidosCompletados->sum('subtotal');
+
         return [
-            'total_ventas' => round($totalVentas, 2),
+            'total_ventas' => round((float)$totalVentas, 2),
             'cantidad_pedidos' => $cantidadPedidos
         ];
     }
@@ -157,15 +153,6 @@ class CalculoCuotaService
             $montoCalculado = (float) $montoUsoApp;
         }
 
-        // CASO 4: Aplicar tope máximo
-        if ($cuota->monto_maximo && $montoCalculado > $cuota->monto_maximo) {
-            Log::info("Aplicando tope máximo de comisión", [
-                'monto_calculado' => $montoCalculado,
-                'monto_maximo' => $cuota->monto_maximo
-            ]);
-            return (float) $cuota->monto_maximo;
-        }
-        
         return round($montoCalculado, 2);
     }
     
