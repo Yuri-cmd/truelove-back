@@ -118,7 +118,7 @@ class SocioController extends Controller
                         'banco' => $businessRegistration->cuentaBancaria->banco->nombre,
                         'tipo_cuenta' => $businessRegistration->cuentaBancaria->tipoCuenta->nombre,
                         'numero_cuenta' => $businessRegistration->cuentaBancaria->numero_cuenta,
-                        'imagenes_cuenta' => is_string($businessRegistration->cuentaBancaria->imagenes_cuenta) ? json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta) : $businessRegistration->cuentaBancaria->imagenes_cuenta
+                        'imagenes_cuenta' => $businessRegistration->cuentaBancaria->imagenes_cuenta
                     ] : null
                 ]
             ]);

@@ -167,7 +167,17 @@ class BikerController extends Controller
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $cliente = Cliente::find($pedido->id_cliente);
                 $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-                $coordenadasCliente = json_decode($clienteDireccion->coordenadas);
+
+                if (!$clienteDireccion) {
+                    continue;
+                }
+
+                $coordenadasCliente = json_decode($clienteDireccion->coordinates ?? $clienteDireccion->coordenadas);
+
+                if (!$coordenadasCliente || !isset($coordenadasCliente->coordinates)) {
+                    continue;
+                }
+
                 $names = array_map(function ($item) {
                     return $item['nombre'] . ' x ' . $item['cantidad'];
                 }, $pedidoDetalles->toArray());
