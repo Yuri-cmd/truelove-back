@@ -346,10 +346,14 @@ class PedidoController extends Controller
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
+        // Guardar el tiempo o fecha de inicio si se envía
         if ($request->tiempo) {
             $pedido->tiempo = $request->tiempo;
-            $pedido->save();
         }
+        if ($request->estado == 2) {
+            $pedido->fecha_hora_inicio = Carbon::now();
+        }
+        $pedido->save();
         // Crear un nuevo tracking para el pedido
         $tracking = new PedidoTracking();
         $tracking->pedido_id = $id;
@@ -656,6 +660,14 @@ class PedidoController extends Controller
         $pedido->lat_local = $local->latitud ?? '';
         $pedido->lon_local = $local->longitud ?? '';
         $pedido->tiempo = $pedido->tiempo ?? 0;
+        if ($pedido->fecha_hora_inicio) {
+            $pedido->fecha_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+            $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+        } else {
+            $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
+            $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at->toIso8601String() : null;
+            $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
+        }
 
         return response()->json($pedido);
     }

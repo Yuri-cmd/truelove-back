@@ -118,7 +118,7 @@ class SocioController extends Controller
                         'banco' => $businessRegistration->cuentaBancaria->banco->nombre,
                         'tipo_cuenta' => $businessRegistration->cuentaBancaria->tipoCuenta->nombre,
                         'numero_cuenta' => $businessRegistration->cuentaBancaria->numero_cuenta,
-                        'imagenes_cuenta' => json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta)
+                        'imagenes_cuenta' => is_string($businessRegistration->cuentaBancaria->imagenes_cuenta) ? json_decode($businessRegistration->cuentaBancaria->imagenes_cuenta) : $businessRegistration->cuentaBancaria->imagenes_cuenta
                     ] : null
                 ]
             ]);
@@ -388,6 +388,14 @@ class SocioController extends Controller
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
             $pedido->foto_pago = $pedido->foto_pago ? config('app.url') . ($pedido->foto_pago ?? '') : null;
+            if ($pedido->fecha_hora_inicio) {
+                $pedido->fecha_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+                $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio->toIso8601String();
+            } else {
+                $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
+                $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at->toIso8601String() : null;
+                $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
+            }
         }
 
         // Obtener el tipo de pedidos a filtrar desde query parameter
@@ -493,11 +501,14 @@ class SocioController extends Controller
                 ], 400);
             }
 
-            // Guardar el tiempo si se envía
+            // Guardar el tiempo o fecha de inicio si se envía
             if ($request->tiempo) {
                 $pedido->tiempo = $request->tiempo;
-                $pedido->save();
             }
+            if ($estado == 2) {
+                $pedido->fecha_hora_inicio = Carbon::now();
+            }
+            $pedido->save();
 
             // Crear un nuevo tracking
             $tracking = new PedidoTracking();
