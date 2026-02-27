@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\CuotaSocio;
 use App\Models\PagoCuotaSocio;
+use App\Models\Pedido;
+use App\Models\PedidoDetalle;
 use App\Models\PeriodoCuotaSocio;
 use App\Models\BusinessRegistration;
 use App\Services\PeriodoCuotaService;
@@ -400,21 +402,33 @@ class CuotaSocioController extends Controller
         $socio = BusinessRegistration::findOrFail($validated['socio_id']);
         $cuota = CuotaSocio::findOrFail($validated['cuota_socio_id']);
 
-        // Si se especifica día de pago, actualizar la cuota
-        if (isset($validated['dia_pago'])) {
-            $cuota->update([
-                'dia_pago' => $validated['dia_pago'],
-                'dia_pago_nota' => $cuota->necesitaNotaExplicativa() ? $cuota->getNotaExplicativaAutomatica() : null
-            ]);
+        // Para porcentaje: el vencimiento es automáticamente el fin del período,
+        // no se necesita dia_pago a menos que el admin lo especifique explícitamente
+        if ($cuota->tipo_cuota === 'porcentaje') {
+            if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
+                $cuota->update([
+                    'dia_pago' => $validated['dia_pago'],
+                    'dia_pago_nota' => 'Día de vencimiento personalizado'
+                ]);
+            }
+            // Si no se especifica, no forzar dia_pago (fecha_vencimiento = periodo_fin)
         } else {
-            // Si no se especifica día de pago, usar el día de la fecha de inicio
-            $fechaInicio = $validated['fecha_inicio'] ?? now();
-            $diaPago = Carbon::parse($fechaInicio)->day;
-            
-            $cuota->update([
-                'dia_pago' => $diaPago,
-                'dia_pago_nota' => $diaPago > 28 ? "En meses con menos de {$diaPago} días, el pago se realizará el último día del mes." : null
-            ]);
+            // Para monto fijo: configurar dia_pago normalmente
+            if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
+                $cuota->update([
+                    'dia_pago' => $validated['dia_pago'],
+                    'dia_pago_nota' => $cuota->necesitaNotaExplicativa() ? $cuota->getNotaExplicativaAutomatica() : null
+                ]);
+            } else {
+                // Si no se especifica día de pago, usar el día de la fecha de inicio
+                $fechaInicio = $validated['fecha_inicio'] ?? now();
+                $diaPago = Carbon::parse($fechaInicio)->day;
+
+                $cuota->update([
+                    'dia_pago' => $diaPago,
+                    'dia_pago_nota' => $diaPago > 28 ? "En meses con menos de {$diaPago} días, el pago se realizará el último día del mes." : null
+                ]);
+            }
         }
 
         // Asignar cuota al socio
@@ -475,12 +489,47 @@ class CuotaSocioController extends Controller
      */
     public function verPeriodosDeSocio($socioId)
     {
+        // Auto-calcular periodos de tipo porcentaje que ya tienen datos
+        $this->autoCalcularPeriodosPorcentaje($socioId);
+
         $periodos = $this->periodoCuotaService->obtenerPeriodosDeSocio($socioId);
 
         return response()->json([
             'success' => true,
             'data' => $periodos
         ]);
+    }
+
+    /**
+     * Auto-calcula periodos de tipo porcentaje cuyo periodo_inicio ya pasó.
+     * Solo para periodos pendientes o vencidos con cuota tipo porcentaje.
+     */
+    private function autoCalcularPeriodosPorcentaje($socioId)
+    {
+        try {
+            $socio = BusinessRegistration::find($socioId);
+            if (!$socio || !$socio->cuota_socio_id) return;
+
+            $cuota = CuotaSocio::find($socio->cuota_socio_id);
+            if (!$cuota || $cuota->tipo_cuota !== 'porcentaje') return;
+
+            $hoy = Carbon::now()->startOfDay();
+            $calculoService = app(CalculoCuotaService::class);
+
+            // Obtener periodos que ya iniciaron y están pendientes/vencidos
+            $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)
+                ->where('cuota_socio_id', $cuota->id)
+                ->whereIn('estado', ['pendiente', 'vencido'])
+                ->where('periodo_inicio', '<=', $hoy)
+                ->get();
+
+            foreach ($periodos as $periodo) {
+                $calculoService->calcularCuotaDelPeriodo($periodo->id);
+            }
+        } catch (\Exception $e) {
+            // No bloquear la consulta si falla el cálculo
+            \Illuminate\Support\Facades\Log::warning("Auto-cálculo falló para socio {$socioId}: " . $e->getMessage());
+        }
     }
 
     /**
@@ -498,6 +547,9 @@ class CuotaSocioController extends Controller
                 'message' => 'Usuario no es un socio válido'
             ], 403);
         }
+
+        // Auto-calcular comisiones pendientes antes de consultar
+        $this->autoCalcularPeriodosPorcentaje($socio->id);
 
         $periodo = $this->periodoCuotaService->obtenerPeriodoActualDeSocio($socio->id);
 
@@ -556,11 +608,88 @@ class CuotaSocioController extends Controller
             ], 403);
         }
 
+        // Auto-calcular comisiones pendientes antes de consultar
+        $this->autoCalcularPeriodosPorcentaje($socio->id);
+
         $periodos = $this->periodoCuotaService->obtenerPeriodosDeSocio($socio->id);
 
         return response()->json([
             'success' => true,
             'data' => $periodos
+        ]);
+    }
+
+    /**
+     * GET /socio/pedidos-periodo/{periodoId}
+     * Obtener los pedidos completados de un período específico del socio
+     */
+    public function pedidosPeriodo(Request $request, $periodoId)
+    {
+        $user = $request->user();
+        $socio = $user->businessRegistration;
+
+        if (!$socio) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no es un socio válido'
+            ], 403);
+        }
+
+        $periodo = PeriodoCuotaSocio::where('id', $periodoId)
+            ->where('socio_id', $socio->id)
+            ->first();
+
+        if (!$periodo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Período no encontrado'
+            ], 404);
+        }
+
+        $cuota = CuotaSocio::find($periodo->cuota_socio_id);
+        $porcentaje = $cuota && $cuota->tipo_cuota === 'porcentaje' ? (float)$cuota->porcentaje_comision : null;
+
+        // Buscar pedidos completados en el rango del período
+        $pedidos = Pedido::where('pedidos.id_local', $socio->id)
+            ->whereBetween('pedidos.created_at', [
+                Carbon::parse($periodo->periodo_inicio)->startOfDay(),
+                Carbon::parse($periodo->periodo_fin)->endOfDay()
+            ])
+            ->whereHas('trackings', function($query) {
+                $query->where('estado', 8);
+            })
+            ->leftJoin('clientes', 'clientes.id', '=', 'pedidos.id_cliente')
+            ->select('pedidos.*', 'clientes.nombre as cliente_nombre', 'clientes.apellido as cliente_apellido')
+            ->orderBy('pedidos.created_at', 'desc')
+            ->get()
+            ->map(function($pedido) use ($porcentaje) {
+                // Usar pedidos.subtotal (ya tiene descuento aplicado), no la suma de detalles
+                $subtotal = (float)$pedido->subtotal;
+                $descuento = (float)($pedido->descuento ?? 0);
+                $numProductos = PedidoDetalle::where('pedido_id', $pedido->id)->sum('cantidad')
+                    ?: PedidoDetalle::where('pedido_id', $pedido->id)->count();
+                $comision = $porcentaje ? round($subtotal * $porcentaje / 100, 2) : 0;
+                return [
+                    'id' => $pedido->id,
+                    'codigo' => $pedido->codigo,
+                    'cliente' => trim(($pedido->cliente_nombre ?? '') . ' ' . ($pedido->cliente_apellido ?? '')) ?: null,
+                    'fecha' => $pedido->created_at->format('Y-m-d H:i'),
+                    'subtotal' => round($subtotal, 2),
+                    'descuento' => round($descuento, 2),
+                    'comision' => $comision,
+                    'neto' => round($subtotal - $comision, 2),
+                    'num_productos' => (int)$numProductos,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pedidos' => $pedidos,
+                'porcentaje' => $porcentaje,
+                'periodo_inicio' => $periodo->periodo_inicio,
+                'periodo_fin' => $periodo->periodo_fin,
+            ]
         ]);
     }
 
@@ -681,6 +810,9 @@ class CuotaSocioController extends Controller
      */
     public function getEstadoPagosSocio($socioId)
     {
+        // Auto-calcular periodos de tipo porcentaje antes de obtener estadísticas
+        $this->autoCalcularPeriodosPorcentaje($socioId);
+
         $socio = BusinessRegistration::findOrFail($socioId);
 
         // Verificar si tiene cuota asignada
@@ -779,22 +911,29 @@ class CuotaSocioController extends Controller
      */
     private function recalcularPeriodosFuturos($cuotaId, $nuevoDiaPago)
     {
+        $cuota = CuotaSocio::find($cuotaId);
         // Obtener todos los socios que tienen esta cuota asignada
         $socios = BusinessRegistration::where('cuota_socio_id', $cuotaId)->get();
 
         foreach ($socios as $socio) {
-            // Obtener períodos futuros pendientes
+            // Obtener períodos futuros pendientes o vencidos
             $periodosPendientes = PeriodoCuotaSocio::where('socio_id', $socio->id)
                 ->where('cuota_socio_id', $cuotaId)
-                ->whereIn('estado', ['pendiente'])
-                ->where('fecha_vencimiento', '>', now())
+                ->whereIn('estado', ['pendiente', 'vencido'])
                 ->get();
 
             foreach ($periodosPendientes as $periodo) {
-                // Recalcular fecha de vencimiento basada en el nuevo día de pago
-                $fechaVencimiento = Carbon::parse($periodo->periodo_inicio);
-                $fechaVencimiento->day = min($nuevoDiaPago, $fechaVencimiento->daysInMonth);
-                
+                if ($cuota && $cuota->tipo_cuota === 'porcentaje') {
+                    // Para porcentaje: usar periodo_fin como base para calcular vencimiento
+                    // El vencimiento se calcula sobre el mes del fin del período
+                    $fechaVencimiento = Carbon::parse($periodo->periodo_fin);
+                    $fechaVencimiento->day = min($nuevoDiaPago, $fechaVencimiento->daysInMonth);
+                } else {
+                    // Para monto fijo: usar periodo_inicio como base
+                    $fechaVencimiento = Carbon::parse($periodo->periodo_inicio);
+                    $fechaVencimiento->day = min($nuevoDiaPago, $fechaVencimiento->daysInMonth);
+                }
+
                 $periodo->update([
                     'fecha_vencimiento' => $fechaVencimiento
                 ]);
