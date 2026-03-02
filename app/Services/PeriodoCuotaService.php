@@ -230,13 +230,20 @@ class PeriodoCuotaService
      */
     public function obtenerPeriodosDeSocio($socioId)
     {
+        $hoy = Carbon::now();
+
         $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->with(['cuota', 'pago'])
+            ->where(function ($query) use ($hoy) {
+                $query->where('periodo_inicio', '<=', $hoy)
+                      ->orWhere('estado', '!=', 'pendiente')
+                      ->orWhere('total_ventas', '>', 0)
+                      ->orWhere('monto_esperado', '>', 0);
+            })
             ->orderBy('periodo_inicio', 'asc')
             ->get();
 
         // Agregar información calculada a cada período
-        $hoy = Carbon::now();
         $numeroPeriodo = 1;
 
         $periodos->transform(function ($periodo) use ($hoy, &$numeroPeriodo) {
