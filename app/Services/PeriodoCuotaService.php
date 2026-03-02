@@ -232,16 +232,22 @@ class PeriodoCuotaService
     {
         $hoy = Carbon::now();
 
-        $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)
-            ->with(['cuota', 'pago'])
-            ->where(function ($query) use ($hoy) {
-                $query->where('periodo_inicio', '<=', $hoy)
-                      ->orWhere('estado', '!=', 'pendiente')
-                      ->orWhere('total_ventas', '>', 0)
-                      ->orWhere('monto_esperado', '>', 0);
-            })
-            ->orderBy('periodo_inicio', 'asc')
-            ->get();
+        $query = PeriodoCuotaSocio::where('socio_id', $socioId)
+            ->with(['cuota', 'pago']);
+
+        // Para cuotas tipo porcentaje: solo mostrar períodos que ya iniciaron o tienen actividad
+        // Para monto fijo: mostrar todos
+        $primerPeriodo = PeriodoCuotaSocio::where('socio_id', $socioId)->first();
+        if ($primerPeriodo && $primerPeriodo->cuota && $primerPeriodo->cuota->tipo_cuota === 'porcentaje') {
+            $query->where(function ($q) use ($hoy) {
+                $q->where('periodo_inicio', '<=', $hoy)
+                  ->orWhere('estado', '!=', 'pendiente')
+                  ->orWhere('total_ventas', '>', 0)
+                  ->orWhere('monto_esperado', '>', 0);
+            });
+        }
+
+        $periodos = $query->orderBy('periodo_inicio', 'asc')->get();
 
         // Agregar información calculada a cada período
         $numeroPeriodo = 1;
