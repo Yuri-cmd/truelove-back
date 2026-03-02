@@ -60,6 +60,8 @@ class CuotaSocioController extends Controller
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
             'metodos_pago_disponibles' => 'nullable|array',
+            'numero_yape' => 'nullable|string|max:20',
+            'titular_yape' => 'nullable|string|max:100',
             'descripcion' => 'nullable|string'
         ]);
 
@@ -106,6 +108,8 @@ class CuotaSocioController extends Controller
             'tipo_cuenta' => 'nullable|string|max:50',
             'banco' => 'nullable|string|max:100',
             'metodos_pago_disponibles' => 'nullable|array',
+            'numero_yape' => 'nullable|string|max:20',
+            'titular_yape' => 'nullable|string|max:100',
             'estado' => 'sometimes|in:activo,inactivo',
             'fecha_inicio' => 'sometimes|nullable|date',
             'fecha_fin' => 'sometimes|nullable|date',
