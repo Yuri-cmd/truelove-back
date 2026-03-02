@@ -28,7 +28,7 @@ class LocalesController extends Controller
         $lat = $coordenadas->coordinates[0];
         $lng = $coordenadas->coordinates[1];
 
-        $locales = $this->getLocalesCercanos($lng, $lat);
+        $locales = $this->getLocalesCercanos($lng, $lat, false, false, false);
 
         return response()->json($locales);
     }
