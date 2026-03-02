@@ -26,6 +26,8 @@ class CuotaSocio extends Model
         'tipo_cuenta',
         'banco',
         'metodos_pago_disponibles',
+        'numero_yape',
+        'titular_yape',
         'estado',
         'descripcion',
         'dia_pago', // Día del mes para realizar el pago (1-31)

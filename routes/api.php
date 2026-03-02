@@ -245,16 +245,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/socio/update-token-web', 'updateTokenWeb');
         });
 
-        Route::get('/socio/cuota-activa', [CuotaSocioController::class, 'getCuotaActiva']);
-        Route::post('/socio/subir-comprobante', [CuotaSocioController::class, 'subirComprobante']);
-        Route::get('/socio/mis-pagos', [CuotaSocioController::class, 'misPagos']);
-
-        // Rutas de períodos para socios
-        Route::get('/socio/mi-periodo-actual', [CuotaSocioController::class, 'miPeriodoActual']);
-        Route::get('/socio/mis-periodos', [CuotaSocioController::class, 'misPeriodos']);
-        Route::get('/socio/pedidos-periodo/{periodoId}', [CuotaSocioController::class, 'pedidosPeriodo']);
-        Route::get('/socio/verificar-acceso', [CuotaSocioController::class, 'verificarAcceso']);
-        Route::post('/socio/subir-comprobante-periodo', [CuotaSocioController::class, 'subirComprobantePeriodo']);
     });
 
     // Rutas para motorizados
@@ -264,6 +254,18 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/actualizar', 'actualizar');
         });
     });
+});
+
+// Rutas de cuotas para socios (acepta Bearer token O X-Socio-Id header)
+Route::middleware('auth.socio.flexible')->group(function () {
+    Route::get('/socio/cuota-activa', [CuotaSocioController::class, 'getCuotaActiva']);
+    Route::post('/socio/subir-comprobante', [CuotaSocioController::class, 'subirComprobante']);
+    Route::get('/socio/mis-pagos', [CuotaSocioController::class, 'misPagos']);
+    Route::get('/socio/mi-periodo-actual', [CuotaSocioController::class, 'miPeriodoActual']);
+    Route::get('/socio/mis-periodos', [CuotaSocioController::class, 'misPeriodos']);
+    Route::get('/socio/pedidos-periodo/{periodoId}', [CuotaSocioController::class, 'pedidosPeriodo']);
+    Route::get('/socio/verificar-acceso', [CuotaSocioController::class, 'verificarAcceso']);
+    Route::post('/socio/subir-comprobante-periodo', [CuotaSocioController::class, 'subirComprobantePeriodo']);
 });
 
 // Rutas de autenticación y verificación del formulario principal y envio del correo
