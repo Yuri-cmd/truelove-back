@@ -7,12 +7,16 @@ use Illuminate\Http\Request;
 use App\Models\BusinessRegistration;
 use App\Models\User;
 
+/**
+ * Middleware de autenticación flexible para socios.
+ * Permite que tanto la web como el app Flutter usen las mismas rutas de API.
+ */
 class AuthSocioFlexible
 {
     /**
-     * Middleware flexible que acepta autenticación por:
+     * Acepta autenticación por:
      * 1. Bearer token (Sanctum) - usado por la web del socio
-     * 2. Header X-Socio-Id o parámetro socio_id - usado por el app Flutter
+     * 2. Header X-Socio-Id o parámetro ?socio_id= - usado por el app Flutter
      */
     public function handle(Request $request, Closure $next)
     {
