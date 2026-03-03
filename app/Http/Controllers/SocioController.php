@@ -922,13 +922,22 @@ class SocioController extends Controller
             }
         ])
             ->where('id', $id)
-            ->whereDate('created_at', Carbon::today())
             ->first();
+
+        if (!$pedido) {
+            return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
+        }
+
         $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
 
         $pedidoDetalles = PedidoDetalle::where('pedido_id', $id)->get();
         $cliente = Cliente::find($pedido->id_cliente);
         $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+
+        // Si el cliente no existe, devolver error
+        if (!$cliente) {
+            return response()->json(['status' => 'error', 'message' => 'Cliente no encontrado'], 404);
+        }
 
         $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
         $motorizado = $motorizadoRegistro ? $motorizadoRegistro->only(['nombres', 'apellidos', 'celular']) : null;
@@ -941,7 +950,7 @@ class SocioController extends Controller
         }
 
         $names = array_map(function ($item) {
-            return $item['nombre'];
+            return $item['nombre'] . ' x' . $item['cantidad'];
         }, $pedidoDetalles->toArray());
         $namesString = implode(', ', $names);
 
@@ -964,6 +973,17 @@ class SocioController extends Controller
         $pedido->tiempo = $pedido->tiempo ?? 0;
         $pedido->nota = $pedido->nota ?? 'Sin nota';
         $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
+        $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
+        $pedido->foto_pago = $pedido->foto_pago ? config('app.url') . ($pedido->foto_pago ?? '') : null;
+        
+        if ($pedido->fecha_hora_inicio) {
+            $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
+            $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
+        } else {
+            $trackingInicio = PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first();
+            $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
+            $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
+        }
 
         return response()->json([$pedido]);
     }
