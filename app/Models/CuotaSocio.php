@@ -70,7 +70,11 @@ class CuotaSocio extends Model
      */
     public function getDiaPagoAttribute($value)
     {
-        return $value ?? 1; // Fallback al día 1 si no está definido
+        // Para porcentaje, dia_pago no aplica (el vencimiento es periodo_fin)
+        if ($this->attributes['tipo_cuota'] === 'porcentaje') {
+            return null;
+        }
+        return $value ?? 1; // Fallback al día 1 si no está definido (monto_fijo)
     }
 
     /**

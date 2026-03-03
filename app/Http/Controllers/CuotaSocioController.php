@@ -302,6 +302,12 @@ class CuotaSocioController extends Controller
             ], 404);
         }
 
+        // Para porcentaje, dia_pago no aplica (el vencimiento es periodo_fin)
+        if ($cuota->tipo_cuota === 'porcentaje') {
+            $cuota->dia_pago = null;
+            $cuota->dia_pago_nota = null;
+        }
+
         return response()->json([
             'success' => true,
             'data' => $cuota // Devuelve UN objeto, no un array
