@@ -18,6 +18,9 @@ class LocalesController extends Controller
 
     public function getLocalesTop($idCliente)
     {
+        if ($idCliente == null) {
+            $locales = $this->getLocalesCercanos(-12.171099966956891, -77.02171014857589, false, false, false);
+        }
         $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
 
         if (!$direccion || !$direccion->coordenadas) {

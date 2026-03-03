@@ -352,7 +352,7 @@ Route::post('/upload-photos', [ClienteController::class, 'uploadPhotos']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
 Route::get('/get/tipo/negocio', [TipoNegocioController::class, 'getAll']);
-Route::get('/get/locales/top/{id}', [LocalesController::class, 'getLocalesTop']);
+Route::get('/get/locales/top/{id?}', [LocalesController::class, 'getLocalesTop']);
 Route::get('/get/locales/{id}/{category?}', [LocalesController::class, 'getLocales']);
 Route::get('/busqueda/locales/{id}/{term?}', [LocalesController::class, 'searchLocales']);
 Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getMenuCategoria']);
