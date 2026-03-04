@@ -201,12 +201,12 @@ class PedidoController extends Controller
         $lat2 = round((float) $coordenadas->coordinates[1], 6);
         $lon2 = round((float) $coordenadas->coordinates[0], 6);
 
-        // opcional: loguear para debug
-        \Log::debug('Coords used for routing', compact('lat1', 'lon1', 'lat2', 'lon2'));
-
-        // TODO: revisar si conviene volver a Mapbox (ruta real) — comentado 2026-02-17
-        // $distancia = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
-        $distancia = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+        // Usar Google Distance Matrix (distancia real por ruta) — consistente con lo que muestra la app
+        $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat1, $lon1, [
+            ['lat' => $lat2, 'lng' => $lon2]
+        ]);
+        $distancia = ($googleDistancias[0] ?? null)
+            ?: $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
