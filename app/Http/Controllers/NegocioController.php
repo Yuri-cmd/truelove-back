@@ -182,57 +182,8 @@ class NegocioController extends Controller
 
     public function localEstaAbierto($idLocal)
     {
-        $now = \Carbon\Carbon::now();
-        $diaSemana = strtolower($now->format('l')); // "monday", "tuesday"...
-
-        // Diccionario para mapear días de Carbon a tus nombres de columnas o filtros
-        $diasMap = [
-            'monday' => 'Lun',
-            'tuesday' => 'Mar',
-            'wednesday' => 'Mié',
-            'thursday' => 'Jue',
-            'friday' => 'Vie',
-            'saturday' => 'Sáb',
-            'sunday' => 'Dom'
-        ];
-
-        $negocio = PerfilNegocio::where('business_registration_id', $idLocal)->firstOrFail();
-        
-        $estaAbierto = false;
-
-        // 1. Buscamos TODOS los horarios activos de este negocio
-        $horarios = HorarioNegocio::where('perfil_negocio_id', $negocio->id)
-            ->where('activo', 1)
-            ->get();
-            
-        $businessRegistration = BusinessRegistration::findOrFail($idLocal);
-        $estaAbierto = $businessRegistration->activo == 1;
-
-        $horaActual = $now->format('H:i:s');
-
-        foreach ($horarios as $horario) {
-            // Asumiendo que guardas los días en un array o string (ej: "Lun,Mar,Jue")
-            // Si tu estructura es diferente, ajusta esta validación de día:
-            if (str_contains($horario->dias, $diasMap[$diaSemana])) {
-
-                $inicio = $horario->hora_apertura;
-                $fin = $horario->hora_cierre;
-
-                if ($fin < $inicio) {
-                    // Cruza medianoche
-                    if ($horaActual >= $inicio || $horaActual <= $fin) {
-                        $estaAbierto = true;
-                        break;
-                    }
-                } else {
-                    // Rango normal
-                    if ($horaActual >= $inicio && $horaActual <= $fin) {
-                        $estaAbierto = true;
-                        break;
-                    }
-                }
-            }
-        }
+        $negocioService = app(\App\Services\NegocioService::class);
+        $estaAbierto = $negocioService->localEstaAbierto($idLocal);
 
         return response()->json(['abierto' => $estaAbierto]);
     }

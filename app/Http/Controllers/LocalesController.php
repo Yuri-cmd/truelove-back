@@ -10,10 +10,14 @@ use Illuminate\Support\Facades\DB;
 class LocalesController extends Controller
 {
     private $pedidoService;
+    private $negocioService;
 
-    public function __construct(\App\Services\PedidoService $pedidoService)
-    {
+    public function __construct(
+        \App\Services\PedidoService $pedidoService,
+        \App\Services\NegocioService $negocioService
+    ) {
         $this->pedidoService = $pedidoService;
+        $this->negocioService = $negocioService;
     }
 
     public function getLocalesTop($idCliente)
@@ -118,7 +122,6 @@ class LocalesController extends Controller
             perfiles_negocio.foto_perfil,
             business_registrations.businessType,
             business_registrations.omitir_pago_adelantado,
-            CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
             local_priorities.prioridad,
             (6371 * acos(
                 cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
@@ -159,11 +162,22 @@ class LocalesController extends Controller
                 if (isset($allGoogleDistances[$index]) && $allGoogleDistances[$index] !== null) {
                     $local->distancia = $allGoogleDistances[$index];
                 }
+                
+                // Evaluamos si el local está abierto usando el servicio
+                $local->activo = $this->negocioService->localEstaAbierto($local->business_registration_id);
             }
 
-            // Re-ordenar por la nueva distancia real (Google)
+            // Re-ordenar por estado abierto, luego prioridad, luego distancia real (Google)
             usort($query, function($a, $b) {
-                // Primero por prioridad (si existe y es diferente)
+                // Primero por estado (abierto primero)
+                $activoA = (bool)$a->activo;
+                $activoB = (bool)$b->activo;
+
+                if ($activoA !== $activoB) {
+                    return $activoA ? -1 : 1; // Si A está abierto y B no, A va primero (-1)
+                }
+
+                // Luego por prioridad (si existe y es diferente) - mayor prioridad primero
                 $pA = isset($a->prioridad) ? (int)$a->prioridad : 0;
                 $pB = isset($b->prioridad) ? (int)$b->prioridad : 0;
                 
@@ -171,7 +185,7 @@ class LocalesController extends Controller
                     return $pB <=> $pA;
                 }
                 
-                // Luego por distancia real
+                // Finalmente por distancia real - menor distancia primero
                 return $a->distancia <=> $b->distancia;
             });
         }
