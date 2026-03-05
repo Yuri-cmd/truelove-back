@@ -373,6 +373,9 @@ class ClienteController extends Controller
             case 'celular':
                 $cliente->celular = $request->valor;
                 break;
+            case 'celular_whatsapp':
+                $cliente->celular_whatsapp = $request->valor;
+                break;
             default:
                 return response()->json(['success' => false, 'message' => 'Tipo no válido'], );
         }
