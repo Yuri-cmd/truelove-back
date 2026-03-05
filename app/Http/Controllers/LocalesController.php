@@ -164,7 +164,7 @@ class LocalesController extends Controller
                 }
                 
                 // Evaluamos si el local está abierto usando el servicio
-                $local->activo = $this->negocioService->localEstaAbierto($local->business_registration_id);
+                $local->activo = $this->negocioService->localEstaAbierto($local->business_registration_id) ;
             }
 
             // Re-ordenar por estado abierto, luego prioridad, luego distancia real (Google)

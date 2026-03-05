@@ -22,13 +22,13 @@ class NegocioService
         $diaSemana = strtolower($now->format('l'));
 
         $diasMap = [
-            'monday' => 'Lun',
-            'tuesday' => 'Mar',
-            'wednesday' => 'Mié',
-            'thursday' => 'Jue',
-            'friday' => 'Vie',
-            'saturday' => 'Sáb',
-            'sunday' => 'Dom'
+            'monday' => 'lunes',
+            'tuesday' => 'martes',
+            'wednesday' => 'miercoles',
+            'thursday' => 'jueves',
+            'friday' => 'viernes',
+            'saturday' => 'sabado',
+            'sunday' => 'domingo'
         ];
 
         $businessRegistration = BusinessRegistration::find($idLocal);
@@ -53,9 +53,10 @@ class NegocioService
 
         $estaAbierto = false; 
         $horaActual = $now->format('H:i:s');
+        $columnaDia = $diasMap[$diaSemana];
 
         foreach ($horarios as $horario) {
-            if (str_contains($horario->dias, $diasMap[$diaSemana])) {
+            if ($horario->$columnaDia) {
                 $inicio = $horario->hora_apertura;
                 $fin = $horario->hora_cierre;
 
