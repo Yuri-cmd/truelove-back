@@ -204,9 +204,9 @@ class PedidoController extends Controller
         // Calcular ambas distancias para comparar
         $distanciaHaversine = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
-        // Google Distance: origen=local, destino=cliente
-        $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat1, $lon1, [
-            ['lat' => $lat2, 'lng' => $lon2]
+        // Google Distance: origen=cliente, destino=local (mismo sentido que getLocales/buscador)
+        $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat2, $lon2, [
+            ['lat' => $lat1, 'lng' => $lon1]
         ]);
         $distanciaGoogle = $googleDistancias[0] ?? null;
 
@@ -223,7 +223,7 @@ class PedidoController extends Controller
             'coords_cliente' => "$lat2, $lon2",
             'distancia_haversine_km' => $distanciaHaversine,
             'distancia_google_km' => $distanciaGoogle,
-            'google_url' => "origins=$lat1,$lon1&destinations=$lat2,$lon2",
+            'google_url' => "origins=$lat2,$lon2&destinations=$lat1,$lon1 (cliente->local)",
             'distancia_usada' => 'haversine',
             'hora_lima' => $hora,
             'es_nocturno' => $esNocturno,
