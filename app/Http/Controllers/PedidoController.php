@@ -201,9 +201,6 @@ class PedidoController extends Controller
         $lat2 = round((float) $coordenadas->coordinates[1], 6);
         $lon2 = round((float) $coordenadas->coordinates[0], 6);
 
-        // Calcular ambas distancias para comparar
-        $distanciaHaversine = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
-
         // Google Distance: origen=cliente, destino=local (mismo sentido que getLocales/buscador)
         $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat2, $lon2, [
             ['lat' => $lat1, 'lng' => $lon1]
@@ -211,21 +208,10 @@ class PedidoController extends Controller
         $distanciaGoogle = $googleDistancias[0] ?? null;
 
         // Usar Google Distance (consistente con buscador), fallback a Haversine si Google falla
-        $distancia = $distanciaGoogle ?? $distanciaHaversine;
-
-        \Log::info('=== PRECIO DELIVERY DEBUG ===', [
-            'idLocal' => $idLocal,
-            'idCliente' => $idCliente,
-            'distancia_google_km' => $distanciaGoogle,
-            'distancia_haversine_km' => $distanciaHaversine,
-            'distancia_usada' => $distanciaGoogle ? 'google' : 'haversine_fallback',
-        ]);
+        $distancia = $distanciaGoogle
+            ?: $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
-
-        \Log::info('=== PRECIO RESULTADO ===', [
-            'precio_delivery' => $precio_delivery,
-        ]);
 
         // Formatear con 2 decimales
         return response()->json(number_format((float) $precio_delivery, 2, '.', ''));
