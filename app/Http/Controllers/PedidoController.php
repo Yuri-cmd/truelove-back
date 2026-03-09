@@ -210,30 +210,21 @@ class PedidoController extends Controller
         ]);
         $distanciaGoogle = $googleDistancias[0] ?? null;
 
-        // Usar Haversine para el precio (las tarifas están calibradas con esta)
-        $distancia = $distanciaHaversine;
-
-        $hora = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
-        $esNocturno = ((int)\Carbon\Carbon::now('America/Lima')->format('G') >= 23 || (int)\Carbon\Carbon::now('America/Lima')->format('G') < 5);
+        // Usar Google Distance (consistente con buscador), fallback a Haversine si Google falla
+        $distancia = $distanciaGoogle ?? $distanciaHaversine;
 
         \Log::info('=== PRECIO DELIVERY DEBUG ===', [
             'idLocal' => $idLocal,
             'idCliente' => $idCliente,
-            'coords_local' => "$lat1, $lon1",
-            'coords_cliente' => "$lat2, $lon2",
-            'distancia_haversine_km' => $distanciaHaversine,
             'distancia_google_km' => $distanciaGoogle,
-            'google_url' => "origins=$lat2,$lon2&destinations=$lat1,$lon1 (cliente->local)",
-            'distancia_usada' => 'haversine',
-            'hora_lima' => $hora,
-            'es_nocturno' => $esNocturno,
+            'distancia_haversine_km' => $distanciaHaversine,
+            'distancia_usada' => $distanciaGoogle ? 'google' : 'haversine_fallback',
         ]);
 
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
         \Log::info('=== PRECIO RESULTADO ===', [
-            'precio_con_haversine' => $precio_delivery,
-            'precio_si_fuera_google' => $distanciaGoogle ? $this->pedidoService->calcularPrecioPorDistancia($distanciaGoogle, $idLocal) : 'N/A',
+            'precio_delivery' => $precio_delivery,
         ]);
 
         // Formatear con 2 decimales
