@@ -160,8 +160,20 @@ class LocalesController extends Controller
             }
 
             foreach ($query as $index => $local) {
+                $distanciaHaversineSql = $local->distancia;
                 if (isset($allGoogleDistances[$index]) && $allGoogleDistances[$index] !== null) {
                     $local->distancia = $allGoogleDistances[$index];
+                }
+                // Log para debug: comparar Haversine SQL vs Google
+                if ($local->business_registration_id == 80) {
+                    \Log::info('=== GETLOCALES DEBUG LOCAL 80 ===', [
+                        'local' => $local->nombre_establecimiento,
+                        'coords_origen_cliente' => "$lat, $lng",
+                        'coords_destino_local' => "$local->latitud, $local->longitud",
+                        'distancia_haversine_sql' => $distanciaHaversineSql,
+                        'distancia_google' => $allGoogleDistances[$index] ?? 'NULL/no devolvió',
+                        'distancia_final' => $local->distancia,
+                    ]);
                 }
             }
 

@@ -201,8 +201,17 @@ class PedidoController extends Controller
         $lat2 = round((float) $coordenadas->coordinates[1], 6);
         $lon2 = round((float) $coordenadas->coordinates[0], 6);
 
-        // Haversine (línea recta) — las tarifas están calibradas con esta distancia
-        $distancia = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+        // Calcular ambas distancias para comparar
+        $distanciaHaversine = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+
+        // Google Distance: origen=local, destino=cliente
+        $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat1, $lon1, [
+            ['lat' => $lat2, 'lng' => $lon2]
+        ]);
+        $distanciaGoogle = $googleDistancias[0] ?? null;
+
+        // Usar Haversine para el precio (las tarifas están calibradas con esta)
+        $distancia = $distanciaHaversine;
 
         $hora = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
         $esNocturno = ((int)\Carbon\Carbon::now('America/Lima')->format('G') >= 23 || (int)\Carbon\Carbon::now('America/Lima')->format('G') < 5);
@@ -212,7 +221,10 @@ class PedidoController extends Controller
             'idCliente' => $idCliente,
             'coords_local' => "$lat1, $lon1",
             'coords_cliente' => "$lat2, $lon2",
-            'distancia_haversine_km' => $distancia,
+            'distancia_haversine_km' => $distanciaHaversine,
+            'distancia_google_km' => $distanciaGoogle,
+            'google_url' => "origins=$lat1,$lon1&destinations=$lat2,$lon2",
+            'distancia_usada' => 'haversine',
             'hora_lima' => $hora,
             'es_nocturno' => $esNocturno,
         ]);
@@ -220,7 +232,8 @@ class PedidoController extends Controller
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
         \Log::info('=== PRECIO RESULTADO ===', [
-            'precio_delivery' => $precio_delivery,
+            'precio_con_haversine' => $precio_delivery,
+            'precio_si_fuera_google' => $distanciaGoogle ? $this->pedidoService->calcularPrecioPorDistancia($distanciaGoogle, $idLocal) : 'N/A',
         ]);
 
         // Formatear con 2 decimales
