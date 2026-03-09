@@ -117,7 +117,7 @@ class PedidoController extends Controller
 
         $requiereConfirmacion = $totalPedido >= 100;
 
-        // Si el comercio tiene el flag de omitir pago adelantado, forzamos requiereConfirmacion a false
+        // el comercio tiene el flag de omitir pago adelantado, forzamos requiereConfirmacion a false
         if ($comercio && $comercio->omitir_pago_adelantado) {
             $requiereConfirmacion = false;
         }
