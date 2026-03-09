@@ -201,12 +201,8 @@ class PedidoController extends Controller
         $lat2 = round((float) $coordenadas->coordinates[1], 6);
         $lon2 = round((float) $coordenadas->coordinates[0], 6);
 
-        // Usar Google Distance Matrix (distancia real por ruta) — consistente con lo que muestra la app
-        $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat1, $lon1, [
-            ['lat' => $lat2, 'lng' => $lon2]
-        ]);
-        $distancia = ($googleDistancias[0] ?? null)
-            ?: $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+        // Haversine (línea recta) — las tarifas están calibradas con esta distancia
+        $distancia = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
 
