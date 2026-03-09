@@ -204,7 +204,24 @@ class PedidoController extends Controller
         // Haversine (línea recta) — las tarifas están calibradas con esta distancia
         $distancia = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
 
+        $hora = \Carbon\Carbon::now('America/Lima')->format('H:i:s');
+        $esNocturno = ((int)\Carbon\Carbon::now('America/Lima')->format('G') >= 23 || (int)\Carbon\Carbon::now('America/Lima')->format('G') < 5);
+
+        \Log::info('=== PRECIO DELIVERY DEBUG ===', [
+            'idLocal' => $idLocal,
+            'idCliente' => $idCliente,
+            'coords_local' => "$lat1, $lon1",
+            'coords_cliente' => "$lat2, $lon2",
+            'distancia_haversine_km' => $distancia,
+            'hora_lima' => $hora,
+            'es_nocturno' => $esNocturno,
+        ]);
+
         $precio_delivery = $distancia ? $this->pedidoService->calcularPrecioPorDistancia($distancia, $idLocal) : 0;
+
+        \Log::info('=== PRECIO RESULTADO ===', [
+            'precio_delivery' => $precio_delivery,
+        ]);
 
         // Formatear con 2 decimales
         return response()->json(number_format((float) $precio_delivery, 2, '.', ''));
