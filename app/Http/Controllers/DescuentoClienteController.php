@@ -43,8 +43,13 @@ class DescuentoClienteController extends Controller
             'descripcion' => 'nullable|string|max:255'
         ]);
 
-        // Generar código único
-        $codigo = strtoupper(Str::random(8));
+        // Generar código legible: PROMO + 4 caracteres sin ambiguos (sin 0/O, 1/I/L)
+        $caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        $sufijo = '';
+        for ($i = 0; $i < 4; $i++) {
+            $sufijo .= $caracteres[random_int(0, strlen($caracteres) - 1)];
+        }
+        $codigo = 'PROMO' . $sufijo;
 
         $descuento = DescuentoCliente::create([
             'id_cliente' => $request->id_cliente,
@@ -111,7 +116,19 @@ class DescuentoClienteController extends Controller
             $request->merge(['valor' => 0]);
         }
 
-        $descuento->update($request->all());
+        $data = $request->all();
+
+        // Regenerar código legible si el actual no tiene formato PROMO
+        if (!str_starts_with($descuento->codigo, 'PROMO')) {
+            $caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+            $sufijo = '';
+            for ($i = 0; $i < 4; $i++) {
+                $sufijo .= $caracteres[random_int(0, strlen($caracteres) - 1)];
+            }
+            $data['codigo'] = 'PROMO' . $sufijo;
+        }
+
+        $descuento->update($data);
 
         return response()->json([
             'message' => 'Descuento actualizado con éxito',
