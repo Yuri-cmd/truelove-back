@@ -107,7 +107,7 @@ class MenuController extends Controller
             })
             ->with([
                 'categorias' => function ($q) {
-                    $q->where('estado', 1);
+                    $q->where('estado', 1)->orderBy('orden');
                 }
             ])
             ->get();
@@ -180,6 +180,7 @@ class MenuController extends Controller
                 if ($categoriaIndex === false) {
                     $groupedMenus[] = [
                         'nombre' => $categoria->nombre,
+                        'orden' => $categoria->orden ?? 0,
                         'items' => []
                     ];
                     $categoriaIndex = array_key_last($groupedMenus);
@@ -200,6 +201,9 @@ class MenuController extends Controller
                 ];
             }
         }
+
+        // Ordenar por campo 'orden'
+        usort($groupedMenus, fn($a, $b) => ($a['orden'] ?? 0) - ($b['orden'] ?? 0));
 
         return response()->json($groupedMenus);
     }

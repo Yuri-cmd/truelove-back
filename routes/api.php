@@ -499,6 +499,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/categoria/web', [CategoriaController::class, 'crearCategoria']);
     Route::put('/categoria/web/{id}', [CategoriaController::class, 'actualizarCategoria']);
     Route::delete('/categoria/web/{id}/{id_empresa}', [CategoriaController::class, 'eliminarCategoria']);
+    Route::post('/categoria/web/reordenar', [CategoriaController::class, 'reordenar']);
 
     // Crear menus
 
@@ -564,6 +565,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/categoria/web', [CategoriaController::class, 'crearCategoria']);
     Route::put('/categoria/web/{id}', [CategoriaController::class, 'actualizarCategoria']);
     Route::delete('/categoria/web/{id}/{id_empresa}', [CategoriaController::class, 'eliminarCategoria']);
+    Route::post('/categoria/web/reordenar', [CategoriaController::class, 'reordenar']);
 
     // Crear menus
 

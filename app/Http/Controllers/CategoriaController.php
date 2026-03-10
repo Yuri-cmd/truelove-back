@@ -10,7 +10,7 @@ class CategoriaController extends Controller
 {
     public function index($empresa_id)
     {
-        $categorias = Categorias::where('empresa_id', $empresa_id)->get();
+        $categorias = Categorias::where('empresa_id', $empresa_id)->orderBy('orden')->get();
         return response()->json($categorias);
     }
     //obtener categorias por empresa_id en la web
@@ -26,7 +26,7 @@ class CategoriaController extends Controller
                 ], 403);
             }
 
-            $categorias = Categorias::where('empresa_id', $empresa_id)->get();
+            $categorias = Categorias::where('empresa_id', $empresa_id)->orderBy('orden')->get();
 
             return response()->json([
                 'success' => true,
@@ -232,6 +232,25 @@ class CategoriaController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    // Reordenar categorías
+    public function reordenar(Request $request)
+    {
+        $request->validate([
+            'categorias' => 'required|array',
+            'categorias.*.id' => 'required|integer',
+            'categorias.*.orden' => 'required|integer',
+        ]);
+
+        foreach ($request->categorias as $item) {
+            Categorias::where('id', $item['id'])->update(['orden' => $item['orden']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Orden actualizado correctamente'
+        ]);
     }
 
     // Actualizar el estado (activo/inactivo) de una categoría

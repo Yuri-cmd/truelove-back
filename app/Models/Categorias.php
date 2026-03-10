@@ -13,7 +13,8 @@ class Categorias extends Model
         'hora_inicio', // Se mantienen por compatibilidad si es necesario
         'hora_fin',
         'horarios', // Nuevo campo
-        'estado'
+        'estado',
+        'orden'
     ];
 
     protected $casts = [
