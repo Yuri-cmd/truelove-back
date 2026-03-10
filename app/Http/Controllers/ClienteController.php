@@ -388,14 +388,18 @@ class ClienteController extends Controller
 
     public function actualizarDireccion(Request $request)
     {
-        $direccion = ClienteDireccion::where('id_cliente', $request->idCliente)->first();
-        $direccion->direccion = $request->direccion;
-        $direccion->coordenadas = json_encode($request->selectedPosition);
-        $direccion->save();
+        // Usar updateOrCreate para evitar error 500 si no existe el registro previo
+        $direccion = ClienteDireccion::updateOrCreate(
+            ['id_cliente' => $request->idCliente],
+            [
+                'direccion' => $request->direccion,
+                'coordenadas' => json_encode($request->selectedPosition)
+            ]
+        );
 
         return response()->json([
-            'message' => 'Perfil creado exitosamente',
-            'dirreccion' => $direccion,
+            'message' => 'Dirección actualizada exitosamente',
+            'direccion' => $direccion,
         ], 200);
     }
 
