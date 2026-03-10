@@ -54,6 +54,7 @@ class PedidoController extends Controller
             'descuento',
             'subtotal',
             'codigo',
+            'paga_con',
         ]));
 
         $totalPedido = 0;
