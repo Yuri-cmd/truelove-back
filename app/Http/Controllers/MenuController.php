@@ -255,12 +255,11 @@ class MenuController extends Controller
 
             $dish->save();
 
-            if ($request->has('categoria_id')) {
-                CategoriaMenu::where('menu_id', $id)->delete();
-                CategoriaMenu::create([
-                    'categoria_id' => $request->categoria_id,
-                    'menu_id' => $dish->id,
-                ]);
+            if ($request->filled('categoria_id')) {
+                CategoriaMenu::updateOrCreate(
+                    ['menu_id' => $dish->id],
+                    ['categoria_id' => $request->categoria_id]
+                );
             }
 
             return response()->json([
