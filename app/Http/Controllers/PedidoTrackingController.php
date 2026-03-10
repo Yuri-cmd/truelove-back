@@ -11,6 +11,7 @@ use App\Models\PedidoTracking;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PedidoTrackingController extends Controller
 {
@@ -35,6 +36,18 @@ class PedidoTrackingController extends Controller
         $now = Carbon::now();
         $createdAt = $pedido->created_at ? Carbon::parse($pedido->created_at) : $now;
         $minutosTranscurridos = (int) floor($createdAt->diffInSeconds($now) / 60);
+        // Calculo del total
+        $totalItems = DB::table('pedido_detalles')
+            ->where('pedido_id', $pedido->id)
+            ->sum(DB::raw('precio * cantidad'));
+        $total = $totalItems;
+        $precioDelivery = 0;
+        if ((string)$pedido->tipo_pedido === '0') {
+            $precioDelivery = ($pedido->precio_delivery ?? 0);
+            $total += $precioDelivery;
+        }
+        $descuento = ($pedido->descuento ?? 0);
+        $total -= $descuento;
 
         return response()->json([
             'id' => $id,
@@ -46,6 +59,10 @@ class PedidoTrackingController extends Controller
             'lat' => $local ? $local->latitud : null,
             'lon' => $local ? $local->longitud : null,
             'telefono' => $local ? $negocio->telefono : null,
+            'subtotal' => round($totalItems, 2),
+            'precio_delivery' => round($precioDelivery, 2),
+            'descuento' => round($descuento, 2),
+            'total' => round($total, 2),
             'created_at' => $createdAt->toDateTimeString(),
             'server_time' => $now->toDateTimeString(),
         ]);
