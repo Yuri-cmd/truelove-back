@@ -44,7 +44,7 @@ class PedidoController extends Controller
         try {
             DB::beginTransaction();
 
-            $pedido = Pedido::create($request->only([
+            $data = $request->only([
                 'id_local',
                 'id_cliente',
                 'latitud',
@@ -58,7 +58,21 @@ class PedidoController extends Controller
                 'subtotal',
                 'codigo',
                 'paga_con',
-            ]));
+            ]);
+
+            // Sanitizar campos decimales
+            foreach (['precio_delivery', 'descuento', 'subtotal', 'paga_con'] as $field) {
+                if (isset($data[$field])) {
+                    if ($field === 'paga_con' && $data[$field] === 'exacto') {
+                        $data[$field] = 0;
+                    } else {
+                        $data[$field] = preg_replace('/[^\d.]/', '', (string)$data[$field]);
+                        if ($data[$field] === '') $data[$field] = 0;
+                    }
+                }
+            }
+
+            $pedido = Pedido::create($data);
 
             if (!$pedido) {
                 throw new \Exception('Error al crear el registro del pedido en la base de datos');
