@@ -369,38 +369,64 @@ class ClienteController extends Controller
     // En el controlador
     public function updateProfile(Request $request)
     {
-        $request->validate([
-            'id_cliente' => 'required|integer',
-            'tipo' => 'required|string',
-            'valor' => 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'id_cliente' => 'required|integer',
+                'tipo' => 'required|string',
+                'valor' => 'required|string',
+            ]);
 
-        $cliente = Cliente::find($request->id_cliente);
+            \Log::info("Update profile request", $request->all());
 
-        if (!$cliente) {
-            return response()->json(['success' => false, 'message' => 'Cliente no encontrado']);
+            $cliente = Cliente::find($request->id_cliente);
+
+            if (!$cliente) {
+                return response()->json(['success' => false, 'message' => 'Cliente no encontrado'], 404);
+            }
+
+            switch ($request->tipo) {
+                case 'nombre':
+                    $cliente->nombre = $request->valor;
+                    break;
+                case 'apellido':
+                    $cliente->apellido = $request->valor;
+                    break;
+                case 'fecha_nacimiento':
+                    $cliente->fecha_nacimiento = $request->valor;
+                    break;
+                case 'genero':
+                    $cliente->genero = $request->valor;
+                    break;
+                case 'email':
+                    $cliente->email = $request->valor;
+                    break;
+                case 'celular':
+                    $cliente->celular = $request->valor;
+                    break;
+                case 'celular_whatsapp':
+                    $cliente->celular_whatsapp = $request->valor;
+                    break;
+                default:
+                    return response()->json(['success' => false, 'message' => 'Tipo no válido'], 400);
+            }
+
+            $cliente->save();
+            \Log::info("Profile updated successfully for client: " . $request->id_cliente);
+
+            return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
+        } catch (\Exception $e) {
+            \Log::error("Error updating profile field", [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false, 
+                'status' => 'error',
+                'message' => 'Error al actualizar perfil: ' . $e->getMessage()
+            ], 500);
         }
-
-        switch ($request->tipo) {
-            case 'genero':
-                $cliente->genero = $request->valor;
-                break;
-            case 'email':
-                $cliente->email = $request->valor;
-                break;
-            case 'celular':
-                $cliente->celular = $request->valor;
-                break;
-            case 'celular_whatsapp':
-                $cliente->celular_whatsapp = $request->valor;
-                break;
-            default:
-                return response()->json(['success' => false, 'message' => 'Tipo no válido'], );
-        }
-
-        $cliente->save();
-
-        return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
     }
 
 
