@@ -14,18 +14,31 @@ class RatingController extends Controller
 {
     public function store(Request $request)
     {
-        $rating = Rating::create([
-            'id_pedido' => $request->id_pedido,
-            'restaurant_rating' => $request->restaurant_rating,
-            'restaurant_comment' => $request->restaurant_comment,
-            'motorcycle_rating' => $request->motorcycle_rating,
-            'motorcycle_comment' => $request->motorcycle_comment,
-        ]);
+        try {
+            $rating = Rating::create([
+                'id_pedido' => $request->id_pedido,
+                'restaurant_rating' => $request->restaurant_rating,
+                'restaurant_comment' => $request->restaurant_comment,
+                'motorcycle_rating' => $request->motorcycle_rating,
+                'motorcycle_comment' => $request->motorcycle_comment,
+            ]);
 
-        return response()->json([
-            'message' => 'Calificación guardada con éxito',
-            'rating' => $rating
-        ], 201);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Calificación guardada con éxito',
+                'rating' => $rating
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error("Error guardando calificación: " . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al guardar calificación: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getRatings($id_pedido)

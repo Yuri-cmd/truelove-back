@@ -32,8 +32,19 @@ class LocalesController extends Controller
         }
 
         $coordenadas = json_decode($direccion->coordenadas);
-        $lat = $coordenadas->coordinates[0];
-        $lng = $coordenadas->coordinates[1];
+        if ($coordenadas && isset($coordenadas->coordinates)) {
+            $lat = (double) $coordenadas->coordinates[0];
+            $lng = (double) $coordenadas->coordinates[1];
+        } else {
+            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+            if (count($coords) >= 2) {
+                // Asumiendo formato antiguo [lat, lng] o similar
+                $lat = (double) trim($coords[0]);
+                $lng = (double) trim($coords[1]);
+            } else {
+                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
+            }
+        }
 
         $locales = $this->getLocalesCercanos($lng, $lat, false, false, false);
 
@@ -50,8 +61,18 @@ class LocalesController extends Controller
         }
 
         $coordenadas = json_decode($direccion->coordenadas);
-        $lat = $coordenadas->coordinates[0];
-        $lng = $coordenadas->coordinates[1];
+        if ($coordenadas && isset($coordenadas->coordinates)) {
+            $lat = (double) $coordenadas->coordinates[0];
+            $lng = (double) $coordenadas->coordinates[1];
+        } else {
+            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+            if (count($coords) >= 2) {
+                $lat = (double) trim($coords[0]);
+                $lng = (double) trim($coords[1]);
+            } else {
+                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
+            }
+        }
 
         $locales = $this->getLocalesCercanos($lng, $lat, $category, false, false);
 
@@ -67,8 +88,18 @@ class LocalesController extends Controller
         }
 
         $coordenadas = json_decode($direccion->coordenadas);
-        $lat = $coordenadas->coordinates[0];
-        $lng = $coordenadas->coordinates[1];
+        if ($coordenadas && isset($coordenadas->coordinates)) {
+            $lat = (double) $coordenadas->coordinates[0];
+            $lng = (double) $coordenadas->coordinates[1];
+        } else {
+            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+            if (count($coords) >= 2) {
+                $lat = (double) trim($coords[0]);
+                $lng = (double) trim($coords[1]);
+            } else {
+                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
+            }
+        }
 
         $locales = $this->getLocalesCercanos($lng, $lat, false, $term, false);
 

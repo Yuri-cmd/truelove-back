@@ -147,14 +147,16 @@ class ClienteController extends Controller
         $profile->celular_whatsapp = $request->celular_whatsapp ?? $profile->celular_whatsapp;
         $profile->save();
 
-        $direccion = new ClienteDireccion();
-        $direccion->id_cliente = $request->idCliente;
-        $direccion->direccion = $request->direccion;
-        $direccion->departamento = $request->departamento;
-        $direccion->referencia = $request->referencia;
-        $direccion->alias = $request->alias;
-        $direccion->coordenadas = json_encode($request->selectedPosition);
-        $direccion->save();
+        $direccion = ClienteDireccion::updateOrCreate(
+            ['id_cliente' => $request->idCliente],
+            [
+                'direccion' => $request->direccion,
+                'departamento' => $request->departamento,
+                'referencia' => $request->referencia,
+                'alias' => $request->alias,
+                'coordenadas' => json_encode($request->selectedPosition),
+            ]
+        );
 
         // Enviar correo con credenciales al cliente
         if ($profile->email) {
@@ -298,8 +300,16 @@ class ClienteController extends Controller
                 $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
                 if ($direccion) {
                     $coordenadas = json_decode($direccion->coordenadas);
-                    $cliente->latitud = $coordenadas->coordinates[0];
-                    $cliente->longitud = $coordenadas->coordinates[1];
+                    if ($coordenadas && isset($coordenadas->coordinates)) {
+                        $cliente->latitud = $coordenadas->coordinates[0];
+                        $cliente->longitud = $coordenadas->coordinates[1];
+                    } else {
+                        $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+                        if (count($coords) >= 2) {
+                            $cliente->latitud = (double) trim($coords[0]);
+                            $cliente->longitud = (double) trim($coords[1]);
+                        }
+                    }
                     $cliente->direccion = $direccion->direccion;
                 } else {
                     $cliente->latitud = null;
@@ -326,8 +336,16 @@ class ClienteController extends Controller
             $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
             if ($direccion) {
                 $coordenadas = json_decode($direccion->coordenadas);
-                $profile->latitud = $coordenadas->coordinates[0];
-                $profile->longitud = $coordenadas->coordinates[1];
+                if ($coordenadas && isset($coordenadas->coordinates)) {
+                    $profile->latitud = $coordenadas->coordinates[0];
+                    $profile->longitud = $coordenadas->coordinates[1];
+                } else {
+                    $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+                    if (count($coords) >= 2) {
+                        $profile->latitud = (double) trim($coords[0]);
+                        $profile->longitud = (double) trim($coords[1]);
+                    }
+                }
                 $profile->direccion = $direccion->direccion;
             } else {
                 $profile->latitud = null;
@@ -351,51 +369,81 @@ class ClienteController extends Controller
     // En el controlador
     public function updateProfile(Request $request)
     {
-        $request->validate([
-            'id_cliente' => 'required|integer',
-            'tipo' => 'required|string',
-            'valor' => 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'id_cliente' => 'required|integer',
+                'tipo' => 'required|string',
+                'valor' => 'required|string',
+            ]);
 
-        $cliente = Cliente::find($request->id_cliente);
+            \Log::info("Update profile request", $request->all());
 
-        if (!$cliente) {
-            return response()->json(['success' => false, 'message' => 'Cliente no encontrado']);
+            $cliente = Cliente::find($request->id_cliente);
+
+            if (!$cliente) {
+                return response()->json(['success' => false, 'message' => 'Cliente no encontrado'], 404);
+            }
+
+            switch ($request->tipo) {
+                case 'nombre':
+                    $cliente->nombre = $request->valor;
+                    break;
+                case 'apellido':
+                    $cliente->apellido = $request->valor;
+                    break;
+                case 'fecha_nacimiento':
+                    $cliente->fecha_nacimiento = $request->valor;
+                    break;
+                case 'genero':
+                    $cliente->genero = $request->valor;
+                    break;
+                case 'email':
+                    $cliente->email = $request->valor;
+                    break;
+                case 'celular':
+                    $cliente->celular = $request->valor;
+                    break;
+                case 'celular_whatsapp':
+                    $cliente->celular_whatsapp = $request->valor;
+                    break;
+                default:
+                    return response()->json(['success' => false, 'message' => 'Tipo no válido'], 400);
+            }
+
+            $cliente->save();
+            \Log::info("Profile updated successfully for client: " . $request->id_cliente);
+
+            return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
+        } catch (\Exception $e) {
+            \Log::error("Error updating profile field", [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false, 
+                'status' => 'error',
+                'message' => 'Error al actualizar perfil: ' . $e->getMessage()
+            ], 500);
         }
-
-        switch ($request->tipo) {
-            case 'genero':
-                $cliente->genero = $request->valor;
-                break;
-            case 'email':
-                $cliente->email = $request->valor;
-                break;
-            case 'celular':
-                $cliente->celular = $request->valor;
-                break;
-            case 'celular_whatsapp':
-                $cliente->celular_whatsapp = $request->valor;
-                break;
-            default:
-                return response()->json(['success' => false, 'message' => 'Tipo no válido'], );
-        }
-
-        $cliente->save();
-
-        return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
     }
 
 
     public function actualizarDireccion(Request $request)
     {
-        $direccion = ClienteDireccion::where('id_cliente', $request->idCliente)->first();
-        $direccion->direccion = $request->direccion;
-        $direccion->coordenadas = json_encode($request->selectedPosition);
-        $direccion->save();
+        // Usar updateOrCreate para evitar error 500 si no existe el registro previo
+        $direccion = ClienteDireccion::updateOrCreate(
+            ['id_cliente' => $request->idCliente],
+            [
+                'direccion' => $request->direccion,
+                'coordenadas' => json_encode($request->selectedPosition)
+            ]
+        );
 
         return response()->json([
-            'message' => 'Perfil creado exitosamente',
-            'dirreccion' => $direccion,
+            'message' => 'Dirección actualizada exitosamente',
+            'direccion' => $direccion,
         ], 200);
     }
 

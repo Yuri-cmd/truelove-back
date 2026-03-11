@@ -14,9 +14,21 @@ class AppVersion extends Model
     protected $fillable = [
         'app_name',
         'min_version',
+        'min_version_android',
+        'min_version_ios',
         'latest_version',
+        'latest_version_android',
+        'latest_version_ios',
         'force_update',
+        'force_update_android',
+        'force_update_ios',
         'url_android',
         'url_ios',
+    ];
+
+    protected $casts = [
+        'force_update' => 'boolean',
+        'force_update_android' => 'boolean',
+        'force_update_ios' => 'boolean',
     ];
 }
