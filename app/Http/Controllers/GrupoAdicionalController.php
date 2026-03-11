@@ -23,7 +23,7 @@ class GrupoAdicionalController extends Controller
                             ->orderBy('grupo_adicional_items.orden');
                     }
                 ])
-                ->orderBy('nombre')
+                ->orderBy('orden')
                 ->get();
 
             return response()->json($grupos);
@@ -31,6 +31,27 @@ class GrupoAdicionalController extends Controller
             Log::error('Error al obtener grupos: ' . $e->getMessage());
             return response()->json(['error' => 'Error al obtener grupos'], 500);
         }
+    }
+
+    /**
+     * Reordenar grupos de adicionales
+     */
+    public function reordenar(Request $request)
+    {
+        $request->validate([
+            'grupos' => 'required|array',
+            'grupos.*.id' => 'required|integer',
+            'grupos.*.orden' => 'required|integer',
+        ]);
+
+        foreach ($request->grupos as $item) {
+            GrupoAdicional::where('id', $item['id'])->update(['orden' => $item['orden']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Orden de grupos actualizado correctamente'
+        ]);
     }
 
     /**

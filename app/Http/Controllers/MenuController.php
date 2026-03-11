@@ -45,9 +45,9 @@ class MenuController extends Controller
 
         if ($categoriaFiltro !== null) {
             $menuIds = CategoriaMenu::where('categoria_id', $categoriaFiltro)->pluck('menu_id')->toArray();
-            $menus = Menu::where('empresa_id', $empresa_id)->whereIn('id', $menuIds)->get();
+            $menus = Menu::where('empresa_id', $empresa_id)->whereIn('id', $menuIds)->orderBy('orden')->get();
         } else {
-            $menus = Menu::where('empresa_id', $empresa_id)->get();
+            $menus = Menu::where('empresa_id', $empresa_id)->orderBy('orden')->get();
         }
 
         $menusWithCategory = $menus->map(function ($menu) {
@@ -110,6 +110,7 @@ class MenuController extends Controller
                     $q->where('estado', 1)->orderBy('orden');
                 }
             ])
+            ->orderBy('orden')
             ->get();
 
         $groupedMenus = [];
@@ -207,6 +208,27 @@ class MenuController extends Controller
 
         return response()->json($groupedMenus);
     }
+    /**
+     * Reordenar productos del menú
+     */
+    public function reordenarMenus(Request $request)
+    {
+        $request->validate([
+            'menus' => 'required|array',
+            'menus.*.id' => 'required|integer',
+            'menus.*.orden' => 'required|integer',
+        ]);
+
+        foreach ($request->menus as $item) {
+            Menu::where('id', $item['id'])->update(['orden' => $item['orden']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Orden de productos actualizado correctamente'
+        ]);
+    }
+
     public function destroy($id)
     {
         try {
@@ -284,7 +306,7 @@ class MenuController extends Controller
             ->pluck('menu_id')
             ->toArray();
 
-        $menus = Menu::whereIn('id', $menuIds)->get();
+        $menus = Menu::whereIn('id', $menuIds)->orderBy('orden')->get();
 
         return response()->json($menus);
     }

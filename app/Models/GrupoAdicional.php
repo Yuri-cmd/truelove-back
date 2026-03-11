@@ -16,7 +16,8 @@ class GrupoAdicional extends Model
         'nombre',
         'minimo',
         'maximo',
-        'estado'
+        'estado',
+        'orden'
     ];
 
     // Relación con los platos del menú

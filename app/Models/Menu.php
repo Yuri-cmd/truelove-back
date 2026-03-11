@@ -16,6 +16,7 @@ class Menu extends Model
         'precio',
         'status',
         'empresa_id',
+        'orden',
     ];
 
     // Relación muchos a muchos con Categorias a través de la tabla pivot CategoriaMenu
