@@ -404,6 +404,7 @@ Route::post('grupos-adicionales', [GrupoAdicionalController::class, 'store']);
 Route::get('grupos-adicionales/detalle/{id}', [GrupoAdicionalController::class, 'show']);
 Route::put('grupos-adicionales/{id}', [GrupoAdicionalController::class, 'update']);
 Route::delete('grupos-adicionales/{id}', [GrupoAdicionalController::class, 'destroy']);
+Route::post('grupos-adicionales/reordenar', [GrupoAdicionalController::class, 'reordenar']);
 
 // Items dentro de un grupo
 Route::post('grupos-adicionales/{grupo_id}/items', [GrupoAdicionalController::class, 'addItem']);
@@ -508,6 +509,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/menu/web/{id}/status', [MenuController::class, 'updateStatus']);
     Route::put('/menus/web/{id}', [MenuController::class, 'update']);
     Route::delete('/menus/web/{id}', [MenuController::class, 'destroy']);
+    Route::post('/menus/web/reordenar', [MenuController::class, 'reordenarMenus']);
     Route::get('/menus/categoria/{categoria_id}', [MenuController::class, 'getMenusByCategory']);
 
     // Rutas para adicionales
@@ -574,6 +576,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/menu/web/{id}/status', [MenuController::class, 'updateStatus']);
     Route::put('/menus/web/{id}', [MenuController::class, 'update']);
     Route::delete('/menus/web/{id}', [MenuController::class, 'destroy']);
+    Route::post('/menus/web/reordenar', [MenuController::class, 'reordenarMenus']);
 
     // Rutas para adicionales
     Route::get('/adicionales/web/{empresa_id}', [AdicionalController::class, 'obtenerAdicionales']);
