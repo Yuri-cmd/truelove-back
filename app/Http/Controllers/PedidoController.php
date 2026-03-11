@@ -530,6 +530,7 @@ class PedidoController extends Controller
                     'created_at' => $pedido->created_at,
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
+                    'tipo_pedido' => $pedido->tipo_pedido,
                 ];
             }
         }
