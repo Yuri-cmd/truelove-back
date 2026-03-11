@@ -20,6 +20,9 @@ class MenuController extends Controller
             $fotoUrl = Storage::url($fotoPath);
         }
 
+        // Calcular el siguiente orden para que el nuevo producto quede al final
+        $maxOrden = Menu::where('empresa_id', $request->empresa_id)->max('orden') ?? 0;
+
         // Crear el menú con la ruta de la imagen
         $menu = Menu::create([
             'titulo' => $request->titulo,
@@ -28,6 +31,7 @@ class MenuController extends Controller
             'precio' => $request->precio,
             'status' => $request->status,
             'empresa_id' => $request->empresa_id,
+            'orden' => $maxOrden + 1,
         ]);
 
         // Asociar el menú con la categoría
