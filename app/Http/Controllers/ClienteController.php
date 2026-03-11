@@ -147,14 +147,16 @@ class ClienteController extends Controller
         $profile->celular_whatsapp = $request->celular_whatsapp ?? $profile->celular_whatsapp;
         $profile->save();
 
-        $direccion = new ClienteDireccion();
-        $direccion->id_cliente = $request->idCliente;
-        $direccion->direccion = $request->direccion;
-        $direccion->departamento = $request->departamento;
-        $direccion->referencia = $request->referencia;
-        $direccion->alias = $request->alias;
-        $direccion->coordenadas = json_encode($request->selectedPosition);
-        $direccion->save();
+        $direccion = ClienteDireccion::updateOrCreate(
+            ['id_cliente' => $request->idCliente],
+            [
+                'direccion' => $request->direccion,
+                'departamento' => $request->departamento,
+                'referencia' => $request->referencia,
+                'alias' => $request->alias,
+                'coordenadas' => json_encode($request->selectedPosition),
+            ]
+        );
 
         // Enviar correo con credenciales al cliente
         if ($profile->email) {
@@ -298,8 +300,16 @@ class ClienteController extends Controller
                 $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
                 if ($direccion) {
                     $coordenadas = json_decode($direccion->coordenadas);
-                    $cliente->latitud = $coordenadas->coordinates[0];
-                    $cliente->longitud = $coordenadas->coordinates[1];
+                    if ($coordenadas && isset($coordenadas->coordinates)) {
+                        $cliente->latitud = $coordenadas->coordinates[0];
+                        $cliente->longitud = $coordenadas->coordinates[1];
+                    } else {
+                        $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+                        if (count($coords) >= 2) {
+                            $cliente->latitud = (double) trim($coords[0]);
+                            $cliente->longitud = (double) trim($coords[1]);
+                        }
+                    }
                     $cliente->direccion = $direccion->direccion;
                 } else {
                     $cliente->latitud = null;
@@ -326,8 +336,16 @@ class ClienteController extends Controller
             $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
             if ($direccion) {
                 $coordenadas = json_decode($direccion->coordenadas);
-                $profile->latitud = $coordenadas->coordinates[0];
-                $profile->longitud = $coordenadas->coordinates[1];
+                if ($coordenadas && isset($coordenadas->coordinates)) {
+                    $profile->latitud = $coordenadas->coordinates[0];
+                    $profile->longitud = $coordenadas->coordinates[1];
+                } else {
+                    $coords = explode(',', (string)($direccion->coordenadas ?? ''));
+                    if (count($coords) >= 2) {
+                        $profile->latitud = (double) trim($coords[0]);
+                        $profile->longitud = (double) trim($coords[1]);
+                    }
+                }
                 $profile->direccion = $direccion->direccion;
             } else {
                 $profile->latitud = null;
