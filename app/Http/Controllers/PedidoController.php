@@ -41,151 +41,153 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
-        $pedido = Pedido::create($request->only([
-            'id_local',
-            'id_cliente',
-            'latitud',
-            'longitud',
-            'nota',
-            'id_tipo_pago',
-            'tipo_comprobante',
-            'documento',
-            'precio_delivery',
-            'descuento',
-            'subtotal',
-            'codigo',
-            'paga_con',
-        ]));
+        try {
+            DB::beginTransaction();
 
-        $totalPedido = 0;
+            $pedido = Pedido::create($request->only([
+                'id_local',
+                'id_cliente',
+                'latitud',
+                'longitud',
+                'nota',
+                'id_tipo_pago',
+                'tipo_comprobante',
+                'documento',
+                'precio_delivery',
+                'descuento',
+                'subtotal',
+                'codigo',
+                'paga_con',
+            ]));
 
-        foreach ($request->items as $item) {
-            $precio = preg_replace('/[^\d.]/', '', $item['price']);
-            $cantidadItem = $item['quantity'] ?? 1;
-            $totalPedido += $precio * $cantidadItem;
+            if (!$pedido) {
+                throw new \Exception('Error al crear el registro del pedido en la base de datos');
+            }
 
-            PedidoDetalle::create([
-                'pedido_id' => $pedido->id,
-                'id_producto' => $item['id'],
-                'nombre' => $item['name'],
-                'cantidad' => $cantidadItem,
-                'precio' => $precio,
-                'tipo' => 'item',
-            ]);
+            $totalPedido = 0;
 
-            // Guardar adicionales seleccionados del item
-            if (isset($item['selectedAdicionales']) && is_array($item['selectedAdicionales'])) {
-                foreach ($item['selectedAdicionales'] as $grupo) {
-                    if (isset($grupo['items']) && is_array($grupo['items'])) {
-                        foreach ($grupo['items'] as $adicional) {
-                            $precioAdic = $adicional['precio'];
-                            if (isset($adicional['pivot']['precio'])) {
-                                $precioAdic = $adicional['pivot']['precio'];
+            if ($request->has('items') && is_array($request->items)) {
+                foreach ($request->items as $item) {
+                    $precioItem = preg_replace('/[^\d.]/', '', (string)($item['price'] ?? '0'));
+                    $cantidadItem = $item['quantity'] ?? 1;
+                    $totalPedido += (double)$precioItem * $cantidadItem;
+
+                    PedidoDetalle::create([
+                        'pedido_id' => $pedido->id,
+                        'id_producto' => $item['id'] ?? 0,
+                        'nombre' => $item['name'] ?? 'Producto',
+                        'cantidad' => $cantidadItem,
+                        'precio' => $precioItem,
+                        'tipo' => 'item',
+                    ]);
+
+                    if (isset($item['selectedAdicionales']) && is_array($item['selectedAdicionales'])) {
+                        foreach ($item['selectedAdicionales'] as $grupo) {
+                            if (isset($grupo['items']) && is_array($grupo['items'])) {
+                                foreach ($grupo['items'] as $adicional) {
+                                    $precioAdic = preg_replace('/[^\d.]/', '', (string)($adicional['precio'] ?? $adicional['pivot']['precio'] ?? '0'));
+                                    $totalPedido += (double)$precioAdic * $cantidadItem;
+
+                                    PedidoDetalle::create([
+                                        'pedido_id' => $pedido->id,
+                                        'id_producto' => $adicional['id'] ?? 0,
+                                        'nombre' => $adicional['titulo'] ?? $adicional['name'] ?? 'Adicional',
+                                        'cantidad' => $cantidadItem,
+                                        'precio' => $precioAdic,
+                                        'tipo' => 'adicional',
+                                    ]);
+                                }
                             }
-                            $precioAdic = preg_replace('/[^\d.]/', '', $precioAdic);
-
-                            $totalPedido += $precioAdic * $cantidadItem;
-
-                            PedidoDetalle::create([
-                                'pedido_id' => $pedido->id,
-                                'id_producto' => $adicional['id'],
-                                'nombre' => $adicional['titulo'] ?? $adicional['name'] ?? 'Adicional',
-                                'cantidad' => $cantidadItem,
-                                'precio' => $precioAdic,
-                                'tipo' => 'adicional',
-                            ]);
                         }
                     }
                 }
             }
-        }
 
-        foreach ($request->adicionales as $adicional) {
-            $precio = preg_replace('/[^\d.]/', '', $adicional['price']);
-            $totalPedido += $precio;
+            if ($request->has('adicionales') && is_array($request->adicionales)) {
+                foreach ($request->adicionales as $adicional) {
+                    $precioAdicGlobal = preg_replace('/[^\d.]/', '', (string)($adicional['price'] ?? '0'));
+                    $totalPedido += (double)$precioAdicGlobal;
 
-            PedidoDetalle::create([
-                'pedido_id' => $pedido->id,
-                'id_producto' => $adicional['id'],
-                'nombre' => $adicional['name'],
-                'cantidad' => 1,
-                'precio' => $precio,
-                'tipo' => 'adicional',
-            ]);
-        }
-
-        $comercio = BusinessRegistration::find($request->id_local);
-
-        $requiereConfirmacion = $totalPedido >= 100;
-
-        // el comercio tiene el flag de omitir pago adelantado, forzamos requiereConfirmacion a false
-        if ($comercio && $comercio->omitir_pago_adelantado) {
-            $requiereConfirmacion = false;
-        }
-
-        $pedido->requiere_confirmacion_local = $requiereConfirmacion;
-
-        $pedido->tipo_pedido = $request->tipo_entrega == 'delivery' ? 0 : 1;
-
-        //descontar uso del cupon
-        $descuento = DescuentoCliente::where('id_cliente', $request->id_cliente)
-            ->where('codigo', $request->codigo)
-            ->where('estado', 1)
-            ->first();
-
-        if ($descuento) {
-            if (($descuento->usos_disponibles - 1) == 0) {
-                $descuento->usos_disponibles = 0;
-            } else {
-                $descuento->usos_disponibles = $descuento->usos_disponibles - 1;
+                    PedidoDetalle::create([
+                        'pedido_id' => $pedido->id,
+                        'id_producto' => $adicional['id'] ?? 0,
+                        'nombre' => $adicional['name'] ?? 'Adicional',
+                        'cantidad' => 1,
+                        'precio' => $precioAdicGlobal,
+                        'tipo' => 'adicional',
+                    ]);
+                }
             }
-            $descuento->cantidad_usos = 1;
-            $descuento->save();
+
+            $comercio = BusinessRegistration::find($request->id_local);
+            if (!$comercio) {
+                throw new \Exception("Comercio no encontrado (ID: {$request->id_local})");
+            }
+
+            $requiereConfirmacion = $totalPedido >= 100;
+            if ($comercio->omitir_pago_adelantado) {
+                $requiereConfirmacion = false;
+            }
+
+            $pedido->requiere_confirmacion_local = $requiereConfirmacion;
+            $pedido->tipo_pedido = $request->tipo_entrega == 'delivery' ? 0 : 1;
+
+            if ($request->codigo) {
+                $descuento = DescuentoCliente::where('id_cliente', $request->id_cliente)
+                    ->where('codigo', $request->codigo)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($descuento) {
+                    $descuento->usos_disponibles = max(0, $descuento->usos_disponibles - 1);
+                    if ($descuento->usos_disponibles == 0) $descuento->estado = 0;
+                    $descuento->cantidad_usos = ($descuento->cantidad_usos ?? 0) + 1;
+                    $descuento->save();
+                }
+            }
+
+            PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
+            $pedido->save();
+
+            DB::commit();
+
+            // Notificaciones (fuera de la transacción por si fallan)
+            try {
+                $cliente = Cliente::find($request->id_cliente);
+                $nombreCliente = $cliente ? $cliente->nombre : 'Cliente';
+                $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
+                $cuerpoNotif = 'El pedido #' . $pedido->id . ' ya está disponible para procesar.';
+
+                if ($comercio->token_fmc && $comercio->activo == 1) {
+                    $this->firebaseService->sendNotificationWithSound($comercio->token_fmc, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio', $comercio->id, 'socio');
+                }
+
+                if ($comercio->token_fmc_web && $comercio->activo == 1) {
+                    $this->firebaseService->sendNotificationWithSound($comercio->token_fmc_web, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio_web', $comercio->id, 'socio');
+                }
+            } catch (\Exception $e) {
+                Log::warning("Error enviando notificación: " . $e->getMessage());
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'pedido_id' => $pedido->id,
+                'requiere_confirmacion' => $requiereConfirmacion,
+                'precio_delivery' => $request->precio_delivery ?? 0
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Error en store pedido: " . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al procesar el pedido: ' . $e->getMessage()
+            ], 500);
         }
-
-        PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
-        $pedido->save();
-
-        $nombreCliente = Cliente::where('id', $request->id_cliente)->first()->nombre;
-        $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
-        $cuerpoNotif = 'El pedido #' . $pedido->id . ' ya está disponible para procesar.';
-
-        // Notificación al app móvil
-        if ($comercio->token_fmc && $comercio->activo == 1) {
-            $this->firebaseService->sendNotificationWithSound(
-                $comercio->token_fmc,
-                $tituloNotif,
-                $cuerpoNotif,
-                'nuevo_pedido',
-                'pedidos_v3',
-                [],
-                'socio',
-                $comercio->id,
-                'socio'
-            );
-        }
-
-        // Notificación a la web
-        if ($comercio->token_fmc_web && $comercio->activo == 1) {
-            $this->firebaseService->sendNotificationWithSound(
-                $comercio->token_fmc_web,
-                $tituloNotif,
-                $cuerpoNotif,
-                'nuevo_pedido',
-                'pedidos_v3',
-                [],
-                'socio_web',
-                $comercio->id,
-                'socio'
-            );
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'pedido_id' => $pedido->id,
-            'requiere_confirmacion' => $requiereConfirmacion,
-            'precio_delivery' => $precio
-        ]);
     }
 
 
