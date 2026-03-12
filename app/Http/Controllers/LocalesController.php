@@ -196,7 +196,7 @@ class LocalesController extends Controller
                 }
                 // Verificar si el local está abierto por horario y sobreescribir activo
                 $local->estaAbierto = $local->activo ? $this->negocioService->localEstaAbierto($local->business_registration_id) : false;
-                $local->activo = $local->estaAbierto;
+                $local->activo = $local->estaAbierto ? 1 : 0;
             }
 
             // Re-ordenar por la nueva distancia real (Google)
