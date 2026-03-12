@@ -194,8 +194,9 @@ class LocalesController extends Controller
                 if (isset($allGoogleDistances[$index]) && $allGoogleDistances[$index] !== null) {
                     $local->distancia = $allGoogleDistances[$index];
                 }
-                // Verificar si el local está abierto por horario
+                // Verificar si el local está abierto por horario y sobreescribir activo
                 $local->estaAbierto = $local->activo ? $this->negocioService->localEstaAbierto($local->business_registration_id) : false;
+                $local->activo = $local->estaAbierto;
             }
 
             // Re-ordenar por la nueva distancia real (Google)
