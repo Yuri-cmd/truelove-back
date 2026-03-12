@@ -526,7 +526,7 @@ class PedidoController extends Controller
                             'precio' => $detalle->precio
                         ];
                     }),
-                    'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()->direccion,
+                    'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()?->direccion ?? '',
                     'created_at' => $pedido->created_at,
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
