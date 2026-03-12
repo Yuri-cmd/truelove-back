@@ -19,7 +19,7 @@ class GrupoAdicionalController extends Controller
             $grupos = GrupoAdicional::where('empresa_id', $empresa_id)
                 ->with([
                     'items' => function ($query) {
-                        $query->select('adicionales.id', 'adicionales.titulo', 'adicionales.precio')
+                        $query->select('adicionales.id', 'adicionales.titulo', 'adicionales.descripcion', 'adicionales.precio', 'adicionales.status', 'adicionales.menu_id')
                             ->orderBy('grupo_adicional_items.orden');
                     }
                 ])
