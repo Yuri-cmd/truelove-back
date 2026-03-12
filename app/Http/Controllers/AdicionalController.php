@@ -38,7 +38,7 @@ class AdicionalController extends Controller
                 'descripcion' => 'nullable|string|max:100',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
-                'status' => 'required|in:active,inactive',
+                'status' => 'required|in:active,inactive,out-of-stock',
             ]);
 
             $fotoUrl = null;
@@ -92,7 +92,7 @@ class AdicionalController extends Controller
                 'descripcion' => 'nullable|string|max:100',
                 'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
-                'status' => 'required|in:active,inactive',
+                'status' => 'required|in:active,inactive,out-of-stock',
             ]);
 
             if ($request->hasFile('foto')) {
@@ -190,7 +190,7 @@ class AdicionalController extends Controller
                 'descripcion' => 'nullable|string|max:100',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
-                'status' => 'required|in:active,inactive',
+                'status' => 'required|in:active,inactive,out-of-stock',
             ]);
 
             $fotoUrl = null;
@@ -244,7 +244,7 @@ class AdicionalController extends Controller
                 'descripcion' => 'nullable|string|max:100',
                 'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
                 'precio' => 'required|numeric',
-                'status' => 'required|in:active,inactive',
+                'status' => 'required|in:active,inactive,out-of-stock',
             ]);
 
             if ($request->hasFile('foto')) {
