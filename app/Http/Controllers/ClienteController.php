@@ -437,6 +437,7 @@ class ClienteController extends Controller
             ['id_cliente' => $request->idCliente],
             [
                 'direccion' => $request->direccion,
+                'departamento' => $request->departamento ?? '',
                 'coordenadas' => json_encode($request->selectedPosition)
             ]
         );
