@@ -325,7 +325,7 @@ class CuotaSocioController extends Controller
             'comprobante_pago' => 'required|image|mimes:jpeg,png,jpg|max:5120', // Max 5MB
             'fecha_pago' => 'required|date',
             'monto_pagado' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|string|in:yape,transferencia,deposito',
+            'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
             'numero_operacion' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string'
         ]);
@@ -738,7 +738,7 @@ class CuotaSocioController extends Controller
             'comprobante_pago' => 'required|image|mimes:jpeg,png,jpg|max:5120',
             'fecha_pago' => 'required|date',
             'monto_pagado' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|string|in:yape,transferencia,deposito',
+            'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
             'numero_operacion' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string'
         ]);
