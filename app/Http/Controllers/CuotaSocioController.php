@@ -881,12 +881,29 @@ class CuotaSocioController extends Controller
                 ->sortBy('fecha_vencimiento')
                 ->first();
             if ($periodoProximo) {
-                $diasVencimiento = (int) Carbon::parse($periodoProximo->fecha_vencimiento)->startOfDay()->diffInDays($hoy, false);
+                $fechaVencimiento = Carbon::parse($periodoProximo->fecha_vencimiento)->startOfDay();
+                $diasVencimiento = (int) $hoy->diffInDays($fechaVencimiento, false);
+                // Si es negativo significa que ya venció, asegurar positivo para "por vencer"
+                if ($diasVencimiento < 0) {
+                    $diasVencimiento = abs($diasVencimiento);
+                }
             }
         }
 
         // Un socio está al día si no tiene períodos vencidos ni pendientes activos
         $estaAlDia = $periodosVencidos === 0 && $periodosPendientesActivos === 0;
+
+        // Monto esperado del período actual (pendiente o vencido más reciente)
+        $montoEsperado = 0;
+        $periodoActual = $periodos->whereIn('estado', ['pendiente', 'vencido'])
+            ->filter(function ($p) use ($hoy) {
+                return Carbon::parse($p->periodo_inicio)->startOfDay()->lte($hoy);
+            })
+            ->sortByDesc('periodo_inicio')
+            ->first();
+        if ($periodoActual) {
+            $montoEsperado = $periodoActual->monto_esperado;
+        }
 
         return response()->json([
             'success' => true,
@@ -898,7 +915,8 @@ class CuotaSocioController extends Controller
                 'periodos_pagados' => $periodosPagados,
                 'total_adeudado' => $totalAdeudado,
                 'esta_al_dia' => $estaAlDia,
-                'dias_vencimiento' => $diasVencimiento
+                'dias_vencimiento' => $diasVencimiento,
+                'monto_esperado' => $montoEsperado
             ]
         ]);
     }
