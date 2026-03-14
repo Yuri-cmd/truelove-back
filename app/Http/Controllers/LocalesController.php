@@ -172,34 +172,13 @@ class LocalesController extends Controller
         $limite");
 
         if (!empty($query)) {
-            // Google Distance Matrix API permite hasta 25 destinos por solicitud en el plan estándar
-            $batchSize = 25;
-            $allGoogleDistances = [];
-            
-            $chunks = array_chunk($query, $batchSize);
-            
-            foreach ($chunks as $chunk) {
-                $destinations = array_map(function($local) {
-                    return [
-                        'lat' => $local->latitud,
-                        'lng' => $local->longitud
-                    ];
-                }, $chunk);
-
-                $googleDistances = $this->pedidoService->obtenerDistanciaGoogle($lat, $lng, $destinations);
-                $allGoogleDistances = array_merge($allGoogleDistances, $googleDistances);
-            }
-
-            foreach ($query as $index => $local) {
-                if (isset($allGoogleDistances[$index]) && $allGoogleDistances[$index] !== null) {
-                    $local->distancia = $allGoogleDistances[$index];
-                }
+            foreach ($query as $local) {
                 // Verificar si el local está abierto por horario y sobreescribir activo
                 $local->estaAbierto = $local->activo ? $this->negocioService->localEstaAbierto($local->business_registration_id) : false;
                 $local->activo = $local->estaAbierto ? 1 : 0;
             }
 
-            // Re-ordenar por la nueva distancia real (Google)
+            // Re-ordenar por estado abierto, prioridad y luego por distancia (calculada en SQL)
             usort($query, function($a, $b) {
                 // Primero por abierto (horario + activo)
                 $actA = isset($a->estaAbierto) && $a->estaAbierto ? 1 : 0;
@@ -217,7 +196,7 @@ class LocalesController extends Controller
                     return $pB <=> $pA;
                 }
                 
-                // Luego por distancia real
+                // Luego por distancia calculada en SQL (Haversine - Gratis)
                 return $a->distancia <=> $b->distancia;
             });
         }
