@@ -281,6 +281,12 @@ class PedidoController extends Controller
             return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
         }
 
+        $ultimoTracking = $pedido->trackings()->latest()->first();
+        
+        if ($ultimoTracking && $ultimoTracking->estado == 0) {
+            return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido cancelado'], 400);
+        }
+
         $idMotorizado = (int) $request->id_motorizado;
 
         // Usar transacción y lock para evitar condiciones de carrera
