@@ -844,31 +844,49 @@ class CuotaSocioController extends Controller
         $cuota = CuotaSocio::find($socio->cuota_socio_id);
 
         // Obtener estadísticas de períodos
+        $hoy = Carbon::now()->startOfDay();
         $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)->get();
 
         $periodosVencidos = $periodos->where('estado', 'vencido')->count();
-        $periodosPendientes = $periodos->where('estado', 'pendiente')->count();
+        // Solo contar pendientes cuyo periodo ya inició (no futuros)
+        $periodosPendientesActivos = $periodos->where('estado', 'pendiente')
+            ->filter(function ($p) use ($hoy) {
+                return Carbon::parse($p->periodo_inicio)->startOfDay()->lte($hoy);
+            })->count();
         $periodosPagados = $periodos->where('estado', 'pagado')->count();
 
         // Calcular total adeudado (solo períodos vencidos)
         $totalAdeudado = $periodos->where('estado', 'vencido')->sum('monto_esperado');
 
-        // Calcular días de vencimiento (del período más antiguo vencido)
+        // Calcular días de vencimiento/por vencer
         $diasVencimiento = null;
-        $periodoMasAntiguo = $periodos->where('estado', 'vencido')
-            ->sortBy('fecha_vencimiento')
-            ->first();
 
-        if ($periodoMasAntiguo) {
-            $diasVencimiento = (int) abs(Carbon::now()->startOfDay()->diffInDays(
-                Carbon::parse($periodoMasAntiguo->fecha_vencimiento)->startOfDay(),
-                false
-            ));
+        if ($periodosVencidos > 0) {
+            // Días desde que venció el período más antiguo
+            $periodoMasAntiguo = $periodos->where('estado', 'vencido')
+                ->sortBy('fecha_vencimiento')
+                ->first();
+            if ($periodoMasAntiguo) {
+                $diasVencimiento = (int) abs($hoy->diffInDays(
+                    Carbon::parse($periodoMasAntiguo->fecha_vencimiento)->startOfDay(),
+                    false
+                ));
+            }
+        } elseif ($periodosPendientesActivos > 0) {
+            // Días hasta que vence el período pendiente más próximo
+            $periodoProximo = $periodos->where('estado', 'pendiente')
+                ->filter(function ($p) use ($hoy) {
+                    return Carbon::parse($p->periodo_inicio)->startOfDay()->lte($hoy);
+                })
+                ->sortBy('fecha_vencimiento')
+                ->first();
+            if ($periodoProximo) {
+                $diasVencimiento = (int) Carbon::parse($periodoProximo->fecha_vencimiento)->startOfDay()->diffInDays($hoy, false);
+            }
         }
 
-        // Un socio está al día solo si NO tiene períodos vencidos NI pendientes
-        // Es decir, todos sus períodos están pagados
-        $estaAlDia = $periodosVencidos === 0 && $periodosPendientes === 0;
+        // Un socio está al día si no tiene períodos vencidos ni pendientes activos
+        $estaAlDia = $periodosVencidos === 0 && $periodosPendientesActivos === 0;
 
         return response()->json([
             'success' => true,
@@ -876,7 +894,7 @@ class CuotaSocioController extends Controller
                 'tiene_cuota' => true,
                 'cuota' => $cuota,
                 'periodos_vencidos' => $periodosVencidos,
-                'periodos_pendientes' => $periodosPendientes,
+                'periodos_pendientes' => $periodosPendientesActivos,
                 'periodos_pagados' => $periodosPagados,
                 'total_adeudado' => $totalAdeudado,
                 'esta_al_dia' => $estaAlDia,
