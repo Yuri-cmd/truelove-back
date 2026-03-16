@@ -200,6 +200,7 @@ class BikerController extends Controller
                 $pedido->tiempo = $pedido->tiempo ?? 0;
                 $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
                 $pedido->total = ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento;
+                $pedido->subtotal = (float) $pedido->subtotal;
                 $pedido->tipo_comprobante = $pedido->tipo_comprobante ?? 'Sin comprobante';
                 if ($pedido->fecha_hora_inicio) {
                     $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
@@ -648,6 +649,7 @@ class BikerController extends Controller
                 'nota' => $pedido->nota,
                 'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
                 'precioDelivery' => $pedido->precio_delivery,
+                'subtotal' => (float) $pedido->subtotal,
                 'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                 'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
                 'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
@@ -713,6 +715,7 @@ class BikerController extends Controller
                     'nota' => $pedido->nota,
                     'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
+                    'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
                     'productosList' => $productosListCantidad,
@@ -783,6 +786,7 @@ class BikerController extends Controller
                     'nota' => $pedido->nota,
                     'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
+                    'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
                     'productosList' => $productosListCantidad,
