@@ -86,6 +86,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/cliente-deletion-requests/{id}/approve', [ClienteDeletionAdminController::class, 'approveRequest']);
         Route::post('/cliente-deletion-requests/{id}/reject', [ClienteDeletionAdminController::class, 'rejectRequest']);
 
+        // Logs de notificaciones
+        Route::get('/notification-logs', [App\Http\Controllers\NotificationTrackingController::class, 'index']);
+
         // Gestión de socios
         Route::controller(SocioController::class)->group(function () {
             Route::get('/socio', 'all');

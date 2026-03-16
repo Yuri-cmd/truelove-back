@@ -763,8 +763,8 @@ class CuotaSocioController extends Controller
             ], 403);
         }
 
-        // Verificar que el período está pendiente
-        if ($periodo->estado !== 'pendiente') {
+        // Verificar que el período está pendiente o vencido (ambos pueden pagarse)
+        if (!in_array($periodo->estado, ['pendiente', 'vencido'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Este período ya no está disponible para pago'

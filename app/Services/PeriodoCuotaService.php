@@ -125,7 +125,7 @@ class PeriodoCuotaService
     {
         $periodo = PeriodoCuotaSocio::find($periodoId);
 
-        if ($periodo && $periodo->estado === 'pendiente') {
+        if ($periodo && in_array($periodo->estado, ['pendiente', 'vencido'])) {
             $periodo->update([
                 'pago_id' => $pagoId,
                 'estado' => 'en_revision'
@@ -186,7 +186,31 @@ class PeriodoCuotaService
     {
         $hoy = Carbon::now();
 
-        // Primero buscar el período activo (hoy está entre periodo_inicio y periodo_fin)
+        // Auto-marcar períodos pendientes que ya pasaron su fecha_vencimiento como vencidos
+        // Esto garantiza que funcione aunque el cron no se haya ejecutado
+        PeriodoCuotaSocio::where('socio_id', $socioId)
+            ->where('estado', 'pendiente')
+            ->where('fecha_vencimiento', '<', $hoy->copy()->startOfDay())
+            ->update(['estado' => 'vencido']);
+
+        // PRIORIDAD 1: Si hay períodos vencidos, retornar el más antiguo para que el socio lo pague primero
+        $periodoVencido = PeriodoCuotaSocio::where('socio_id', $socioId)
+            ->where('estado', 'vencido')
+            ->orderBy('periodo_inicio', 'asc')
+            ->with(['cuota', 'pago'])
+            ->first();
+
+        if ($periodoVencido) {
+            if ($periodoVencido->fecha_vencimiento) {
+                $fechaVencimiento = Carbon::parse($periodoVencido->fecha_vencimiento);
+                $diasVencido = $hoy->diffInDays($fechaVencimiento, false);
+                $periodoVencido->dias_para_vencer = (int)$diasVencido;
+                $periodoVencido->esta_vencido = true;
+            }
+            return $periodoVencido;
+        }
+
+        // PRIORIDAD 2: Buscar el período activo (hoy está entre periodo_inicio y periodo_fin)
         $periodoActual = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->where('periodo_inicio', '<=', $hoy)
             ->where('periodo_fin', '>=', $hoy)
@@ -204,9 +228,9 @@ class PeriodoCuotaService
             return $periodoActual;
         }
 
-        // Si no hay período activo, buscar el próximo período pendiente o vencido
+        // PRIORIDAD 3: Si no hay período activo, buscar el próximo período pendiente
         $siguientePeriodo = PeriodoCuotaSocio::where('socio_id', $socioId)
-            ->whereIn('estado', ['pendiente', 'vencido'])
+            ->whereIn('estado', ['pendiente'])
             ->orderBy('periodo_inicio', 'asc')
             ->with(['cuota', 'pago'])
             ->first();
@@ -231,6 +255,12 @@ class PeriodoCuotaService
     public function obtenerPeriodosDeSocio($socioId)
     {
         $hoy = Carbon::now();
+
+        // Auto-marcar períodos pendientes vencidos
+        PeriodoCuotaSocio::where('socio_id', $socioId)
+            ->where('estado', 'pendiente')
+            ->where('fecha_vencimiento', '<', $hoy->copy()->startOfDay())
+            ->update(['estado' => 'vencido']);
 
         $query = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->with(['cuota', 'pago']);
@@ -261,8 +291,7 @@ class PeriodoCuotaService
                 $fechaVencimiento = Carbon::parse($periodo->fecha_vencimiento);
                 $diasDiferencia = $hoy->diffInDays($fechaVencimiento, false);
 
-                // Si es negativo, ya venció
-                $periodo->dias_para_vencer = $diasDiferencia >= 0 ? (int)$diasDiferencia : null;
+                $periodo->dias_para_vencer = (int)$diasDiferencia;
                 $periodo->esta_vencido = $hoy->isAfter($fechaVencimiento);
             } else {
                 $periodo->dias_para_vencer = null;

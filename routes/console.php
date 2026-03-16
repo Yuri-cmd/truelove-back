@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\EnviarMensajeAutomaticoDriver;
+use App\Console\Commands\MarcarPeriodosVencidos;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -12,3 +13,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command(EnviarMensajeAutomaticoDriver::class)
     ->everyMinute();
+
+Schedule::command(MarcarPeriodosVencidos::class)
+    ->dailyAt('00:05');

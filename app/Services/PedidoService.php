@@ -47,37 +47,17 @@ class PedidoService
 
     public function obtenerDistanciaGoogle($lat1, $lon1, $destinations)
     {
-        // Usa Mapbox Matrix API (misma firma que antes con Google Distance Matrix)
+        // Usa Mapbox Directions API (ruta real por carretera, no línea recta)
         // $destinations debe ser un array de arrays [['lat' => ..., 'lng' => ...], ...]
         if (empty($destinations)) return [];
 
-        // Mapbox Matrix: coordenadas en formato lon,lat separadas por ;
-        // El origen es el primer punto (index 0)
-        $coordinates = "{$lon1},{$lat1}";
+        $distances = [];
         foreach ($destinations as $d) {
-            $coordinates .= ";{$d['lng']},{$d['lat']}";
+            $dist = $this->obtenerDistancia($lat1, $lon1, $d['lat'], $d['lng']);
+            $distances[] = $dist;
         }
 
-        // sources=0 (solo el origen) y destinations= todos los destinos (1,2,3...)
-        $destIndices = implode(';', range(1, count($destinations)));
-        $url = "https://api.mapbox.com/directions-matrix/v1/mapbox/driving/{$coordinates}?sources=0&destinations={$destIndices}&annotations=distance&access_token={$this->apiKey}";
-
-        try {
-            $response = Http::get($url);
-            $data = $response->json();
-
-            if (isset($data['distances'][0])) {
-                $distances = [];
-                foreach ($data['distances'][0] as $distMetros) {
-                    $distances[] = $distMetros !== null ? $distMetros / 1000 : null; // a km
-                }
-                return $distances;
-            }
-        } catch (\Exception $e) {
-            \Log::error('Error calling Mapbox Matrix API: ' . $e->getMessage());
-        }
-
-        return array_fill(0, count($destinations), null);
+        return $distances;
     }
 
     public function obtenerDistancia($lat1, $lon1, $lat2, $lon2)
