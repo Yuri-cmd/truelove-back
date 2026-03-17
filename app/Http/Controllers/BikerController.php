@@ -34,21 +34,32 @@ class BikerController extends Controller
 
     public function login(Request $request)
     {
-        // Buscar el reparto_registro
-        $reparto = RepartoRegistro::where('email', $request->email)
-            ->where('estado', 1) // Estado debe ser 1
-            ->where('aprobado', 1) // Aprobación debe ser 1
-            ->first();
+        // Buscar el reparto_registro por email
+        $reparto = RepartoRegistro::where('email', $request->email)->first();
 
         if (!$reparto) {
-            return response()->json(['status' => 'error', 'message' => 'Usuario no encontrado o no aprobado'], 404);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Correo electrónico no registrado como repartidor'
+            ], 401);
+        }
+
+        // Verificar si está activo y aprobado
+        if ($reparto->estado != 1 || $reparto->aprobado != 1) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tu cuenta de repartidor no está activa o aprobada profesionalmente'
+            ], 403);
         }
 
         // Buscar el usuario relacionado
         $user = User::find($reparto->user_id);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['status' => 'error', 'message' => 'Credenciales incorrectas'], 401);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Contraseña incorrecta'
+            ], 401);
         }
 
         // Si todo está bien, devolver el usuario y token
