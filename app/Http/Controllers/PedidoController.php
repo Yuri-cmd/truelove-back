@@ -491,8 +491,8 @@ class PedidoController extends Controller
         $resp = [
             'locallat' => $local->latitud,
             'locallon' => $local->longitud,
-            'custlat' => $coordenadasCliente->coordinates[0],
-            'custlon' => $coordenadasCliente->coordinates[1],
+            'custlat' => $coordenadasCliente->coordinates[1],
+            'custlon' => $coordenadasCliente->coordinates[0],
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
