@@ -109,3 +109,21 @@ if (!function_exists('formatPhoneNumber')) {
         return substr($numero_local, -9);
     }
 }
+
+if (!function_exists('progresoPedido')) {
+    function progresoPedido($estado)
+    {
+        switch ((string)$estado) {
+            case '1': return 0.1;
+            case '2': return 0.25;
+            case '4': return 0.5;
+            case '5': return 0.6;
+            case '6': return 0.75;
+            case '7': return 0.9;
+            case '8': return 1.0;
+            case '0': return 1.0;
+            case '9': return 1.0;
+            default: return 0.35;
+        }
+    }
+}

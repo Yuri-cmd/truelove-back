@@ -109,7 +109,11 @@ class PedidoTrackingController extends Controller
                 $cliente_fmc,
                 $estadoTitulo,
                 $mensajeCliente,
-                [],
+                [
+                    'type' => 'order_status_update',
+                    'order_id' => (string)$pedido->id,
+                    'progress' => (string)progresoPedido($request->estado),
+                ],
                 'cliente',
                 $pedido->id_cliente,
                 'cliente'
