@@ -281,21 +281,10 @@ class SocioController extends Controller
         $periodoCuotaService = app(\App\Services\PeriodoCuotaService::class);
         $estadoCuota = $periodoCuotaService->verificarAccesoSocio($socio->id);
 
-        // 🔴 BLOQUEAR LOGIN SI TIENE CUOTAS VENCIDAS
-        if (!$estadoCuota['puede_acceder']) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $estadoCuota['mensaje'],
-                'motivo' => $estadoCuota['motivo'],
-                'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
-                'alerta' => 'critico'
-            ], 403); // 403 Forbidden - No tiene permiso para acceder
-        }
-
-        // ✅ Solo crear token si PUEDE acceder
+        // ✅ Permitimos el login pero informamos el estado del acceso
+        // El frontend restringirá la navegación según puede_acceder
         $token = $user->createToken('your-app-name')->plainTextToken;
 
-        // Respuesta exitosa
         return response()->json([
             'status' => 'success',
             'message' => 'Inicio de sesión exitoso',
@@ -303,11 +292,11 @@ class SocioController extends Controller
             'socio' => $socio,
             'token' => $token,
             'estado_cuota' => [
-                'puede_acceder' => true,
+                'puede_acceder' => $estadoCuota['puede_acceder'],
                 'motivo' => $estadoCuota['motivo'],
                 'mensaje' => $estadoCuota['mensaje'],
                 'dias_vencimiento' => $estadoCuota['dias_vencimiento'],
-                'alerta' => $estadoCuota['motivo'] === 'proximo_vencimiento' ? 'advertencia' : null
+                'alerta' => (!$estadoCuota['puede_acceder']) ? 'critico' : ($estadoCuota['motivo'] === 'proximo_vencimiento' ? 'advertencia' : null)
             ]
         ]);
     }
