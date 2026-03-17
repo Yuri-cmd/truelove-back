@@ -243,6 +243,33 @@ class PedidoController extends Controller
         }
     }
 
+    public function testLiveActivity(Request $request)
+    {
+        $id_pedido = (string)($request->id_pedido ?? '974');
+        $estado = (string)($request->estado ?? '2');
+        $token = $request->token; // El token debe ser enviado desde Postman o cliente
+        $tiempo = (string)($request->tiempo ?? '30');
+        $progress = (string)($request->progress ?? progresoPedido($estado));
+
+        $data = [
+            'type' => 'order_status_update',
+            'order_id' => $id_pedido,
+            'progress' => $progress,
+            'tiempo' => $tiempo,
+            'tel_motorizado' => '999888777',
+        ];
+
+        return $this->firebaseService->sendNotification(
+            $token,
+            estadoPedido($estado),
+            mensajeNotificacionPedido($estado, $id_pedido, 'cliente'),
+            $data,
+            'cliente',
+            null,
+            'cliente'
+        );
+    }
+
     public function sendMotorizadosCerca()
     {
         $motorizados = $this->pedidoService->obtenerPedidosCercanos();
