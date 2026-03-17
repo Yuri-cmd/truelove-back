@@ -96,6 +96,14 @@ class ClienteController extends Controller
             'celular_whatsapp' => 'nullable|string',
         ]);
 
+        // Verificar si el documento ya existe
+        if (Cliente::where('documento', $validatedData['documento'])->exists()) {
+            return response()->json([
+                'message' => 'El DNI ya se encuentra registrado',
+                'status' => 400,
+            ], 400);
+        }
+
         $profile = new Cliente();
         $profile->nombre = $validatedData['nombre'];
         $profile->apellido = $validatedData['apellido'];
@@ -104,7 +112,10 @@ class ClienteController extends Controller
         $profile->{$validatedData['type']} = $validatedData['content']; // Asignación dinámica (si type=celular, guarda en celular)
         $profile->documento = $validatedData['documento'];
         $profile->nacionalidad = $validatedData['nacionalidad'];
-        $profile->celular_whatsapp = $request->celular_whatsapp ?? null;
+        
+        // Si no se envía whatsapp, usar el contenido si el tipo es celular
+        $profile->celular_whatsapp = $request->celular_whatsapp ?: ($validatedData['type'] === 'celular' ? $validatedData['content'] : null);
+        
         $profile->save();
 
         return response()->json([
@@ -116,7 +127,7 @@ class ClienteController extends Controller
     public function getDni(Request $request)
     {
         if (Cliente::where('documento', $request->documento)->exists()) {
-            return response()->json(['message' => 'El DNI ya se encuentra está registrado'], 400);
+            return response()->json(['message' => 'El DNI ya se encuentra registrado'], 400);
         }
 
         if (!$request->documento) {
@@ -144,7 +155,7 @@ class ClienteController extends Controller
     {
         $profile = Cliente::find($request->idCliente);
         $profile->celular = $request->celular;
-        $profile->celular_whatsapp = $request->celular_whatsapp ?? $profile->celular_whatsapp;
+        $profile->celular_whatsapp = $request->celular_whatsapp ?: $request->celular;
         $profile->save();
 
         $direccion = ClienteDireccion::updateOrCreate(
