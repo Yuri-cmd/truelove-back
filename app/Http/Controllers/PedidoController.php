@@ -326,8 +326,8 @@ class PedidoController extends Controller
             // Registrar el tracking del pedido (con chequeo si no hay trackings)
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             $estadoTracking = ($pedidoTracking && $pedidoTracking->estado == 2) ? 2 : 4;
-
-            if ($cliente_fmc) {
+            if($cliente_fmc){
+                $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
                 $this->firebaseService->sendNotification(
                     $cliente_fmc,
                     $estado,
@@ -336,6 +336,8 @@ class PedidoController extends Controller
                         'type' => 'order_status_update',
                         'order_id' => (string)$pedido->id,
                         'progress' => (string)progresoPedido($estadoTracking),
+                        'tiempo' => (string)($pedido->tiempo ?? 0),
+                        'tel_motorizado' => (string)($telMotorizado ?? ''),
                     ],
                     'cliente',
                     $pedido->id_cliente,
@@ -407,6 +409,7 @@ class PedidoController extends Controller
         if ($request->estado != 0 && $request->estado != 3) {
             $cliente = Cliente::find($pedido->id_cliente);
             if ($cliente && $cliente->token_fmc) {
+                $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
                 $this->firebaseService->sendNotification(
                     $cliente->token_fmc,
                     estadoPedido($request->estado),
@@ -415,6 +418,8 @@ class PedidoController extends Controller
                         'type' => 'order_status_update',
                         'order_id' => (string)$pedido->id,
                         'progress' => (string)progresoPedido($request->estado),
+                        'tiempo' => (string)($pedido->tiempo ?? 0),
+                        'tel_motorizado' => (string)($telMotorizado ?? ''),
                     ],
                     'cliente',
                     $cliente->id,

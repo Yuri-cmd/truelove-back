@@ -8,6 +8,7 @@ use App\Models\Establecimiento;
 use App\Models\Negocio;
 use App\Models\Pedido;
 use App\Models\PedidoTracking;
+use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -105,6 +106,7 @@ class PedidoTrackingController extends Controller
         }
 
         if ($cliente_fmc && !empty($cliente_fmc)) {
+            $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
                 $estadoTitulo,
@@ -113,6 +115,8 @@ class PedidoTrackingController extends Controller
                     'type' => 'order_status_update',
                     'order_id' => (string)$pedido->id,
                     'progress' => (string)progresoPedido($request->estado),
+                    'tiempo' => (string)($pedido->tiempo ?? 0),
+                    'tel_motorizado' => (string)($telMotorizado ?? ''),
                 ],
                 'cliente',
                 $pedido->id_cliente,
