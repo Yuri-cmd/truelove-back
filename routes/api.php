@@ -282,6 +282,7 @@ Route::controller(EmailVerificationController::class)->group(function () {
 });
 
 Route::post('/prueba-notificacion', [PedidoController::class, 'pruebaNoticacion']);
+Route::post('/test-live-activity', [PedidoController::class, 'testLiveActivity']);
 
 // Otras rutas
 Route::post('/negocios', [NegocioController::class, 'store']);

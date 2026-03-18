@@ -243,6 +243,33 @@ class PedidoController extends Controller
         }
     }
 
+    public function testLiveActivity(Request $request)
+    {
+        $id_pedido = (string)($request->id_pedido ?? '974');
+        $estado = (string)($request->estado ?? '2');
+        $token = $request->token; // El token debe ser enviado desde Postman o cliente
+        $tiempo = (string)($request->tiempo ?? '30');
+        $progress = (string)($request->progress ?? progresoPedido($estado));
+
+        $data = [
+            'type' => 'order_status_update',
+            'order_id' => $id_pedido,
+            'progress' => $progress,
+            'tiempo' => $tiempo,
+            'tel_motorizado' => '999888777',
+        ];
+
+        return $this->firebaseService->sendNotification(
+            $token,
+            estadoPedido($estado),
+            mensajeNotificacionPedido($estado, $id_pedido, 'cliente'),
+            $data,
+            'cliente',
+            null,
+            'cliente'
+        );
+    }
+
     public function sendMotorizadosCerca()
     {
         $motorizados = $this->pedidoService->obtenerPedidosCercanos();
@@ -323,13 +350,28 @@ class PedidoController extends Controller
                 $this->firebaseService->sendNotification($local_fmc, $estado, $mensajeLocal, [], 'socio', $pedido->id_local, 'socio');
             }
 
-            if ($cliente_fmc) {
-                $this->firebaseService->sendNotification($cliente_fmc, $estado, $mensajeCliente, [], 'cliente', $pedido->id_cliente, 'cliente');
-            }
-
             // Registrar el tracking del pedido (con chequeo si no hay trackings)
             $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             $estadoTracking = ($pedidoTracking && $pedidoTracking->estado == 2) ? 2 : 4;
+            if($cliente_fmc){
+                $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
+                $this->firebaseService->sendNotification(
+                    $cliente_fmc,
+                    $estado,
+                    $mensajeCliente,
+                    [
+                        'type' => 'order_status_update',
+                        'order_id' => (string)$pedido->id,
+                        'progress' => (string)progresoPedido($estadoTracking),
+                        'tiempo' => (string)($pedido->tiempo ?? 0),
+                        'tel_motorizado' => (string)($telMotorizado ?? ''),
+                    ],
+                    'cliente',
+                    $pedido->id_cliente,
+                    'cliente'
+                );
+            }
+
             PedidoTracking::create([
                 'pedido_id' => $pedido->id,
                 'estado' => $estadoTracking
@@ -390,6 +432,29 @@ class PedidoController extends Controller
             $this->sendMotorizadosCerca();
         }
 
+        // Notificación para Live Activity en resto de estados
+        if ($request->estado != 0 && $request->estado != 3) {
+            $cliente = Cliente::find($pedido->id_cliente);
+            if ($cliente && $cliente->token_fmc) {
+                $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
+                $this->firebaseService->sendNotification(
+                    $cliente->token_fmc,
+                    estadoPedido($request->estado),
+                    mensajeNotificacionPedido($request->estado, $pedido->id, 'cliente'),
+                    [
+                        'type' => 'order_status_update',
+                        'order_id' => (string)$pedido->id,
+                        'progress' => (string)progresoPedido($request->estado),
+                        'tiempo' => (string)($pedido->tiempo ?? 0),
+                        'tel_motorizado' => (string)($telMotorizado ?? ''),
+                    ],
+                    'cliente',
+                    $cliente->id,
+                    'cliente'
+                );
+            }
+        }
+
         if ($request->estado == 3 && $pedido->id_motorizado !== null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
@@ -430,7 +495,11 @@ class PedidoController extends Controller
                     $cliente->token_fmc,
                     'Hola ' . $cliente->nombre,
                     'El restaurante termino de preparar el pedido #' . $pedido->id . '. Por favor, retíralo.',
-                    [],
+                    [
+                        'type' => 'order_status_update',
+                        'order_id' => (string)$pedido->id,
+                        'progress' => (string)progresoPedido(9),
+                    ],
                     'cliente',
                     $cliente->id,
                     'cliente'
@@ -455,7 +524,11 @@ class PedidoController extends Controller
                     $cliente->token_fmc,
                     'Hola ' . $cliente->nombre,
                     'Tu pedido #' . $pedido->id . ' ha sido cancelado por el restaurante.',
-                    [],
+                    [
+                        'type' => 'order_status_update',
+                        'order_id' => (string)$pedido->id,
+                        'progress' => (string)progresoPedido(0),
+                    ],
                     'cliente',
                     $cliente->id,
                     'cliente'

@@ -543,10 +543,25 @@ class BikerController extends Controller
             // Generar nuevo código de verificación
             $newVerificationCode = random_int(100000, 999999);
 
+            // Verificar si el correo pertenece a un repartidor
+            $reparto = RepartoRegistro::where('email', $request->email)->first();
+            if (!$reparto) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El correo electrónico no está registrado como repartidor'
+                ], 404);
+            }
+
+            $user = User::where('email', $request->email)->first();
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se encontró un usuario asociado a este correo'
+                ], 404);
+            }
+
             // Enviar el correo con el código de verificación
             Mail::to($request->email)->send(new SendCode($request->email, $newVerificationCode));
-
-            $id = User::where('email', $request->email)->first()->id;
 
             // Retornar el código en la respuesta para ser usado en la aplicación
             return response()->json([
@@ -554,7 +569,7 @@ class BikerController extends Controller
                 'message' => 'Código de verificación enviado al correo electrónico',
                 'status' => 200,
                 'verification_code' => $newVerificationCode,
-                'id' => $id
+                'id' => $user->id
             ]);
         } catch (\Exception $e) {
             // Capturar cualquier error y devolver una respuesta de error
