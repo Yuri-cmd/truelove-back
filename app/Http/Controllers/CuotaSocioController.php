@@ -404,68 +404,79 @@ class CuotaSocioController extends Controller
         $validated = $request->validate([
             'socio_id' => 'required|exists:business_registrations,id',
             'cuota_socio_id' => 'required|exists:cuotas_socios,id',
-            'cantidad_periodos' => 'nullable|integer|min:1|max:24', // Máx 24 períodos (2 años)
-            'fecha_inicio' => 'nullable|date', // Fecha de inicio personalizada
-            'dia_pago' => 'nullable|integer|min:1|max:31' // Día del mes para realizar el pago
+            'cantidad_periodos' => 'nullable|integer|min:1|max:24',
+            'fecha_inicio' => 'nullable|date',
+            'dia_pago' => 'nullable|integer|min:1|max:31'
         ]);
 
-        $socio = BusinessRegistration::findOrFail($validated['socio_id']);
-        $cuota = CuotaSocio::findOrFail($validated['cuota_socio_id']);
+        // Protección contra doble-submit: usar lock por socio
+        $lockKey = 'asignar_cuota_socio_' . $validated['socio_id'];
+        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
 
-        // Para porcentaje: el vencimiento es automáticamente el fin del período,
-        // no se necesita dia_pago a menos que el admin lo especifique explícitamente
-        if ($cuota->tipo_cuota === 'porcentaje') {
-            if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
-                $cuota->update([
-                    'dia_pago' => $validated['dia_pago'],
-                    'dia_pago_nota' => 'Día de vencimiento personalizado'
-                ]);
-            }
-            // Si no se especifica, no forzar dia_pago (fecha_vencimiento = periodo_fin)
-        } else {
-            // Para monto fijo: configurar dia_pago normalmente
-            if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
-                $cuota->update([
-                    'dia_pago' => $validated['dia_pago'],
-                    'dia_pago_nota' => $cuota->necesitaNotaExplicativa() ? $cuota->getNotaExplicativaAutomatica() : null
-                ]);
-            } else {
-                // Si no se especifica día de pago, usar el día de la fecha de inicio
-                $fechaInicio = $validated['fecha_inicio'] ?? now();
-                $diaPago = Carbon::parse($fechaInicio)->day;
-
-                $cuota->update([
-                    'dia_pago' => $diaPago,
-                    'dia_pago_nota' => $diaPago > 28 ? "En meses con menos de {$diaPago} días, el pago se realizará el último día del mes." : null
-                ]);
-            }
+        if (!$lock->get()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya se está procesando una asignación de cuota para este socio. Por favor espere.'
+            ], 429);
         }
 
-        // Asignar cuota al socio
-        $socio->update([
-            'cuota_socio_id' => $cuota->id,
-            'fecha_asignacion_cuota' => now()
-        ]);
+        try {
+            $socio = BusinessRegistration::findOrFail($validated['socio_id']);
+            $cuota = CuotaSocio::findOrFail($validated['cuota_socio_id']);
 
-        // Generar períodos automáticos
-        $cantidadPeriodos = $validated['cantidad_periodos'] ?? 12;
-        $fechaInicio = $validated['fecha_inicio'] ?? null;
+            // Para porcentaje: el vencimiento es automáticamente el fin del período
+            if ($cuota->tipo_cuota === 'porcentaje') {
+                if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
+                    $cuota->update([
+                        'dia_pago' => $validated['dia_pago'],
+                        'dia_pago_nota' => 'Día de vencimiento personalizado'
+                    ]);
+                }
+            } else {
+                if (isset($validated['dia_pago']) && $validated['dia_pago'] > 0) {
+                    $cuota->update([
+                        'dia_pago' => $validated['dia_pago'],
+                        'dia_pago_nota' => $cuota->necesitaNotaExplicativa() ? $cuota->getNotaExplicativaAutomatica() : null
+                    ]);
+                } else {
+                    $fechaInicio = $validated['fecha_inicio'] ?? now();
+                    $diaPago = Carbon::parse($fechaInicio)->day;
 
-        $periodos = $this->periodoCuotaService->generarPeriodosParaSocio(
-            $socio->id,
-            $cuota->id,
-            $cantidadPeriodos,
-            $fechaInicio
-        );
+                    $cuota->update([
+                        'dia_pago' => $diaPago,
+                        'dia_pago_nota' => $diaPago > 28 ? "En meses con menos de {$diaPago} días, el pago se realizará el último día del mes." : null
+                    ]);
+                }
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cuota asignada exitosamente',
-            'data' => [
-                'socio' => $socio->load('cuotaAsignada'),
-                'periodos_generados' => count($periodos)
-            ]
-        ], 200);
+            // Asignar cuota al socio
+            $socio->update([
+                'cuota_socio_id' => $cuota->id,
+                'fecha_asignacion_cuota' => now()
+            ]);
+
+            // Generar períodos automáticos (ya protegido con DB::transaction internamente)
+            $cantidadPeriodos = $validated['cantidad_periodos'] ?? 12;
+            $fechaInicio = $validated['fecha_inicio'] ?? null;
+
+            $periodos = $this->periodoCuotaService->generarPeriodosParaSocio(
+                $socio->id,
+                $cuota->id,
+                $cantidadPeriodos,
+                $fechaInicio
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cuota asignada exitosamente',
+                'data' => [
+                    'socio' => $socio->load('cuotaAsignada'),
+                    'periodos_generados' => count($periodos)
+                ]
+            ], 200);
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
