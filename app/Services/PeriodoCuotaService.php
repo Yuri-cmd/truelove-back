@@ -3,14 +3,18 @@
 namespace App\Services;
 
 use App\Models\PeriodoCuotaSocio;
+use App\Models\PagoCuotaSocio;
 use App\Models\CuotaSocio;
 use App\Models\BusinessRegistration;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PeriodoCuotaService
 {
     /**
      * Genera períodos automáticos cuando se asigna una cuota a un socio
+     * Envuelto en transacción DB para evitar períodos duplicados
      *
      * @param int $socioId
      * @param int $cuotaId
@@ -20,46 +24,91 @@ class PeriodoCuotaService
      */
     public function generarPeriodosParaSocio($socioId, $cuotaId, $cantidadPeriodos = 12, $fechaInicioPersonalizada = null)
     {
-        $cuota = CuotaSocio::findOrFail($cuotaId);
-        $socio = BusinessRegistration::findOrFail($socioId);
+        return DB::transaction(function () use ($socioId, $cuotaId, $cantidadPeriodos, $fechaInicioPersonalizada) {
+            $cuota = CuotaSocio::findOrFail($cuotaId);
+            $socio = BusinessRegistration::findOrFail($socioId);
 
-        // Eliminar períodos antiguos pendientes/en_revision (no los pagados)
-        PeriodoCuotaSocio::where('socio_id', $socioId)
-            ->whereIn('estado', ['pendiente', 'en_revision'])
-            ->delete();
+            // Obtener períodos en_revision que tienen pago asociado para rechazarlos
+            $periodosEnRevisionConPago = PeriodoCuotaSocio::where('socio_id', $socioId)
+                ->where('estado', 'en_revision')
+                ->whereNotNull('pago_id')
+                ->get();
 
-        // Usar la fecha personalizada si se proporciona, sino usar la fecha actual
-        $fechaInicio = $fechaInicioPersonalizada
-            ? Carbon::parse($fechaInicioPersonalizada)->startOfDay()
-            : Carbon::now()->startOfDay();
-        $periodos = [];
+            // Rechazar los pagos asociados a períodos en_revision de la cuota anterior
+            foreach ($periodosEnRevisionConPago as $periodo) {
+                if ($periodo->pago_id) {
+                    PagoCuotaSocio::where('id', $periodo->pago_id)
+                        ->where('estado_pago', 'pendiente')
+                        ->update([
+                            'estado_pago' => 'rechazado',
+                            'motivo_rechazo' => 'Cuota reasignada - pago asociado a cuota anterior invalidado'
+                        ]);
+                }
+            }
 
-        for ($i = 0; $i < $cantidadPeriodos; $i++) {
-            $periodoInicio = $i === 0 ? $fechaInicio->copy() : $fechaFin->copy()->addDay();
+            // Eliminar períodos pendientes, en_revision y vencidos sin pago de CUALQUIER cuota anterior
+            PeriodoCuotaSocio::where('socio_id', $socioId)
+                ->whereIn('estado', ['pendiente', 'en_revision', 'vencido'])
+                ->where(function ($query) {
+                    $query->whereNull('pago_id')
+                          ->orWhereIn('estado', ['pendiente', 'en_revision']);
+                })
+                ->delete();
 
-            $fechaFin = match($cuota->periodicidad) {
-                'diario' => $periodoInicio->copy()->endOfDay(),
-                'semanal' => $periodoInicio->copy()->addWeek()->subDay(),
-                'quincenal' => $periodoInicio->copy()->addWeeks(2)->subDay(),
-                'mensual' => $periodoInicio->copy()->addMonth()->subDay(),
-                default => $periodoInicio->copy()->addWeek()->subDay()
-            };
+            // Usar la fecha personalizada si se proporciona, sino usar la fecha actual
+            $fechaInicio = $fechaInicioPersonalizada
+                ? Carbon::parse($fechaInicioPersonalizada)->startOfDay()
+                : Carbon::now()->startOfDay();
 
-            $periodo = PeriodoCuotaSocio::create([
-                'cuota_socio_id' => $cuota->id,
-                'socio_id' => $socio->id,
-                'periodo_inicio' => $periodoInicio,
-                'periodo_fin' => $fechaFin,
-                'monto_esperado' => $cuota->monto_cuota,
-                'estado' => 'pendiente',
-                'fecha_vencimiento' => $fechaFin,
-                'notificado_vencimiento' => false
-            ]);
+            // Obtener períodos pagados existentes para no crear duplicados
+            $periodosPagados = PeriodoCuotaSocio::where('socio_id', $socioId)
+                ->where('estado', 'pagado')
+                ->pluck('periodo_inicio', 'periodo_fin')
+                ->toArray();
 
-            $periodos[] = $periodo;
-        }
+            $periodos = [];
 
-        return $periodos;
+            for ($i = 0; $i < $cantidadPeriodos; $i++) {
+                $periodoInicio = $i === 0 ? $fechaInicio->copy() : $fechaFin->copy()->addDay();
+
+                $fechaFin = match($cuota->periodicidad) {
+                    'diario' => $periodoInicio->copy()->endOfDay(),
+                    'semanal' => $periodoInicio->copy()->addWeek()->subDay(),
+                    'quincenal' => $periodoInicio->copy()->addWeeks(2)->subDay(),
+                    'mensual' => $periodoInicio->copy()->addMonth()->subDay(),
+                    default => $periodoInicio->copy()->addWeek()->subDay()
+                };
+
+                // Verificar si ya existe un período pagado que se solape con este rango
+                $existeSolapamiento = PeriodoCuotaSocio::where('socio_id', $socioId)
+                    ->where('estado', 'pagado')
+                    ->where('periodo_inicio', '<=', $fechaFin)
+                    ->where('periodo_fin', '>=', $periodoInicio)
+                    ->exists();
+
+                if ($existeSolapamiento) {
+                    Log::info("Período solapado con pagado omitido para socio {$socioId}: {$periodoInicio} - {$fechaFin}");
+                    continue;
+                }
+
+                $periodo = PeriodoCuotaSocio::create([
+                    'cuota_socio_id' => $cuota->id,
+                    'socio_id' => $socio->id,
+                    'periodo_inicio' => $periodoInicio,
+                    'periodo_fin' => $fechaFin,
+                    'monto_esperado' => $cuota->monto_cuota,
+                    'estado' => 'pendiente',
+                    'fecha_vencimiento' => $fechaFin,
+                    'notificado_vencimiento' => false
+                ]);
+
+                $periodos[] = $periodo;
+            }
+
+            Log::info("Períodos generados para socio {$socioId}: " . count($periodos) . " nuevos, cuota {$cuotaId}");
+
+            return $periodos;
+        });
     }
 
     /**
