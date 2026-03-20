@@ -319,6 +319,11 @@ class MenuController extends Controller
 
         $menus = Menu::whereIn('id', $menuIds)->orderBy('orden')->get();
 
+        // Agregar categoria_id a cada menú para que el frontend pueda pre-seleccionar la categoría al editar
+        $menus->each(function ($menu) use ($categoria_id) {
+            $menu->categoria_id = (int) $categoria_id;
+        });
+
         return response()->json($menus);
     }
 
