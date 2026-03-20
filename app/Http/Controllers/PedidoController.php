@@ -326,7 +326,7 @@ class PedidoController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Motorizado no encontrado'], 404);
             }
 
-            $pedidos_consecutivos = (int) $reparto->pedidos_consecutivos;
+            $pedidos_consecutivos = (int) ($reparto->pedidos_consecutivos ?: 1);
 
             $puedeAceptar = $this->verificarPedidosActivosMotorizado($idMotorizado, $pedidos_consecutivos);
 
@@ -668,7 +668,7 @@ class PedidoController extends Controller
                         'id' => $pedido->id,
                         'comentario' => $rating->motorcycle_comment ?? 'No hay comentario',
                         'rating' => number_format($rating->motorcycle_rating, 1, '.', ''),
-                        'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
+                        'cliente' => $cliente ? ($cliente->nombre . ' ' . $cliente->apellido) : 'Cliente no encontrado',
                     ];
                 }
             }
