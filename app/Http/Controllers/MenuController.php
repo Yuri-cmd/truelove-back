@@ -202,13 +202,20 @@ class MenuController extends Controller
                     'descripcion' => $menu->descripcion,
                     'foto' => $menu->foto,
                     'precio' => $menu->precio,
-                    'status' => $menu->status
+                    'status' => $menu->status,
+                    'orden' => $menu->orden ?? 0
                 ];
             }
         }
 
-        // Ordenar por campo 'orden'
+        // Ordenar categorías por campo 'orden'
         usort($groupedMenus, fn($a, $b) => ($a['orden'] ?? 0) - ($b['orden'] ?? 0));
+
+        // Ordenar ítems dentro de cada categoría por 'orden'
+        foreach ($groupedMenus as &$grupo) {
+            usort($grupo['items'], fn($a, $b) => ($a['orden'] ?? 0) - ($b['orden'] ?? 0));
+        }
+        unset($grupo);
 
         return response()->json($groupedMenus);
     }
@@ -311,6 +318,11 @@ class MenuController extends Controller
             ->toArray();
 
         $menus = Menu::whereIn('id', $menuIds)->orderBy('orden')->get();
+
+        // Agregar categoria_id a cada menú para que el frontend pueda pre-seleccionar la categoría al editar
+        $menus->each(function ($menu) use ($categoria_id) {
+            $menu->categoria_id = (int) $categoria_id;
+        });
 
         return response()->json($menus);
     }
