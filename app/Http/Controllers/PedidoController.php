@@ -298,26 +298,27 @@ class PedidoController extends Controller
             'estado' => 'nullable|integer'
         ]);
 
-        $pedido = Pedido::find($request->id);
-
-        if (!$pedido) {
-            return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
-        }
-
-        if ($pedido->id_motorizado) {
-            return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
-        }
-
-        $ultimoTracking = $pedido->trackings()->latest()->first();
-        
-        if ($ultimoTracking && $ultimoTracking->estado == 0) {
-            return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido cancelado'], 400);
-        }
-
         $idMotorizado = (int) $request->id_motorizado;
 
         // Usar transacción y lock para evitar condiciones de carrera
-        return DB::transaction(function () use ($pedido, $idMotorizado, $request) {
+        return DB::transaction(function () use ($idMotorizado, $request) {
+
+            // Bloquear el pedido para evitar que dos motorizados lo tomen al mismo tiempo
+            $pedido = Pedido::lockForUpdate()->find($request->id);
+
+            if (!$pedido) {
+                return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
+            }
+
+            if ($pedido->id_motorizado) {
+                return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
+            }
+
+            $ultimoTracking = $pedido->trackings()->latest()->first();
+            
+            if ($ultimoTracking && $ultimoTracking->estado == 0) {
+                return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido cancelado'], 400);
+            }
 
             // Bloquear la fila del motorizado (RepartoRegistro) para la duración de la transacción
             $reparto = RepartoRegistro::where('id', $idMotorizado)->lockForUpdate()->first();
