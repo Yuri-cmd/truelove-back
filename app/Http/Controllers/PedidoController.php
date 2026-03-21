@@ -614,6 +614,7 @@ class PedidoController extends Controller
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
                     'tipo_pedido' => $pedido->tipo_pedido,
+                    'paga_con' => $pedido->paga_con,
                 ];
             }
         }
