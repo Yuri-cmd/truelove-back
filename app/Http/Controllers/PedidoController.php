@@ -311,6 +311,9 @@ class PedidoController extends Controller
             }
 
             if ($pedido->id_motorizado) {
+                if ($pedido->id_motorizado == $idMotorizado) {
+                    return response()->json(['status' => 'success', 'message' => 'Ya tienes este pedido asignado']);
+                }
                 return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
             }
 
