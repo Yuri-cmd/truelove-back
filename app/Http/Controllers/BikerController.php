@@ -678,6 +678,7 @@ class BikerController extends Controller
                 'subtotal' => (float) $pedido->subtotal,
                 'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                 'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+                'paga_con' => $pedido->paga_con,
                 'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
                 'fecha_hora_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
             ];
@@ -744,6 +745,7 @@ class BikerController extends Controller
                     'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
+                    'paga_con' => $pedido->paga_con,
                     'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
                     'actualizado' => $pedido->updated_at,
