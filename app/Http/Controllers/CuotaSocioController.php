@@ -670,14 +670,14 @@ class CuotaSocioController extends Controller
         $cuota = CuotaSocio::find($periodo->cuota_socio_id);
         $porcentaje = $cuota && $cuota->tipo_cuota === 'porcentaje' ? (float)$cuota->porcentaje_comision : null;
 
-        // Buscar pedidos completados en el rango del período
+        // Buscar pedidos completados (delivery + recojo) en el rango del período
         $pedidos = Pedido::where('pedidos.id_local', $socio->id)
             ->whereBetween('pedidos.created_at', [
                 Carbon::parse($periodo->periodo_inicio)->startOfDay(),
                 Carbon::parse($periodo->periodo_fin)->endOfDay()
             ])
             ->whereHas('trackings', function($query) {
-                $query->where('estado', 8);
+                $query->whereIn('estado', [8, 9]); // 8 = entregado, 9 = recojo en local
             })
             ->leftJoin('clientes', 'clientes.id', '=', 'pedidos.id_cliente')
             ->select('pedidos.*', 'clientes.nombre as cliente_nombre', 'clientes.apellido as cliente_apellido')

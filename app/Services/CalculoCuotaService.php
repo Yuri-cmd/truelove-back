@@ -62,7 +62,7 @@ class CalculoCuotaService
     
     /**
      * Calcular ventas y pedidos de un socio en un rango de fechas
-     * Solo cuenta pedidos completados (estado = 8 en tracking)
+     * Cuenta pedidos completados (estado 8 = entregado) y recojo (estado 9 = listo para recoger)
      * 
      * @param int $socioId
      * @param string $fechaInicio
@@ -78,7 +78,7 @@ class CalculoCuotaService
                 Carbon::parse($fechaFin)->endOfDay()
             ])
             ->whereHas('trackings', function($query) {
-                $query->where('estado', 8); // Estado 8 = Pedido completado/entregado
+                $query->whereIn('estado', [8, 9]); // Estado 8 = entregado, 9 = recojo en local
             })
             ->get();
         
