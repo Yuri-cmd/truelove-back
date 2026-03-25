@@ -49,13 +49,13 @@ class CalculoCuotaService
             // No cambiar el estado, solo mantener 'pendiente' hasta que se pague
         ]);
         
-        Log::info("Cuota calculada para período {$periodoId}", [
-            'socio_id' => $socio->id,
-            'tipo_cuota' => $cuota->tipo_cuota,
-            'total_ventas' => $totalVentas,
-            'cantidad_pedidos' => $cantidadPedidos,
-            'monto_calculado' => $montoCalculado
-        ]);
+        // Log::info("Cuota calculada para período {$periodoId}", [
+        //     'socio_id' => $socio->id,
+        //     'tipo_cuota' => $cuota->tipo_cuota,
+        //     'total_ventas' => $totalVentas,
+        //     'cantidad_pedidos' => $cantidadPedidos,
+        //     'monto_calculado' => $montoCalculado
+        // ]);
         
         return $periodo->fresh();
     }

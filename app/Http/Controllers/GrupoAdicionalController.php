@@ -287,7 +287,7 @@ class GrupoAdicionalController extends Controller
                 'message' => 'Grupos asignados correctamente'
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al asignar grupos: ' . $e->getMessage());
+            // Log::error('Error al asignar grupos: ' . $e->getMessage());
             return response()->json(['error' => 'Error al asignar grupos: ' . $e->getMessage()], 500);
         }
     }

@@ -434,9 +434,12 @@ class TarifaRangoController extends Controller
             $lat2 = round((float) $coordenadas->coordinates[1], 6);
             $lon2 = round((float) $coordenadas->coordinates[0], 6);
 
-            // TODO: revisar si conviene volver a Mapbox (ruta real) — comentado 2026-02-17
-            // $distanciaKm = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
-            $distanciaKm = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+            // Usar Mapbox (ruta real por carretera), igual que el app cliente
+            $distanciaKm = $this->pedidoService->obtenerDistancia($lat1, $lon1, $lat2, $lon2);
+            // Fallback a Haversine si Mapbox falla
+            if (!$distanciaKm) {
+                $distanciaKm = $this->pedidoService->calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2);
+            }
 
             if (!$distanciaKm) {
                 return response()->json(['success' => false, 'message' => 'No se pudo calcular la distancia'], 500);
