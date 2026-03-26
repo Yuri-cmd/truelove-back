@@ -145,15 +145,11 @@ class BikerController extends Controller
 
         // Obtener los pedidos con el id_local correspondiente
         $pedidos = Pedido::whereNotNull('id_local')
+            ->whereNotNull('direccion_entrega')
+            ->whereNotNull('direccion_local')
             ->whereNull('id_motorizado')
             ->where('tipo_pedido', 0)
-            ->where(function ($query) {
-                $query->orWhereHas('trackings', function ($sq) {
-                        // Consideramos pedidos activos aquellos que no están en estado 8 (entregado) ni 0 (cancelado)
-                        $sq->whereRaw('pedido_trackings.id = (SELECT id FROM pedido_trackings WHERE pedido_id = pedidos.id ORDER BY created_at DESC LIMIT 1)')
-                           ->whereNotIn('estado', [0, 8]);
-                    });
-            })
+            ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
