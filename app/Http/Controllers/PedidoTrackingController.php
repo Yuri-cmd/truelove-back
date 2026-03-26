@@ -106,7 +106,9 @@ class PedidoTrackingController extends Controller
         }
 
         if ($cliente_fmc && !empty($cliente_fmc)) {
-            $telMotorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado)->celular : null;
+            $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
+            $telMotorizado = $motorizado ? $motorizado->celular : null;
+            
             $this->firebaseService->sendNotification(
                 $cliente_fmc,
                 $estadoTitulo,

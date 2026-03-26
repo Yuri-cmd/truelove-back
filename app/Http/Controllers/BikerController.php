@@ -147,7 +147,13 @@ class BikerController extends Controller
         $pedidos = Pedido::whereNotNull('id_local')
             ->whereNull('id_motorizado')
             ->where('tipo_pedido', 0)
-            ->whereDate('created_at', Carbon::today())
+            ->where(function ($query) {
+                $query->orWhereHas('trackings', function ($sq) {
+                        // Consideramos pedidos activos aquellos que no están en estado 8 (entregado) ni 0 (cancelado)
+                        $sq->whereRaw('pedido_trackings.id = (SELECT id FROM pedido_trackings WHERE pedido_id = pedidos.id ORDER BY created_at DESC LIMIT 1)')
+                           ->whereNotIn('estado', [0, 8]);
+                    });
+            })
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
@@ -333,7 +339,7 @@ class BikerController extends Controller
         /*
         $cantidadPedidoPermitido = $motorizado->cantidad_pedidos_dias ?? 0;
         $cantidadPedidosRealizados = Pedido::where('id_motorizado', $id)
-            ->whereDate('created_at', Carbon::today())
+            // ->whereDate('created_at', Carbon::today())
             ->whereHas('trackings', function ($query) {
                 $query->latest()->where('estado', 8);
             })
@@ -632,7 +638,7 @@ class BikerController extends Controller
     {
         $pedidos = Pedido::whereNotNull('id_local')
             ->where('id_motorizado', $idBiker)
-            ->whereDate('created_at', Carbon::today())
+            // ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
@@ -695,7 +701,7 @@ class BikerController extends Controller
     {
         $pedidos = Pedido::whereNotNull('id_local')
             ->where('id_motorizado', $idBiker)
-            ->whereDate('created_at', Carbon::today())
+            // ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
