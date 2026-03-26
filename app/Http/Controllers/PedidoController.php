@@ -653,7 +653,9 @@ class PedidoController extends Controller
             'id' => $motorizado->id,
             'nombre' => $motorizado->nombres . ' ' . $motorizado->apellidos,
             'celular' => $motorizado->celular,
-            'foto' => config('app.url') . '/' . $motorizado->ruta_foto,
+            'foto' => $motorizado->datosPersonales ? (config('app.url') . '/' . $motorizado->datosPersonales->url_selfie) : null,
+            'vehiculo' => $motorizado->vehiculo ?? 'Sin vehículo registrado',
+            'placa' => $motorizado->registroVehiculo ? $motorizado->registroVehiculo->placa : 'S/P',
             'pedidoCount' => $pedidoCount,
             'rating' => $promedio,
         ]);
