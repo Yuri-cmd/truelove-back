@@ -145,8 +145,6 @@ class BikerController extends Controller
 
         // Obtener los pedidos con el id_local correspondiente
         $pedidos = Pedido::whereNotNull('id_local')
-            ->whereNotNull('direccion_entrega')
-            ->whereNotNull('direccion_local')
             ->whereNull('id_motorizado')
             ->where('tipo_pedido', 0)
             ->whereDate('created_at', Carbon::today())
