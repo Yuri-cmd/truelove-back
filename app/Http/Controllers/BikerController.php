@@ -152,9 +152,11 @@ class BikerController extends Controller
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
                     ->whereRaw('estado = 2 or estado = 3')
+                    ->whereDate('created_at', Carbon::today()) // 👈 agregar esto
                     ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
                         $sub->select(DB::raw('pedido_id, MAX(created_at)'))
                             ->from('pedido_trackings')
+                            ->whereDate('created_at', Carbon::today()) // 👈 y esto
                             ->groupBy('pedido_id');
                     });
             })
@@ -221,7 +223,6 @@ class BikerController extends Controller
                     $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
                     $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
                 }
-
             }
         }
         return $pedidos;
