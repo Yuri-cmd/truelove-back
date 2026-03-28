@@ -721,6 +721,13 @@ class BikerController extends Controller
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
 
+                // Saltar pedidos con datos huérfanos (cliente o local eliminado)
+                if (!$establecimiento || !$cliente) {
+                    continue;
+                }
+
+                $medioPago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago) : null;
+
                 $data[] = [
                     'id' => $pedido->id,
                     'local' => $establecimiento->nombre_establecimiento,
@@ -737,10 +744,10 @@ class BikerController extends Controller
                     'latitud' => $pedido->longitud,
                     'longitud' => $pedido->latitud,
                     // 'productos' => $pedido->productos,
-                    'estado' => $estado->estado,
+                    'estado' => $estado ? $estado->estado : null,
                     'tiempo' => $pedido->tiempo,
                     'nota' => $pedido->nota,
-                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'tipoPago' => $medioPago ? $medioPago->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
                     'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
@@ -809,10 +816,10 @@ class BikerController extends Controller
                     'latitud' => $pedido->latitud,
                     'longitud' => $pedido->longitud,
                     // 'productos' => $pedido->productos,
-                    'estado' => $estado->estado,
+                    'estado' => $estado ? $estado->estado : null,
                     'tiempo' => $pedido->tiempo,
                     'nota' => $pedido->nota,
-                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'tipoPago' => ($pedido->id_tipo_pago && ($mp = MedioPago::find($pedido->id_tipo_pago))) ? $mp->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
                     'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
