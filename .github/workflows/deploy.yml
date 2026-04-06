@@ -33,4 +33,8 @@ jobs:
             php artisan config:clear
             php artisan config:cache
 
+            echo "Corrigiendo permisos..."
+            chown -R apache:apache storage bootstrap/cache
+            chmod -R 775 storage bootstrap/cache
+
             echo "Deploy completado."
