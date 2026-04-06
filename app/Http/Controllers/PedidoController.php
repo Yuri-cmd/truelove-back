@@ -438,16 +438,7 @@ class PedidoController extends Controller
         $tracking = new PedidoTracking();
         $tracking->pedido_id = $id;
         $tracking->estado = $request->estado;
-        if ($user) {
-            $tracking->user_id = $user->id;
-            $tracking->user_type = $user->role ? $user->role->name : 'desconocido';
-        } elseif ($request->id_cliente) {
-            $tracking->user_id = $request->id_cliente;
-            $tracking->user_type = 'cliente';
-        } elseif ($request->id_motorizado) {
-            $tracking->user_id = $request->id_motorizado;
-            $tracking->user_type = 'motorizado';
-        }
+        $tracking->setTraceability($request);
         $tracking->save();
 
         if ($request->estado == 2 && $pedido->id_motorizado == null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
