@@ -152,9 +152,11 @@ class BikerController extends Controller
                 $query->select(DB::raw('pedido_id'))
                     ->from('pedido_trackings')
                     ->whereRaw('estado = 2 or estado = 3')
+                    ->whereDate('created_at', Carbon::today()) // 👈 agregar esto
                     ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
                         $sub->select(DB::raw('pedido_id, MAX(created_at)'))
                             ->from('pedido_trackings')
+                            ->whereDate('created_at', Carbon::today()) // 👈 y esto
                             ->groupBy('pedido_id');
                     });
             })
@@ -221,7 +223,6 @@ class BikerController extends Controller
                     $pedido->fecha_inicio = $trackingInicio ? $trackingInicio->created_at?->toIso8601String() : null;
                     $pedido->fecha_hora_inicio = $pedido->fecha_inicio;
                 }
-
             }
         }
         return $pedidos;
@@ -721,6 +722,13 @@ class BikerController extends Controller
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
 
+                // Saltar pedidos con datos huérfanos (cliente o local eliminado)
+                if (!$establecimiento || !$cliente) {
+                    continue;
+                }
+
+                $medioPago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago) : null;
+
                 $data[] = [
                     'id' => $pedido->id,
                     'local' => $establecimiento->nombre_establecimiento,
@@ -737,10 +745,10 @@ class BikerController extends Controller
                     'latitud' => $pedido->longitud,
                     'longitud' => $pedido->latitud,
                     // 'productos' => $pedido->productos,
-                    'estado' => $estado->estado,
+                    'estado' => $estado ? $estado->estado : null,
                     'tiempo' => $pedido->tiempo,
                     'nota' => $pedido->nota,
-                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'tipoPago' => $medioPago ? $medioPago->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
                     'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
@@ -809,10 +817,10 @@ class BikerController extends Controller
                     'latitud' => $pedido->latitud,
                     'longitud' => $pedido->longitud,
                     // 'productos' => $pedido->productos,
-                    'estado' => $estado->estado,
+                    'estado' => $estado ? $estado->estado : null,
                     'tiempo' => $pedido->tiempo,
                     'nota' => $pedido->nota,
-                    'tipoPago' => $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo',
+                    'tipoPago' => ($pedido->id_tipo_pago && ($mp = MedioPago::find($pedido->id_tipo_pago))) ? $mp->nombre : 'Efectivo',
                     'precioDelivery' => $pedido->precio_delivery,
                     'subtotal' => (float) $pedido->subtotal,
                     'total' => ($pedido->subtotal + $pedido->precio_delivery) - $pedido->descuento,
