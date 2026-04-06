@@ -78,10 +78,12 @@ class PedidoTrackingController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
         // Registrar el tracking del pedido
-        PedidoTracking::create([
+        $tracking = new PedidoTracking([
             'pedido_id' => $pedido->id,
             'estado' => $request->estado
         ]);
+        $tracking->setTraceability($request);
+        $tracking->save();
 
         $local = BusinessRegistration::find($pedido->id_local);
         $cliente = Cliente::find($pedido->id_cliente);

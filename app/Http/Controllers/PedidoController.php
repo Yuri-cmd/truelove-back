@@ -160,7 +160,12 @@ class PedidoController extends Controller
                 }
             }
 
-            PedidoTracking::create(['pedido_id' => $pedido->id, 'estado' => 1]);
+            PedidoTracking::create([
+                'pedido_id' => $pedido->id, 
+                'estado' => 1,
+                'user_id' => $request->id_cliente,
+                'user_type' => 'cliente'
+            ]);
             $pedido->save();
 
             DB::commit();
@@ -378,7 +383,9 @@ class PedidoController extends Controller
 
             PedidoTracking::create([
                 'pedido_id' => $pedido->id,
-                'estado' => $estadoTracking
+                'estado' => $estadoTracking,
+                'user_id' => $idMotorizado,
+                'user_type' => 'motorizado'
             ]);
 
             return response()->json(['status' => 'success']);
@@ -427,9 +434,20 @@ class PedidoController extends Controller
         }
         $pedido->save();
         // Crear un nuevo tracking para el pedido
+        $user = $request->user();
         $tracking = new PedidoTracking();
         $tracking->pedido_id = $id;
         $tracking->estado = $request->estado;
+        if ($user) {
+            $tracking->user_id = $user->id;
+            $tracking->user_type = $user->role ? $user->role->name : 'desconocido';
+        } elseif ($request->id_cliente) {
+            $tracking->user_id = $request->id_cliente;
+            $tracking->user_type = 'cliente';
+        } elseif ($request->id_motorizado) {
+            $tracking->user_id = $request->id_motorizado;
+            $tracking->user_type = 'motorizado';
+        }
         $tracking->save();
 
         if ($request->estado == 2 && $pedido->id_motorizado == null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
@@ -463,6 +481,7 @@ class PedidoController extends Controller
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 4;
+            $tracking->setTraceability($request);
 
             $biker = RepartoRegistro::where('id', $pedido->id_motorizado)->first();
             if ($biker->token_fmc) {
@@ -492,6 +511,7 @@ class PedidoController extends Controller
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = 9;
+            $tracking->setTraceability($request);
 
             $cliente = Cliente::where('id', $pedido->id_cliente)->first();
             if ($cliente->token_fmc) {
@@ -1032,10 +1052,12 @@ class PedidoController extends Controller
             return response()->json(['status' => 'error', 'message' => 'El pedido ya no puede ser cancelado'], 400);
         }
 
-        PedidoTracking::create([
+        $tracking = new PedidoTracking([
             'pedido_id' => $pedido->id,
             'estado' => 0 // Cancelado
         ]);
+        $tracking->setTraceability($request);
+        $tracking->save();
 
         $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
 

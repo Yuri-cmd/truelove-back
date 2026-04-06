@@ -148,7 +148,7 @@ class InfoClienteController extends Controller
     /**
      * Elimina un cliente y todos sus datos relacionados
      */
-    public function delete($id)
+    public function delete(Request $request, $id)
     {
         DB::beginTransaction();
         try {
@@ -165,10 +165,12 @@ class InfoClienteController extends Controller
 
             // Cancelar automáticamente los pedidos activos
             foreach ($pedidosActivos as $pedido) {
-                PedidoTracking::create([
+                $tracking = new PedidoTracking([
                     'pedido_id' => $pedido->id,
                     'estado' => 0, // 0 = cancelado
                 ]);
+                $tracking->setTraceability($request);
+                $tracking->save();
             }
 
             // Eliminar las direcciones del cliente

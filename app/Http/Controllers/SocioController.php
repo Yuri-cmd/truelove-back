@@ -503,6 +503,7 @@ class SocioController extends Controller
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $id;
             $tracking->estado = $estado;
+            $tracking->setTraceability($request);
             $tracking->save();
 
             return response()->json([
