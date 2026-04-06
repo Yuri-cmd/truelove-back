@@ -32,23 +32,35 @@ class EnviarMensajeAutomaticoDriver extends Command
      */
     public function handle()
     {
-        $desde = Carbon::now()->subHours(2);
+        // Extender ventana a 24 horas para cubrir pedidos retrasados
+        $desde = Carbon::now()->subHours(24);
         $hasta = Carbon::now();
 
-        // Pedidos creados en las últimas 2 horas (ajusta la condición según tu lógica)
-        $pedidos = Pedido::whereBetween('created_at', [$desde, $hasta])->get();
+        $this->info("Buscando pedidos entre {$desde->format('Y-m-d H:i:s')} y {$hasta->format('Y-m-d H:i:s')}");
 
+        // Buscar pedidos no notificados en ventana extendida
+        $pedidos = Pedido::whereBetween('created_at', [$desde, $hasta])
+                         ->where('notified_arrival', false)
+                         ->get();
+        
+        $this->info("Encontrados " . count($pedidos) . " pedidos sin notificar.");
+
+        $procesados = 0;
+        $errores = 0;
+        
         foreach ($pedidos as $pedido) {
-            // Saltar si ya fue marcado
-            if ($pedido->notified_arrival) {
-                $this->info("Pedido #{$pedido->id} ya marcado como notificado. Saltando.");
+            $this->info("Evaluando pedido #{$pedido->id}...");
+
+            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            if (!$pedidoTracking) {
+                $this->warn("Pedido #{$pedido->id}: Sin tracking");
                 continue;
             }
 
-            $pedidoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            if (! $pedidoTracking) continue;
+            $this->info("Pedido #{$pedido->id}: Estado actual {$pedidoTracking->estado}");
 
-            if ($pedidoTracking->estado == 7) {
+            // Procesar estados 7 (Llegó) y 8 (Entregado) pendientes de notificar
+            if ($pedidoTracking->estado >= 7) {
                 // Intentamos marcarlo atómicamente para evitar condiciones de carrera
                 $updated = Pedido::where('id', $pedido->id)
                     ->where('notified_arrival', false)
@@ -111,14 +123,22 @@ class EnviarMensajeAutomaticoDriver extends Command
                         'message' => $mensaje,
                     ]);
 
-                    $this->info("Mensaje enviado y pedido #{$pedido->id} marcado como notificado.");
+                    $this->info("✅ Pedido #{$pedido->id} procesado correctamente");
+                    $procesados++;
                 } catch (Exception $e) {
                     // Si falla el envío, revertimos la marca para reintentar en la próxima corrida
                     Pedido::where('id', $pedido->id)->update(['notified_arrival' => false]);
-                    $this->error("Error al enviar notificación para pedido #{$pedido->id}: " . $e->getMessage());
+                    $this->error("❌ Error al enviar notificación para pedido #{$pedido->id}: " . $e->getMessage());
+                    $errores++;
                     continue;
                 }
+            } else {
+                $this->info("Pedido #{$pedido->id}: Estado {$pedidoTracking->estado} no requiere procesamiento");
             }
         }
+        
+        $this->info("=== RESUMEN ===");
+        $this->info("Pedidos procesados: {$procesados}");
+        $this->info("Errores: {$errores}");
     }
 }

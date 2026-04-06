@@ -12,7 +12,7 @@ Artisan::command('inspire', function () {
 
 
 Schedule::command(EnviarMensajeAutomaticoDriver::class)
-    ->everyMinute();
+    ->everyFiveMinutes();
 
 Schedule::command(MarcarPeriodosVencidos::class)
     ->dailyAt('00:05');
