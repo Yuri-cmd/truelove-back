@@ -322,7 +322,7 @@ class CuotaSocioController extends Controller
     {
         $validated = $request->validate([
             'cuota_socio_id' => 'required|exists:cuotas_socios,id',
-            'comprobante_pago' => 'required|image|mimes:jpeg,png,jpg|max:5120', // Max 5MB
+            'comprobante_pago' => 'required|file|mimes:jpeg,png,jpg,webp,heic,heif,gif|max:5120', // Max 5MB
             'fecha_pago' => 'required|date',
             'monto_pagado' => 'required|numeric|min:0',
             'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
@@ -746,7 +746,7 @@ class CuotaSocioController extends Controller
     {
         $validated = $request->validate([
             'periodo_id' => 'required|exists:periodos_cuotas_socios,id',
-            'comprobante_pago' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'comprobante_pago' => 'required|file|mimes:jpeg,png,jpg,webp,heic,heif,gif|max:5120',
             'fecha_pago' => 'required|date',
             'monto_pagado' => 'required|numeric|min:0',
             'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
