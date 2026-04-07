@@ -743,11 +743,19 @@ class PedidoController extends Controller
             return response()->json(['message' => 'Pedido no encontrado'], 404);
         }
         $pedido->total = PedidoDetalle::where('pedido_id', $pedido->id)->sum(DB::raw('precio * cantidad'));
-        $pedido->fecha_entrega = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first()->created_at;
-        $pedido->cliente = Cliente::find($pedido->id_cliente)->only(['nombre', 'apellido', 'email']);
-        $pedido->motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
+        
+        $ultimoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+        $pedido->fecha_entrega = $ultimoTracking ? $ultimoTracking->created_at : $pedido->created_at;
 
-        Mail::to($pedido->cliente['email'])->send(new PedidoEntregadoMail($pedido));
+        $cliente = Cliente::find($pedido->id_cliente);
+        $pedido->cliente = $cliente ? $cliente->only(['nombre', 'apellido', 'email']) : null;
+
+        $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
+        $pedido->motorizado = $motorizado ? $motorizado->only(['nombres', 'apellidos', 'celular']) : null;
+
+        if ($pedido->cliente && isset($pedido->cliente['email'])) {
+            Mail::to($pedido->cliente['email'])->send(new PedidoEntregadoMail($pedido));
+        }
 
         return response()->json(['message' => 'Correo enviado con éxito']);
     }
@@ -812,8 +820,13 @@ class PedidoController extends Controller
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
 
-        $motorizado = RepartoRegistro::find($pedido->id_motorizado)->only(['nombres', 'apellidos', 'celular']);
-        $nombre = $motorizado['nombres'] . ' ' . $motorizado['apellidos'];
+        $motorizado = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
+        if (!$motorizado) {
+            return response()->json(['error' => 'Motorizado no asignado'], 400);
+        }
+
+        $motorizadoData = $motorizado->only(['nombres', 'apellidos', 'celular']);
+        $nombre = $motorizadoData['nombres'] . ' ' . $motorizadoData['apellidos'];
         $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->get();
         
         foreach ($motorizados as $motorizado) {
@@ -1050,7 +1063,8 @@ class PedidoController extends Controller
         $tracking->setTraceability($request);
         $tracking->save();
 
-        $local_fmc = BusinessRegistration::find($pedido->id_local)->token_fmc;
+        $business = BusinessRegistration::find($pedido->id_local);
+        $local_fmc = $business ? $business->token_fmc : null;
 
         if ($local_fmc) {
             $this->firebaseService->sendNotification(

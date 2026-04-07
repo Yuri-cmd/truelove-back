@@ -45,11 +45,18 @@
                                             <span style="color: #E60023;">S/.
                                                 {{ number_format($pedido->total, 2) }}</span>
                                         </p>
+                                        @if($pedido->motorizado)
                                         <p style="margin: 0; color: #333333;">
                                             <strong>Motorizado:</strong>
                                             <span style="color: #E60023;">{{ $pedido->motorizado['nombres'] }}
                                                 {{ $pedido->motorizado['apellidos'] }}</span>
                                         </p>
+                                        @else
+                                        <p style="margin: 0; color: #333333;">
+                                            <strong>Tipo de entrega:</strong>
+                                            <span style="color: #E60023;">Recojo en local</span>
+                                        </p>
+                                        @endif
                                     </td>
                                 </tr>
                             </table>
