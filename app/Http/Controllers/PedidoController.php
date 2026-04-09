@@ -433,6 +433,22 @@ class PedidoController extends Controller
         if (!$pedido) {
             return response()->json(['error' => 'Pedido no encontrado'], 404);
         }
+
+        // Validar transición de estado (no permitir volver atrás)
+        $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('id')->first();
+        if ($ultimoTracking) {
+            // Si el pedido ya está cancelado o entregado, no permitir más cambios (excepto tal vez cancelar si no lo estaba)
+            if ($ultimoTracking->estado == 8 || $ultimoTracking->estado == 0) {
+                 return response()->json(['error' => 'El pedido ya se encuentra en un estado final (Entregado/Cancelado)'], 400);
+            }
+            
+            // No permitir volver a estados anteriores (ej: de 6 a 2)
+            // Permitimos el mismo estado solo si es un reintento inofensivo
+            if ($request->estado > 0 && $request->estado < $ultimoTracking->estado) {
+                return response()->json(['error' => 'No es posible volver a un estado anterior'], 400);
+            }
+        }
+
         // Guardar el tiempo o fecha de inicio si se envía
         if ($request->tiempo) {
             $pedido->tiempo = $request->tiempo;
@@ -441,8 +457,8 @@ class PedidoController extends Controller
             $pedido->fecha_hora_inicio = Carbon::now();
         }
         $pedido->save();
+
         // Crear un nuevo tracking para el pedido
-        $user = $request->user();
         $tracking = new PedidoTracking();
         $tracking->pedido_id = $id;
         $tracking->estado = $request->estado;

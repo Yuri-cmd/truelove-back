@@ -479,8 +479,26 @@ class SocioController extends Controller
     public function updateEstadoPedido(Request $request, $id)
     {
         try {
-            $pedido = Pedido::findOrFail($id);
-            $estado = $request->estado;
+            $pedido = Pedido::find($id);
+            if (!$pedido) {
+                return response()->json(['error' => 'Pedido no encontrado'], 404);
+            }
+
+            $estado = (int) $request->estado;
+
+            // Validar transición de estado (no permitir volver atrás)
+            $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('id')->first();
+            if ($ultimoTracking) {
+                // Si el pedido ya está cancelado o entregado, no permitir más cambios
+                if ($ultimoTracking->estado == 8 || $ultimoTracking->estado == 0) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido ya se encuentra en un estado final (Entregado/Cancelado)'], 400);
+                }
+                
+                // No permitir volver a estados anteriores (ej: de 6 a 2)
+                if ($estado > 0 && $estado < $ultimoTracking->estado) {
+                    return response()->json(['status' => 'error', 'message' => 'No es posible volver a un estado anterior'], 400);
+                }
+            }
 
             // Validar que el estado sea válido
             if (!in_array($estado, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])) {
