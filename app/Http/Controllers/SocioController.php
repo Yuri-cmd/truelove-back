@@ -303,6 +303,19 @@ class SocioController extends Controller
 
     public function getPedidos($id, Request $request)
     {
+        // Verificar cuota/acceso del socio
+        $periodoCuotaService = app(\App\Services\PeriodoCuotaService::class);
+        $estadoAcceso = $periodoCuotaService->verificarAccesoSocio($id);
+
+        if (!$estadoAcceso['puede_acceder']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $estadoAcceso['mensaje'],
+                'estado_cuota' => $estadoAcceso,
+                'puede_acceder' => false
+            ], 403);
+        }
+
         $tienda = BusinessRegistration::find($id);
         if (!$tienda || !$tienda->activo) {
             return response()->json([]);
@@ -313,7 +326,7 @@ class SocioController extends Controller
 
         $query = Pedido::with([
             'trackings' => function ($query) {
-                $query->orderBy('created_at', 'desc');
+                $query->orderBy('id', 'desc');
             }
         ])->where('id_local', $id);
 
@@ -926,7 +939,7 @@ class SocioController extends Controller
     {
         $pedido = Pedido::with([
             'trackings' => function ($query) {
-                $query->orderBy('created_at', 'desc');
+                $query->orderBy('id', 'desc');
             }
         ])
             ->where('id', $id)
