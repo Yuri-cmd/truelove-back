@@ -149,16 +149,10 @@ class BikerController extends Controller
             ->where('tipo_pedido', 0)
             ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
-                $query->select(DB::raw('pedido_id'))
-                    ->from('pedido_trackings')
-                    ->whereRaw('estado = 2 or estado = 3')
-                    ->whereDate('created_at', Carbon::today()) // 👈 agregar esto
-                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
-                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
-                            ->from('pedido_trackings')
-                            ->whereDate('created_at', Carbon::today()) // 👈 y esto
-                            ->groupBy('pedido_id');
-                    });
+                $query->select('pedido_id')
+                    ->from('pedido_trackings as pt1')
+                    ->whereIn('estado', [2, 3])
+                    ->whereRaw('pt1.id = (SELECT MAX(id) FROM pedido_trackings as pt2 WHERE pt2.pedido_id = pt1.pedido_id)');
             })
             ->get();
 
@@ -635,14 +629,10 @@ class BikerController extends Controller
             ->where('id_motorizado', $idBiker)
             // ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
-                $query->select(DB::raw('pedido_id'))
-                    ->from('pedido_trackings')
+                $query->select('pedido_id')
+                    ->from('pedido_trackings as pt1')
                     ->whereIn('estado', [2, 3, 4, 5, 6, 7])
-                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
-                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
-                            ->from('pedido_trackings')
-                            ->groupBy('pedido_id');
-                    });
+                    ->whereRaw('pt1.id = (SELECT MAX(id) FROM pedido_trackings as pt2 WHERE pt2.pedido_id = pt1.pedido_id)');
             })
             ->get();
         $tiene_viaje_activo = $pedidos->isNotEmpty();
@@ -698,14 +688,10 @@ class BikerController extends Controller
             ->where('id_motorizado', $idBiker)
             // ->whereDate('created_at', Carbon::today())
             ->whereIn('id', function ($query) {
-                $query->select(DB::raw('pedido_id'))
-                    ->from('pedido_trackings')
+                $query->select('pedido_id')
+                    ->from('pedido_trackings as pt1')
                     ->whereIn('estado', [2, 3, 4, 5, 6, 7])
-                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
-                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
-                            ->from('pedido_trackings')
-                            ->groupBy('pedido_id');
-                    });
+                    ->whereRaw('pt1.id = (SELECT MAX(id) FROM pedido_trackings as pt2 WHERE pt2.pedido_id = pt1.pedido_id)');
             })
             ->get();
         $tiene_viaje_activo = $pedidos->isNotEmpty();
@@ -773,14 +759,10 @@ class BikerController extends Controller
         $pedidos = Pedido::whereNotNull('id_local')
             ->where('id_motorizado', $idBiker)
             ->whereIn('id', function ($query) {
-                $query->select(DB::raw('pedido_id'))
-                    ->from('pedido_trackings')
+                $query->select('pedido_id')
+                    ->from('pedido_trackings as pt1')
                     ->where('estado', 8)
-                    ->whereIn(DB::raw('(pedido_id, created_at)'), function ($sub) {
-                        $sub->select(DB::raw('pedido_id, MAX(created_at)'))
-                            ->from('pedido_trackings')
-                            ->groupBy('pedido_id');
-                    });
+                    ->whereRaw('pt1.id = (SELECT MAX(id) FROM pedido_trackings as pt2 WHERE pt2.pedido_id = pt1.pedido_id)');
             })
             ->get();
         $data = [];

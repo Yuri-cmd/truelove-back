@@ -324,8 +324,16 @@ class PedidoController extends Controller
 
             $ultimoTracking = $pedido->trackings()->latest()->first();
             
-            if ($ultimoTracking && $ultimoTracking->estado == 0) {
-                return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido cancelado'], 400);
+            if ($ultimoTracking) {
+                if ($ultimoTracking->estado == 0) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido cancelado'], 400);
+                }
+                if ($ultimoTracking->estado == 8) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido ya ha sido entregado'], 400);
+                }
+                if (!in_array($ultimoTracking->estado, [1, 2, 3])) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido no está disponible para ser tomado'], 400);
+                }
             }
 
             // Bloquear la fila del motorizado (RepartoRegistro) para la duración de la transacción
