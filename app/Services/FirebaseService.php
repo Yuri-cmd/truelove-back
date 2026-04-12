@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Google\Client as GoogleClient;
 use App\Models\NotificationLog;
+use App\Models\Cliente;
+use App\Models\BusinessRegistration;
+use App\Models\RepartoRegistro;
 
 class FirebaseService
 {
@@ -120,12 +123,58 @@ class FirebaseService
 
         try {
             $response = Http::withHeaders($headers)->post($url, $payload);
-            Log::info("Respuesta de Firebase: " . $response->body());
+            $responseJson = $response->json();
+            Log::info("Respuesta de Firebase: " . json_encode($responseJson));
 
-            return $response->json();
+            // Manejo de tokens no registrados (UNREGISTERED)
+            if ($response->status() === 404 && isset($responseJson['error']['details'])) {
+                foreach ($responseJson['error']['details'] as $detail) {
+                    if (isset($detail['errorCode']) && $detail['errorCode'] === 'UNREGISTERED') {
+                        $this->handleUnregisteredToken($token, $userType, $userId);
+                    }
+                }
+            }
+
+            return $responseJson;
         } catch (\Exception $e) {
             Log::error("🔥 Error enviando notificación: " . $e->getMessage());
             return null;
+        }
+    }
+
+    private function handleUnregisteredToken($token, $userType = null, $userId = null)
+    {
+        Log::warning("⚠️ Token FCM no registrado detectado. Procediendo a limpiar el token: " . $token);
+
+        try {
+            if ($userType && $userId) {
+                // Si tenemos el contexto, vamos directo al registro para ser más eficientes
+                switch ($userType) {
+                    case 'cliente':
+                        Cliente::where('id', $userId)->where('token_fmc', $token)->update(['token_fmc' => null]);
+                        break;
+                    case 'socio':
+                        BusinessRegistration::where('id', $userId)->where('token_fmc', $token)->update(['token_fmc' => null]);
+                        break;
+                    case 'socio_web':
+                        BusinessRegistration::where('id', $userId)->where('token_fmc_web', $token)->update(['token_fmc_web' => null]);
+                        break;
+                    case 'motorizado':
+                    case 'biker':
+                        RepartoRegistro::where('id', $userId)->where('token_fmc', $token)->update(['token_fmc' => null]);
+                        break;
+                }
+            } else {
+                // Fallback: Si no hay contexto, buscar el token en todas las tablas posibles
+                Cliente::where('token_fmc', $token)->update(['token_fmc' => null]);
+                BusinessRegistration::where('token_fmc', $token)->update(['token_fmc' => null]);
+                BusinessRegistration::where('token_fmc_web', $token)->update(['token_fmc_web' => null]);
+                RepartoRegistro::where('token_fmc', $token)->update(['token_fmc' => null]);
+            }
+
+            Log::info("✅ Token FCM invalidado eliminado de la base de datos.");
+        } catch (\Exception $e) {
+            Log::error("❌ Error limpiando token FCM: " . $e->getMessage());
         }
     }
 
@@ -187,9 +236,19 @@ class FirebaseService
 
         try {
             $response = Http::withHeaders($headers)->post($url, $payload);
-            Log::info("Respuesta de Firebase con sonido personalizado: " . $response->body());
+            $responseJson = $response->json();
+            Log::info("Respuesta de Firebase con sonido personalizado: " . json_encode($responseJson));
 
-            return $response->json();
+            // Manejo de tokens no registrados (UNREGISTERED)
+            if ($response->status() === 404 && isset($responseJson['error']['details'])) {
+                foreach ($responseJson['error']['details'] as $detail) {
+                    if (isset($detail['errorCode']) && $detail['errorCode'] === 'UNREGISTERED') {
+                        $this->handleUnregisteredToken($token, $userType, $userId);
+                    }
+                }
+            }
+
+            return $responseJson;
         } catch (\Exception $e) {
             Log::error("🔥 Error enviando notificación con sonido: " . $e->getMessage());
             return null;
