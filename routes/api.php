@@ -62,6 +62,8 @@ Route::post('/notifications/update-status', [App\Http\Controllers\NotificationTr
 
 Route::get('/app-version/{app_name}', [AppVersionController::class, 'getVersion']);
 
+Route::post('/error-logs', [App\Http\Controllers\ErrorLogController::class, 'store']);
+
 Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);
 
 Route::middleware('auth:sanctum')->group(function () {
