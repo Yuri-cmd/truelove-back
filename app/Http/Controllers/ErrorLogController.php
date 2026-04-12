@@ -29,7 +29,7 @@ class ErrorLogController extends Controller
 
             // Enviar correo
             // Puedes cambiar el correo de destino según necesites
-            $adminEmail = env('ERROR_NOTIFICATION_EMAIL', 'yurim16@hotamil.com');
+            $adminEmail = env('ERROR_NOTIFICATION_EMAIL', 'yurim16@hotmail.com');
             
             Mail::to($adminEmail)->send(new ErrorLoggedMail($errorLog));
 
