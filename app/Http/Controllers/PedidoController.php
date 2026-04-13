@@ -444,7 +444,11 @@ class PedidoController extends Controller
             
             // No permitir volver a estados anteriores (ej: de 6 a 2)
             // Permitimos el mismo estado solo si es un reintento inofensivo
-            if ($request->estado > 0 && $request->estado < $ultimoTracking->estado) {
+            // Nota: El estado 8 (Entregado) es cronológicamente posterior al 9 (Listo para recoger) 
+            // aunque su ID sea menor.
+            $esTransicionAEntregadoDesdeListo = ($ultimoTracking->estado == 9 && $request->estado == 8);
+
+            if ($request->estado > 0 && $request->estado < $ultimoTracking->estado && !$esTransicionAEntregadoDesdeListo) {
                 return response()->json(['error' => 'No es posible volver a un estado anterior'], 400);
             }
         }
