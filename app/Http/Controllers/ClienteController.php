@@ -153,7 +153,18 @@ class ClienteController extends Controller
 
     public function actualizarInfoCliente(Request $request)
     {
+        $request->validate([
+            'idCliente' => 'required|integer',
+            'direccion' => 'required|string',
+            'departamento' => 'required|string',
+            'selectedPosition' => 'required',
+        ]);
+
         $profile = Cliente::find($request->idCliente);
+        if (!$profile) {
+            return response()->json(['message' => 'Cliente no encontrado'], 404);
+        }
+
         $profile->celular = $request->celular;
         $profile->celular_whatsapp = $request->celular_whatsapp ?: $request->celular;
         $profile->save();
@@ -443,6 +454,12 @@ class ClienteController extends Controller
 
     public function actualizarDireccion(Request $request)
     {
+        $request->validate([
+            'idCliente' => 'required|integer',
+            'direccion' => 'required|string',
+            'selectedPosition' => 'required',
+        ]);
+
         // Usar updateOrCreate para evitar error 500 si no existe el registro previo
         $direccion = ClienteDireccion::updateOrCreate(
             ['id_cliente' => $request->idCliente],
