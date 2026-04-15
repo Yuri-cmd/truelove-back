@@ -744,71 +744,102 @@ class CuotaSocioController extends Controller
      */
     public function subirComprobantePeriodo(Request $request)
     {
-        $validated = $request->validate([
-            'periodo_id' => 'required|exists:periodos_cuotas_socios,id',
-            'comprobante_pago' => 'required|file|mimes:jpeg,png,jpg,webp,heic,heif,gif|max:5120',
-            'fecha_pago' => 'required|date',
-            'monto_pagado' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
-            'numero_operacion' => 'nullable|string|max:100',
-            'observaciones' => 'nullable|string'
-        ]);
+        try {
+            $validated = $request->validate([
+                'periodo_id' => 'required|exists:periodos_cuotas_socios,id',
+                'comprobante_pago' => 'required|file|mimes:jpeg,png,jpg,webp,heic,heif,gif|max:5120',
+                'fecha_pago' => 'required|date',
+                'monto_pagado' => 'required|numeric|min:0',
+                'metodo_pago' => 'required|string|in:yape,plin,transferencia,deposito',
+                'numero_operacion' => 'nullable|string|max:100',
+                'observaciones' => 'nullable|string'
+            ]);
 
-        $user = $request->user();
-        $socio = $user->businessRegistration;
+            $user = auth()->user() ?? $request->user();
+            $socio = $user ? $user->businessRegistration : null;
 
-        if (!$socio) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Usuario no es un socio válido'
-            ], 403);
-        }
+            Log::info('Intento de registro de pago de cuota', [
+                'socio_id' => $socio ? $socio->id : 'No detectado',
+                'periodo_id' => $validated['periodo_id'],
+                'monto' => $validated['monto_pagado']
+            ]);
 
-        $periodo = PeriodoCuotaSocio::findOrFail($validated['periodo_id']);
+            if (!$socio) {
+                Log::warning('Usuario no identificado como socio al intentar pagar');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no es un socio válido'
+                ], 403);
+            }
 
-        // Verificar que el período pertenece al socio
-        if ($periodo->socio_id !== $socio->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este período no te pertenece'
-            ], 403);
-        }
+            $periodo = PeriodoCuotaSocio::findOrFail($validated['periodo_id']);
 
-        // Verificar que el período está pendiente o vencido (ambos pueden pagarse)
-        if (!in_array($periodo->estado, ['pendiente', 'vencido'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este período ya no está disponible para pago'
-            ], 400);
-        }
+            // Verificar que el período pertenece al socio (uso == para evitar problemas de tipos string/int)
+            if ($periodo->socio_id != $socio->id) {
+                Log::warning('Intento de pago de período ajeno', [
+                    'socio_id' => $socio->id,
+                    'periodo_socio_id' => $periodo->socio_id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este período no te pertenece'
+                ], 403);
+            }
 
-        // Subir imagen del comprobante
-        $path = null;
-        if ($request->hasFile('comprobante_pago')) {
+            // Verificar que el período está pendiente o vencido (ambos pueden pagarse)
+            if (!in_array($periodo->estado, ['pendiente', 'vencido'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este período ya no está disponible para pago'
+                ], 400);
+            }
+
+            // Guardar el comprobante
             $path = $request->file('comprobante_pago')->store('comprobantes-cuotas', 'custom_public');
+
+            // Crear el registro de pago
+            $pago = PagoCuotaSocio::create([
+                'cuota_socio_id' => $periodo->cuota_socio_id,
+                'socio_id' => $socio->id,
+                'comprobante_pago' => $path,
+                'estado_pago' => 'pendiente',
+                'fecha_pago' => $validated['fecha_pago'],
+                'monto_pagado' => $validated['monto_pagado'],
+                'metodo_pago' => $validated['metodo_pago'],
+                'numero_operacion' => $validated['numero_operacion'] ?? null,
+                'observaciones' => $validated['observaciones'] ?? null
+            ]);
+
+            // Vincular el pago al período
+            $this->periodoCuotaService->vincularPagoAPeriodo($periodo->id, $pago->id);
+
+            Log::info('Pago registrado con éxito', [
+                'pago_id' => $pago->id,
+                'socio_id' => $socio->id,
+                'periodo_id' => $periodo->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Comprobante subido exitosamente. El pago está en revisión.',
+                'pago' => $pago
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error crítico al registrar pago: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
         }
-
-        // Crear pago
-        $pago = PagoCuotaSocio::create([
-            'cuota_socio_id' => $periodo->cuota_socio_id,
-            'socio_id' => $socio->id,
-            'comprobante_pago' => $path,
-            'estado_pago' => 'pendiente',
-            'fecha_pago' => $validated['fecha_pago'],
-            'monto_pagado' => $validated['monto_pagado'],
-            'metodo_pago' => $validated['metodo_pago'],
-            'numero_operacion' => $validated['numero_operacion'] ?? null,
-            'observaciones' => $validated['observaciones'] ?? null
-        ]);
-
-        // Vincular pago al período
-        $this->periodoCuotaService->vincularPagoAPeriodo($periodo->id, $pago->id);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Comprobante subido exitosamente. En espera de aprobación.',
-            'data' => $pago->load('cuota')
-        ], 201);
     }
 
     /**
