@@ -119,11 +119,36 @@ class PeriodoCuotaService
      */
     public function marcarPeriodosVencidos()
     {
-        $cantidadActualizada = PeriodoCuotaSocio::where('estado', 'pendiente')
+        $periodosPorVencer = PeriodoCuotaSocio::where('estado', 'pendiente')
             ->where('fecha_vencimiento', '<', Carbon::now()->startOfDay())
-            ->update(['estado' => 'vencido']);
+            ->get();
 
-        return $cantidadActualizada;
+        $cantidadVencidos = 0;
+        $cantidadAutoAprobados = 0;
+        $calculoService = app(CalculoCuotaService::class);
+
+        foreach ($periodosPorVencer as $periodo) {
+            // Recalcular monto antes de marcar como vencido
+            try {
+                $calculoService->calcularCuotaDelPeriodo($periodo->id);
+                $periodo->refresh();
+            } catch (\Exception $e) {
+                Log::warning("Error recalculando periodo {$periodo->id}: " . $e->getMessage());
+            }
+
+            // Si el monto es 0 (sin ventas/pedidos), auto-aprobar en vez de bloquear
+            if ((float) $periodo->monto_calculado <= 0 && (float) $periodo->monto_esperado <= 0) {
+                $periodo->update(['estado' => 'pagado']);
+                $cantidadAutoAprobados++;
+            } else {
+                $periodo->update(['estado' => 'vencido']);
+                $cantidadVencidos++;
+            }
+        }
+
+        Log::info("Periodos procesados: {$cantidadVencidos} vencidos, {$cantidadAutoAprobados} auto-aprobados (monto 0)");
+
+        return $cantidadVencidos;
     }
 
     /**
@@ -235,12 +260,30 @@ class PeriodoCuotaService
     {
         $hoy = Carbon::now();
 
-        // Auto-marcar períodos pendientes que ya pasaron su fecha_vencimiento como vencidos
-        // Esto garantiza que funcione aunque el cron no se haya ejecutado
-        PeriodoCuotaSocio::where('socio_id', $socioId)
+        // Auto-marcar períodos pendientes que ya pasaron su fecha_vencimiento
+        // Si monto es 0 (sin ventas), auto-aprobar en vez de bloquear
+        $periodosExpirados = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->where('estado', 'pendiente')
             ->where('fecha_vencimiento', '<', $hoy->copy()->startOfDay())
-            ->update(['estado' => 'vencido']);
+            ->get();
+
+        if ($periodosExpirados->isNotEmpty()) {
+            $calculoService = app(CalculoCuotaService::class);
+            foreach ($periodosExpirados as $periodo) {
+                try {
+                    $calculoService->calcularCuotaDelPeriodo($periodo->id);
+                    $periodo->refresh();
+                } catch (\Exception $e) {
+                    // Si falla el cálculo, marcar como vencido por seguridad
+                }
+
+                if ((float) $periodo->monto_calculado <= 0 && (float) $periodo->monto_esperado <= 0) {
+                    $periodo->update(['estado' => 'pagado']);
+                } else {
+                    $periodo->update(['estado' => 'vencido']);
+                }
+            }
+        }
 
         // PRIORIDAD 1: Si hay períodos vencidos, retornar el más antiguo para que el socio lo pague primero
         $periodoVencido = PeriodoCuotaSocio::where('socio_id', $socioId)
@@ -305,11 +348,27 @@ class PeriodoCuotaService
     {
         $hoy = Carbon::now();
 
-        // Auto-marcar períodos pendientes vencidos
-        PeriodoCuotaSocio::where('socio_id', $socioId)
+        // Auto-marcar períodos pendientes vencidos (con auto-aprobación si monto 0)
+        $periodosExpirados = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->where('estado', 'pendiente')
             ->where('fecha_vencimiento', '<', $hoy->copy()->startOfDay())
-            ->update(['estado' => 'vencido']);
+            ->get();
+
+        if ($periodosExpirados->isNotEmpty()) {
+            $calculoService = app(CalculoCuotaService::class);
+            foreach ($periodosExpirados as $periodo) {
+                try {
+                    $calculoService->calcularCuotaDelPeriodo($periodo->id);
+                    $periodo->refresh();
+                } catch (\Exception $e) {}
+
+                if ((float) $periodo->monto_calculado <= 0 && (float) $periodo->monto_esperado <= 0) {
+                    $periodo->update(['estado' => 'pagado']);
+                } else {
+                    $periodo->update(['estado' => 'vencido']);
+                }
+            }
+        }
 
         $query = PeriodoCuotaSocio::where('socio_id', $socioId)
             ->with(['cuota', 'pago']);
