@@ -22,23 +22,28 @@ jobs:
             echo "Entrando al proyecto..."
             cd /var/www/html/truelove-back
 
-            echo "Actualizando repo..."
-            git pull origin master
-
-            echo "Instalando dependencias..."
-            composer install --no-interaction --prefer-dist --optimize-autoloader
-
-            echo "Corrigiendo permisos antes..."
-            chown -R apache:apache storage bootstrap/cache
-
-            echo "Ejecutando artisan como apache..."
-            sudo -u apache php artisan route:clear
-            sudo -u apache php artisan route:cache
-            sudo -u apache php artisan config:clear
-            sudo -u apache php artisan config:cache
-
-            echo "Permisos finales..."
+            echo "Asegurando permisos iniciales..."
             chown -R apache:apache storage bootstrap/cache
             chmod -R 775 storage bootstrap/cache
 
-            echo "Deploy completado."
+            echo "Actualizando repositorio..."
+            git pull origin master
+
+            echo "Instalando dependencias..."
+            # Forzamos que composer no cree archivos como root si es posible
+            # o corregimos inmediatamente después. Prefiero usar sudo -u apache
+            # pero a veces apache no tiene shell, así que usamos chown justo después.
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            chown -R apache:apache vendor storage bootstrap/cache
+
+            echo "Optimizando Laravel..."
+            sudo -u apache php artisan config:cache
+            sudo -u apache php artisan route:cache
+            sudo -u apache php artisan view:cache
+            sudo -u apache php artisan event:cache
+
+            echo "Permisos finales de seguridad..."
+            chown -R apache:apache storage bootstrap/cache
+            chmod -R 775 storage bootstrap/cache
+
+            echo "Deploy completado exitosamente."
