@@ -334,7 +334,7 @@ class SocioController extends Controller
         if ($fecha === 'todas') {
             // No filtrar por fecha, traer todos los pedidos
         } elseif ($fecha === 'hoy') {
-            $query->whereDate('created_at', Carbon::today());
+            $query->where('created_at', '>=', Carbon::now()->subHours(24));
         } else {
             // Fecha específica en formato YYYY-MM-DD
             $query->whereDate('created_at', $fecha);

@@ -315,10 +315,21 @@ class PedidoController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
             }
 
+            Log::info('Intento de iniciar viaje', [
+                'pedido_id' => $request->id,
+                'id_motorizado_intento' => $idMotorizado,
+                'id_motorizado_actual_db' => $pedido->id_motorizado
+            ]);
+
             if ($pedido->id_motorizado) {
                 if ($pedido->id_motorizado == $idMotorizado) {
                     return response()->json(['status' => 'success', 'message' => 'Ya tienes este pedido asignado']);
                 }
+                Log::warning('Pedido ya asignado', [
+                    'pedido_id' => $request->id,
+                    'motorizado_actual' => $pedido->id_motorizado,
+                    'motorizado_intento' => $idMotorizado
+                ]);
                 return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado'], 400);
             }
 

@@ -147,7 +147,7 @@ class BikerController extends Controller
         $pedidos = Pedido::whereNotNull('id_local')
             ->whereNull('id_motorizado')
             ->where('tipo_pedido', 0)
-            ->whereDate('created_at', Carbon::today())
+            ->where('created_at', '>=', Carbon::now()->subHours(24))
             ->whereIn('id', function ($query) {
                 $query->select('pedido_id')
                     ->from('pedido_trackings as pt1')
