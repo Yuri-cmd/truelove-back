@@ -138,6 +138,8 @@ class PedidoController extends Controller
                 throw new \Exception("Comercio no encontrado (ID: {$request->id_local})");
             }
 
+            $pedido->subtotal = $totalPedido;
+
             $requiereConfirmacion = $totalPedido >= 100;
             if ($comercio->omitir_pago_adelantado) {
                 $requiereConfirmacion = false;
