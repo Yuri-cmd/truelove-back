@@ -390,6 +390,8 @@ class SocioController extends Controller
             $pedido->tipo_pago = $pedido->id_tipo_pago ? MedioPago::find($pedido->id_tipo_pago)->nombre : 'Efectivo';
             $pedido->requiere_confirmacion_local = $pedido->requiere_confirmacion_local == 1 ? true : false;
             $pedido->foto_pago = $pedido->foto_pago ? config('app.url') . ($pedido->foto_pago ?? '') : null;
+            $pedido->created_at = $pedido->created_at?->toIso8601String();
+            $pedido->updated_at = $pedido->updated_at?->toIso8601String();
             if ($pedido->fecha_hora_inicio) {
                 $pedido->fecha_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
                 $pedido->fecha_hora_inicio = $pedido->fecha_hora_inicio?->toIso8601String();
