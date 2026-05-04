@@ -524,7 +524,7 @@ class CuotaSocioController extends Controller
 
     /**
      * Auto-calcula periodos de tipo porcentaje cuyo periodo_inicio ya pasó.
-     * Solo para periodos pendientes o vencidos con cuota tipo porcentaje.
+     * Solo para periodos pendientes (no vencidos) con cuota tipo porcentaje.
      */
     private function autoCalcularPeriodosPorcentaje($socioId)
     {
@@ -538,10 +538,10 @@ class CuotaSocioController extends Controller
             $hoy = Carbon::now()->startOfDay();
             $calculoService = app(CalculoCuotaService::class);
 
-            // Obtener periodos que ya iniciaron y están pendientes/vencidos
+            // Obtener periodos que ya iniciaron y están pendientes (no recalcular vencidos)
             $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)
                 ->where('cuota_socio_id', $cuota->id)
-                ->whereIn('estado', ['pendiente', 'vencido'])
+                ->where('estado', 'pendiente')
                 ->where('periodo_inicio', '<=', $hoy)
                 ->get();
 

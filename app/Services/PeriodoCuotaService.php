@@ -6,6 +6,7 @@ use App\Models\PeriodoCuotaSocio;
 use App\Models\PagoCuotaSocio;
 use App\Models\CuotaSocio;
 use App\Models\BusinessRegistration;
+use App\Services\CalculoCuotaService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -434,7 +435,39 @@ class PeriodoCuotaService
             ];
         }
 
-        // Si tiene períodos vencidos, no puede acceder
+        // Auto-marcar períodos pendientes expirados y auto-aprobar si monto es 0
+        $hoy = Carbon::now();
+        $periodosExpirados = PeriodoCuotaSocio::where('socio_id', $socio->id)
+            ->where('estado', 'pendiente')
+            ->where('fecha_vencimiento', '<', $hoy->copy()->startOfDay())
+            ->get();
+
+        if ($periodosExpirados->isNotEmpty()) {
+            $calculoService = app(CalculoCuotaService::class);
+            foreach ($periodosExpirados as $periodo) {
+                try {
+                    $calculoService->calcularCuotaDelPeriodo($periodo->id);
+                    $periodo->refresh();
+                } catch (\Exception $e) {}
+
+                if ((float) $periodo->monto_calculado <= 0 && (float) $periodo->monto_esperado <= 0) {
+                    $periodo->update(['estado' => 'pagado']);
+                } else {
+                    $periodo->update(['estado' => 'vencido']);
+                }
+            }
+        }
+
+        // Auto-aprobar períodos vencidos con monto 0 (nunca debieron bloquear)
+        PeriodoCuotaSocio::where('socio_id', $socio->id)
+            ->where('estado', 'vencido')
+            ->where(function ($q) {
+                $q->where('monto_esperado', '<=', 0)
+                  ->orWhereNull('monto_esperado');
+            })
+            ->update(['estado' => 'pagado']);
+
+        // Si tiene períodos vencidos con deuda real, no puede acceder
         if ($socio->tienePeriodosVencidos()) {
             $periodosVencidos = PeriodoCuotaSocio::where('socio_id', $socio->id)
                 ->where('estado', 'vencido')
