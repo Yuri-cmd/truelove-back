@@ -635,6 +635,11 @@ class CuotaSocioController extends Controller
 
         $periodos = $this->periodoCuotaService->obtenerPeriodosDeSocio($socio->id);
 
+        // Filtrar períodos pagados con monto 0 (sin deuda real) para no mostrarlos al socio
+        $periodos = $periodos->reject(function ($periodo) {
+            return $periodo->estado === 'pagado' && (float) $periodo->monto_esperado <= 0;
+        })->values();
+
         return response()->json([
             'success' => true,
             'data' => $periodos
