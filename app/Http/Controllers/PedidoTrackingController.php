@@ -37,6 +37,17 @@ class PedidoTrackingController extends Controller
         $now = Carbon::now();
         $createdAt = $pedido->created_at ? Carbon::parse($pedido->created_at) : $now;
         $minutosTranscurridos = (int) floor($createdAt->diffInSeconds($now) / 60);
+
+        // Calcular tiempo restante de preparación
+        $tiempoEstimado = (int)($pedido->tiempo ?? 0);
+        $tiempoRestante = $tiempoEstimado;
+
+        if ($pedido->fecha_hora_inicio) {
+            $inicio = Carbon::parse($pedido->fecha_hora_inicio);
+            $transcurridoDesdeInicio = (int) floor($inicio->diffInSeconds($now) / 60);
+            $tiempoRestante = max(0, $tiempoEstimado - $transcurridoDesdeInicio);
+        }
+
         // Calculo del total
         $totalItems = DB::table('pedido_detalles')
             ->where('pedido_id', $pedido->id)
@@ -53,7 +64,8 @@ class PedidoTrackingController extends Controller
         return response()->json([
             'id' => $id,
             'estado' => $ultimoTracking->estado,
-            'tiempo' => $pedido->tiempo ?? 0,
+            'tiempo' => $tiempoRestante,
+            'tiempo_original' => $tiempoEstimado,
             'minutos_transcurridos' => $minutosTranscurridos,
             'tieneMotorizado' => $pedido->id_motorizado ? true : false,
             'direccionLocal' => $local ? $local->direccion_completa : null,
