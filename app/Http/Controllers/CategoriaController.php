@@ -50,20 +50,42 @@ class CategoriaController extends Controller
 
     public function store(Request $request)
     {
-        // 0. Depuración Rápida: Ver qué llega
-        // Esto detendrá la ejecución y te mostrará el array "horarios" si está llegando bien.
-        // Si sale null o vacío, el problema es el envío desde Flutter.
-        // 1. Validar
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'empresa_id' => 'required',
-            'horarios' => 'nullable|array', // Asegúrate que esto pase la validación
-        ]);
-        // 2. Crear
-        // Simplifica esto para probar
-        $category = Categorias::create($request->all());
+        try {
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'empresa_id' => 'required',
+                'horarios' => 'nullable|array',
+            ]);
 
-        return response()->json($category, 201);
+            $category = Categorias::create([
+                'nombre'     => $request->nombre,
+                'empresa_id' => $request->empresa_id,
+                'horarios'   => $request->horarios,
+                'estado'     => $request->estado ?? 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $category,
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error'    => 'Error de validación',
+                'messages' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('Error en CategoriaController@store', [
+                'error'   => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'error'   => 'Error al crear categoría',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     //crear categoria en la web
