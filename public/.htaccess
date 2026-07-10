@@ -19,3 +19,19 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Increase PHP limits for large document uploads (base64 images/PDFs)
+<IfModule mod_php.c>
+    php_value post_max_size 100M
+    php_value upload_max_filesize 50M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value post_max_size 100M
+    php_value upload_max_filesize 50M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
