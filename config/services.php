@@ -35,4 +35,26 @@ return [
         ],
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'phone_number' => env('TWILIO_PHONE_NUMBER'),
+    ],
+
+    'mapbox' => [
+        'access_token' => env('MAPBOX_ACCESS_TOKEN'),
+    ],
+
+    'google_maps' => [
+        'api_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
+    'biker_firebase' => [
+        'project_id' => env('BIKER_FIREBASE_PROJECT_ID'),
+        'private_key_id' => env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY_ID'),
+        'private_key' => env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY'),
+        'client_email' => env('BIKER_FIREBASE_GOOGLE_CLIENT_EMAIL'),
+        'client_id' => env('BIKER_FIREBASE_GOOGLE_CLIENT_ID'),
+    ],
+
 ];

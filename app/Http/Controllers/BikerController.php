@@ -34,7 +34,7 @@ class BikerController extends Controller
 
     public function __construct()
     {
-        $this->apiKey = env('MAPBOX_ACCESS_TOKEN');
+        $this->apiKey = config('services.mapbox.access_token');
     }
 
     public function login(Request $request)

@@ -12,8 +12,8 @@ class TwilioService
     public function __construct()
     {
         $this->twilio = new Client(
-            env('TWILIO_SID'),
-            env('TWILIO_AUTH_TOKEN')
+            config('services.twilio.sid'),
+            config('services.twilio.auth_token')
         );
     }
 
@@ -21,7 +21,7 @@ class TwilioService
     {
         try {
             $this->twilio->messages->create($to, [
-                'from' => env('TWILIO_PHONE_NUMBER'),
+                'from' => config('services.twilio.phone_number'),
                 'body' => $message,
             ]);
             return true;

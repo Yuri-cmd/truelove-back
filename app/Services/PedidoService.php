@@ -20,8 +20,8 @@ class PedidoService
 
     public function __construct()
     {
-        $this->apiKey = env('MAPBOX_ACCESS_TOKEN');
-        $this->googleApiKey = env('GOOGLE_MAPS_API_KEY');
+        $this->apiKey = config('services.mapbox.access_token');
+        $this->googleApiKey = config('services.google_maps.api_key');
     }
 
     // Método para calcular la distancia entre dos puntos usando la fórmula de Haversine
