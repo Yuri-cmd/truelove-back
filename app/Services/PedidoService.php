@@ -15,8 +15,14 @@ use Illuminate\Support\Facades\Http;
 
 class PedidoService
 {
-    protected $apiKey = '***MAPBOX_TOKEN_REMOVED***';
-    protected $googleApiKey = '***GOOGLE_API_KEY_REMOVED***';
+    protected $apiKey;
+    protected $googleApiKey;
+
+    public function __construct()
+    {
+        $this->apiKey = env('MAPBOX_ACCESS_TOKEN');
+        $this->googleApiKey = env('GOOGLE_MAPS_API_KEY');
+    }
 
     // Método para calcular la distancia entre dos puntos usando la fórmula de Haversine
     public function calcularDistanciaHaversine($lat1, $lon1, $lat2, $lon2)

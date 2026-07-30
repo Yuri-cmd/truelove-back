@@ -18,11 +18,11 @@ class FirebaseService
     {
         $this->config = [
             'type' => 'service_account',
-            'project_id' => 'notifacacion',
-            'private_key_id' => 'ad4067141d0b83c8a42957039af93a126c4f171a',
-            'private_key' => str_replace("\\n", "\n", "***GOOGLE_PRIVATE_KEY_REMOVED***"),
-            'client_email' => 'firebase-adminsdk-fbsvc@notifacacion.iam.gserviceaccount.com',
-            'client_id' => '103081417099398986366',
+            'project_id' => env('BIKER_FIREBASE_PROJECT_ID'),
+            'private_key_id' => env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY_ID'),
+            'private_key' => str_replace("\\n", "\n", env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY')),
+            'client_email' => env('BIKER_FIREBASE_GOOGLE_CLIENT_EMAIL'),
+            'client_id' => env('BIKER_FIREBASE_GOOGLE_CLIENT_ID'),
             'auth_uri' => 'https://accounts.google.com/o/oauth2/auth',
             'token_uri' => 'https://oauth2.googleapis.com/token',
             'auth_provider_x509_cert_url' => 'https://www.googleapis.com/oauth2/v1/certs',

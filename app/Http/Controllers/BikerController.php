@@ -30,7 +30,12 @@ use Illuminate\Support\Str;
 
 class BikerController extends Controller
 {
-    protected $apiKey = '***MAPBOX_TOKEN_REMOVED***';
+    protected $apiKey;
+
+    public function __construct()
+    {
+        $this->apiKey = env('MAPBOX_ACCESS_TOKEN');
+    }
 
     public function login(Request $request)
     {
