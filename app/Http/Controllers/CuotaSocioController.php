@@ -538,10 +538,12 @@ class CuotaSocioController extends Controller
             $hoy = Carbon::now()->startOfDay();
             $calculoService = app(CalculoCuotaService::class);
 
-            // Obtener periodos que ya iniciaron y están pendientes (no recalcular vencidos)
+            // Obtener periodos que ya iniciaron y siguen abiertos a ventas (no recalcular vencidos/pagados).
+            // Incluye 'en_revision': si el socio pagó antes de que termine el período, las ventas
+            // posteriores deben seguir contabilizándose hasta que el período venza o se apruebe.
             $periodos = PeriodoCuotaSocio::where('socio_id', $socioId)
                 ->where('cuota_socio_id', $cuota->id)
-                ->where('estado', 'pendiente')
+                ->whereIn('estado', ['pendiente', 'en_revision'])
                 ->where('periodo_inicio', '<=', $hoy)
                 ->get();
 
