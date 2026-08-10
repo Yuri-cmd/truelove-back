@@ -436,7 +436,7 @@ class ClienteController extends Controller
             \Log::info("Profile updated successfully for client: " . $request->id_cliente);
 
             return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             \Log::error("Error updating profile field", [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
