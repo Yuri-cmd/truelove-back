@@ -20,6 +20,7 @@ use App\Models\PerfilNegocio;
 use App\Models\Rating;
 use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
+use App\Services\HorarioService;
 use App\Services\PedidoService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -32,11 +33,13 @@ class PedidoController extends Controller
 
     private $firebaseService;
     private $pedidoService;
+    private $horarioService;
 
-    public function __construct(FirebaseService $firebaseService, PedidoService $pedidoService)
+    public function __construct(FirebaseService $firebaseService, PedidoService $pedidoService, HorarioService $horarioService)
     {
         $this->firebaseService = $firebaseService;
         $this->pedidoService = $pedidoService;
+        $this->horarioService = $horarioService;
     }
 
     public function store(Request $request)
@@ -59,6 +62,16 @@ class PedidoController extends Controller
                 'codigo',
                 'paga_con',
             ]);
+
+            // Congelar la dirección de entrega vigente del cliente en el momento
+            // de crear el pedido. Así, si el cliente la cambia después, los
+            // pedidos ya creados no se ven afectados (motorizado y socio deben
+            // leer esta columna, no la dirección actual del cliente).
+            $clienteDireccionActual = ClienteDireccion::where('id_cliente', $request->id_cliente)->first();
+            if ($clienteDireccionActual) {
+                $data['direccion'] = $clienteDireccionActual->direccion;
+                $data['referencia'] = $clienteDireccionActual->referencia;
+            }
 
             // Sanitizar campos decimales
             foreach (['precio_delivery', 'descuento', 'subtotal', 'paga_con'] as $field) {
@@ -356,6 +369,11 @@ class PedidoController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Motorizado no encontrado'], 404);
             }
 
+            $condicionHorario = $this->horarioService->puedeTrabajar($idMotorizado);
+            if (!$condicionHorario['puede_trabajar']) {
+                return response()->json(['status' => 'error', 'message' => $condicionHorario['mensaje']], 403);
+            }
+
             $pedidos_consecutivos = (int) ($reparto->pedidos_consecutivos ?: 1);
 
             $puedeAceptar = $this->verificarPedidosActivosMotorizado($idMotorizado, $pedidos_consecutivos);
@@ -615,13 +633,14 @@ class PedidoController extends Controller
         // Verificar si el pedido existe
         $pedido = Pedido::find($idPedido);
         $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
-        $cliente = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-        $coordenadasCliente = json_decode($cliente->coordenadas);
+        // Usar las coordenadas propias del pedido (congeladas al crearlo), no la
+        // dirección actual del cliente: si el cliente la cambió después, este
+        // pedido debe seguir apuntando a donde realmente se hizo la entrega.
         $resp = [
             'locallat' => $local->latitud,
             'locallon' => $local->longitud,
-            'custlat' => $coordenadasCliente->coordinates[1],
-            'custlon' => $coordenadasCliente->coordinates[0],
+            'custlat' => $pedido->latitud,
+            'custlon' => $pedido->longitud,
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
@@ -661,7 +680,7 @@ class PedidoController extends Controller
                             'precio' => $detalle->precio
                         ];
                     }),
-                    'direccion' => ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()?->direccion ?? '',
+                    'direccion' => $pedido->direccion ?? (ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()?->direccion ?? ''),
                     'created_at' => $pedido->created_at,
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
@@ -834,7 +853,7 @@ class PedidoController extends Controller
 
         $pedido->local = $local->nombre_establecimiento ?? '';
         $pedido->direccion_local = $local->direccion_completa ?? '';
-        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+        $pedido->direccion_entrega = $pedido->direccion ?? ($clienteDireccion?->direccion ?? '');
         $pedido->cliente = $cliente ? "{$cliente->nombre} {$cliente->apellido}" : '';
         $pedido->celular = $cliente->celular ?? '';
         $pedido->celular_whatsapp = ($cliente && $cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;

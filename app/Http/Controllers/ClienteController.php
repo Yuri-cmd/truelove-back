@@ -9,6 +9,7 @@ use App\Models\Cliente;
 use App\Models\ClienteDireccion;
 use App\Models\ClienteDeletionRequest;
 use App\Models\EmailLog;
+use App\Models\Pedido;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -780,6 +781,22 @@ class ClienteController extends Controller
 
             if (!$cliente) {
                 return response()->json(['success' => false, 'message' => 'Cliente no encontrado'], 404);
+            }
+
+            // No permitir eliminar la cuenta si tiene un pedido en curso
+            // (estados 1-7: desde creado hasta listo para recoger; 0 = cancelado, 8 = entregado)
+            $tienePedidoEnCurso = Pedido::where('id_cliente', $cliente->id)
+                ->whereHas('trackings', function ($query) {
+                    $query->whereIn('estado', [1, 2, 3, 4, 5, 6, 7])
+                        ->whereRaw('id = (SELECT MAX(id) FROM pedido_trackings WHERE pedido_id = pedidos.id)');
+                })
+                ->exists();
+
+            if ($tienePedidoEnCurso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes eliminar tu cuenta mientras tengas un pedido en curso. Espera a que finalice o sea cancelado.'
+                ], 409);
             }
 
             // Eliminar registros relacionados

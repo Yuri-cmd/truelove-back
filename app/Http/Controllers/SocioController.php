@@ -352,7 +352,9 @@ class SocioController extends Controller
                 continue;
             }
 
-            $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            $clienteDireccion = $pedido->direccion
+                ? null
+                : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
             $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
             $motorizado = $motorizadoRegistro ? $motorizadoRegistro->only(['nombres', 'apellidos', 'celular']) : null;
@@ -379,7 +381,7 @@ class SocioController extends Controller
             $pedido->detalleArray = $pedidoDetalles;
             $pedido->local = $local->nombre_establecimiento;
             $pedido->direccion_local = $local->direccion_completa;
-            $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+            $pedido->direccion_entrega = $pedido->direccion ?? ($clienteDireccion?->direccion ?? '');
             $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
             $pedido->celular = $cliente->celular;
             $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
@@ -955,7 +957,9 @@ class SocioController extends Controller
 
         $pedidoDetalles = PedidoDetalle::where('pedido_id', $id)->get();
         $cliente = Cliente::find($pedido->id_cliente);
-        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+        $clienteDireccion = $pedido->direccion
+            ? null
+            : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
         // Si el cliente no existe, devolver error
         if (!$cliente) {
@@ -987,7 +991,7 @@ class SocioController extends Controller
         $pedido->detalleArray = $pedidoDetalles;
         $pedido->local = $local->nombre_establecimiento;
         $pedido->direccion_local = $local->direccion_completa;
-        $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+        $pedido->direccion_entrega = $pedido->direccion ?? ($clienteDireccion?->direccion ?? '');
         $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
         $pedido->celular = $cliente->celular;
         $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;

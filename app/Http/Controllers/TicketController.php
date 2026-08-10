@@ -24,7 +24,9 @@ class TicketController extends Controller
 
         // Obtener datos relacionados
         $cliente = Cliente::find($pedido->id_cliente);
-        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+        $clienteDireccion = $pedido->direccion
+            ? null
+            : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
         $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
         $motorizado = RepartoRegistro::find($pedido->id_motorizado);
         $detalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
@@ -53,7 +55,7 @@ class TicketController extends Controller
         $data = [
             'pedido' => $pedido,
             'cliente' => $cliente,
-            'direccion' => $clienteDireccion->direccion ?? '',
+            'direccion' => $pedido->direccion ?? ($clienteDireccion?->direccion ?? ''),
             'local' => $local,
             'localName' => $local->nombre_establecimiento ?? 'TRUE LOVE',
             'motorizado' => $motorizado,

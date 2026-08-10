@@ -178,17 +178,11 @@ class BikerController extends Controller
                 // Si el tiempo estimado es válido, agregarlo al pedido
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $cliente = Cliente::find($pedido->id_cliente);
-                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
-
-                if (!$clienteDireccion) {
-                    continue;
-                }
-
-                $coordenadasCliente = json_decode($clienteDireccion->coordinates ?? $clienteDireccion->coordenadas);
-
-                if (!$coordenadasCliente || !isset($coordenadasCliente->coordinates)) {
-                    continue;
-                }
+                // Solo se usa como fallback de texto para pedidos antiguos sin
+                // dirección congelada; ya no se usa para pisar coordenadas.
+                $clienteDireccion = $pedido->direccion
+                    ? null
+                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
 
                 $names = array_map(function ($item) {
                     return $item['nombre'] . ' x ' . $item['cantidad'];
@@ -199,14 +193,15 @@ class BikerController extends Controller
                 $pedido->detalle = $namesString;
                 $pedido->local = $local->nombre_establecimiento;
                 $pedido->direccion_local = $local->direccion_completa;
-                $pedido->direccion_entrega = $clienteDireccion->direccion ?? '';
+                $pedido->direccion_entrega = $pedido->direccion ?? ($clienteDireccion?->direccion ?? '');
                 $pedido->cliente = $cliente->nombre . ' ' . $cliente->apellido;
                 $pedido->celular = $cliente->celular;
                 $pedido->celular_whatsapp = ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null;
                 $pedido->lat_local = (float) $local->latitud;
                 $pedido->lon_local = (float) $local->longitud;
-                $pedido->latitud = $coordenadasCliente->coordinates[1];
-                $pedido->longitud = $coordenadasCliente->coordinates[0];
+                // No pisar $pedido->latitud/longitud: ya son las coordenadas
+                // congeladas al crear el pedido; no deben tomar la dirección
+                // actual del cliente.
                 $pedido->estado = $estado->estado;
                 $pedido->nota = $pedido->nota ?? 'Sin nota';
                 $pedido->tiempo = $pedido->tiempo ?? 0;
@@ -647,7 +642,9 @@ class BikerController extends Controller
             $pedido = $pedidos->first();
             $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
             $cliente = Cliente::find($pedido->id_cliente);
-            $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            $clienteDireccion = $pedido->direccion
+                ? null
+                : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
 
             $pedido = [
@@ -655,7 +652,7 @@ class BikerController extends Controller
                 'local' => $establecimiento->nombre_establecimiento,
                 'establecimiento' => $establecimiento->nombre_establecimiento,
                 'direccionLocal' => $establecimiento->direccion_completa,
-                'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
+                'direccionEntrega' => $pedido->direccion ?? ($clienteDireccion ? $clienteDireccion->direccion : ''),
                 'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                 'celular' => $cliente->celular,
                 'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
@@ -705,7 +702,9 @@ class BikerController extends Controller
             foreach ($pedidos as $pedido) {
                 $establecimiento = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
                 $cliente = Cliente::find($pedido->id_cliente);
-                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                $clienteDireccion = $pedido->direccion
+                    ? null
+                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $productosList = $productos->pluck('nombre');
@@ -725,7 +724,7 @@ class BikerController extends Controller
                     'local' => $establecimiento->nombre_establecimiento,
                     'establecimiento' => $establecimiento->nombre_establecimiento,
                     'direccionLocal' => $establecimiento->direccion_completa,
-                    'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
+                    'direccionEntrega' => $pedido->direccion ?? ($clienteDireccion ? $clienteDireccion->direccion : ''),
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
                     'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
@@ -778,7 +777,9 @@ class BikerController extends Controller
                     continue;
                 }
                 $cliente = Cliente::find($pedido->id_cliente);
-                $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                $clienteDireccion = $pedido->direccion
+                    ? null
+                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
                 $productosList = $productos->pluck('nombre');
@@ -793,7 +794,7 @@ class BikerController extends Controller
                     'local' => $establecimiento->nombre_establecimiento,
                     'establecimiento' => $establecimiento->nombre_establecimiento,
                     'direccionLocal' => $establecimiento->direccion_completa,
-                    'direccionEntrega' => $clienteDireccion ? $clienteDireccion->direccion : '',
+                    'direccionEntrega' => $pedido->direccion ?? ($clienteDireccion ? $clienteDireccion->direccion : ''),
                     'cliente' => $cliente->nombre . ' ' . $cliente->apellido,
                     'celular' => $cliente->celular,
                     'celular_whatsapp' => ($cliente->celular_whatsapp && $cliente->celular_whatsapp !== $cliente->celular) ? $cliente->celular_whatsapp : null,
