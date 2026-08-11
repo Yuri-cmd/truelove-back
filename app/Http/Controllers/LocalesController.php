@@ -106,6 +106,51 @@ class LocalesController extends Controller
         return response()->json($locales);
     }
 
+    /**
+     * Obtiene un solo local por su business_registration_id, con el mismo
+     * formato que devuelve el listado (usado para abrir el detalle de un
+     * restaurante específico desde, por ejemplo, una promoción del carrusel).
+     */
+    public function getLocalById($idLocal)
+    {
+        $local = DB::select("SELECT
+            business_registrations.id AS business_registration_id,
+            establecimientos.nombre_establecimiento,
+            perfiles_negocio.ruta_logo,
+            establecimientos.calle,
+            establecimientos.numero,
+            establecimientos.codigo_postal,
+            establecimientos.provincia,
+            establecimientos.ciudad,
+            establecimientos.referencia,
+            establecimientos.latitud,
+            establecimientos.longitud,
+            establecimientos.direccion_completa,
+            perfiles_negocio.banner,
+            perfiles_negocio.foto_perfil,
+            business_registrations.businessType,
+            business_registrations.omitir_pago_adelantado,
+            CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
+            0 AS distancia
+        FROM business_registrations
+        INNER JOIN establecimientos
+            ON business_registrations.id = establecimientos.business_registration_id
+        LEFT JOIN perfiles_negocio
+            ON business_registrations.id = perfiles_negocio.business_registration_id
+        WHERE business_registrations.id = ?
+        LIMIT 1", [$idLocal]);
+
+        if (empty($local)) {
+            return response()->json(['error' => 'Local no encontrado'], 404);
+        }
+
+        $local = $local[0];
+        $local->estaAbierto = $local->activo ? $this->negocioService->localEstaAbierto($local->business_registration_id) : false;
+        $local->activo = $local->estaAbierto ? 1 : 0;
+
+        return response()->json($local);
+    }
+
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false, $tieneLimite = true)
     {
         $radio = 10;

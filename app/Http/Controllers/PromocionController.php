@@ -56,7 +56,8 @@ class PromocionController extends Controller
             return response()->json(Promocion::all());
         }
 
-        $promociones = Promocion::where('estado', 1)->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado'])
+        $promociones = Promocion::where('estado', 1)
+            ->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado', 'tipo_destino', 'pantalla', 'destino_id'])
             ->map(function ($promocion) {
                 // Construir URL completa si solo tiene el path
                 if ($promocion->imagen && !str_starts_with($promocion->imagen, 'http')) {
@@ -75,13 +76,21 @@ class PromocionController extends Controller
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
                 'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
-                'estado' => 'boolean'
+                'estado' => 'boolean',
+                'tipo_destino' => 'nullable|in:pantalla,restaurante,categoria',
+                'pantalla' => 'nullable|required_if:tipo_destino,pantalla|in:cupones,perfil,home',
+                'destino_id' => 'nullable|required_if:tipo_destino,restaurante,categoria|integer',
             ]);
 
             $promocion = new Promocion();
             $promocion->titulo = $data['titulo'];
             $promocion->subtitulo = $data['subtitulo'];
             $promocion->estado = $data['estado'] ?? 1;
+            $promocion->tipo_destino = $data['tipo_destino'] ?? null;
+            $promocion->pantalla = $data['tipo_destino'] === 'pantalla' ? $data['pantalla'] : null;
+            $promocion->destino_id = in_array($data['tipo_destino'] ?? null, ['restaurante', 'categoria'])
+                ? $data['destino_id']
+                : null;
 
             if ($request->hasFile('imagen')) {
                 $imagePath = $request->file('imagen')->store('promociones-img', 'public');
@@ -136,14 +145,25 @@ class PromocionController extends Controller
                 'titulo' => 'sometimes|required|string|max:255',
                 'subtitulo' => 'sometimes|required|string|max:255',
                 'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
-                'estado' => 'sometimes|boolean'
+                'estado' => 'sometimes|boolean',
+                'tipo_destino' => 'sometimes|nullable|in:pantalla,restaurante,categoria',
+                'pantalla' => 'nullable|required_if:tipo_destino,pantalla|in:cupones,perfil,home',
+                'destino_id' => 'nullable|required_if:tipo_destino,restaurante,categoria|integer',
             ]);
+
+            // array_key_exists (no ??): permite distinguir "no se envió" de "se envió vacío para limpiar el destino".
+            $tipoDestino = array_key_exists('tipo_destino', $data) ? $data['tipo_destino'] : $promocion->tipo_destino;
 
             // Actualizar campos básicos
             $promocion->update([
                 'titulo' => $data['titulo'] ?? $promocion->titulo,
                 'subtitulo' => $data['subtitulo'] ?? $promocion->subtitulo,
-                'estado' => $data['estado'] ?? $promocion->estado
+                'estado' => $data['estado'] ?? $promocion->estado,
+                'tipo_destino' => $tipoDestino,
+                'pantalla' => $tipoDestino === 'pantalla' ? ($data['pantalla'] ?? $promocion->pantalla) : null,
+                'destino_id' => in_array($tipoDestino, ['restaurante', 'categoria'])
+                    ? ($data['destino_id'] ?? $promocion->destino_id)
+                    : null,
             ]);
 
             // Procesar nueva imagen si se envió

@@ -3,6 +3,7 @@
 /public/build
 /public/hot
 /public/storage
+/public/logos-negocio
 /storage/*.key
 /storage/pail
 /vendor

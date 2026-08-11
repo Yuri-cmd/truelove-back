@@ -360,6 +360,7 @@ Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
 Route::get('/get/tipo/negocio', [TipoNegocioController::class, 'getAll']);
 Route::get('/get/locales/top/{id?}', [LocalesController::class, 'getLocalesTop']);
+Route::get('/get/local/{id}', [LocalesController::class, 'getLocalById']);
 Route::get('/get/locales/{id}/{category?}', [LocalesController::class, 'getLocales']);
 Route::get('/busqueda/locales/{id}/{term?}', [LocalesController::class, 'searchLocales']);
 Route::post('/favoritos/toggle', [FavoritoController::class, 'toggle']);
