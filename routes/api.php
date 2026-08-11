@@ -42,6 +42,7 @@ use App\Http\Controllers\RepartoRegistroCompletoController;
 use App\Http\Controllers\RepartoRegistroController;
 use App\Http\Controllers\RevisarDatosController;
 use App\Http\Controllers\SocioController;
+use App\Http\Controllers\SocioPromocionController;
 use App\Http\Controllers\SociosCuentaBancariaController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TipoNegocioController;
@@ -249,6 +250,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/socio/pedidos/{id}', 'getPedidos');
             Route::post('/socio/pedidos/update-estado/{id}', 'updateEstadoPedido');
             Route::post('/socio/update-token-web', 'updateTokenWeb');
+        });
+
+        Route::controller(SocioPromocionController::class)->prefix('socio/promociones')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update'); // el front manda _method=PUT via FormData, igual que /promociones
+            Route::delete('/{id}', 'destroy');
         });
 
     });

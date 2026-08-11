@@ -50,13 +50,28 @@ class PromocionController extends Controller
      *     )
      * )
      */
+    // Máximo de promociones activas que se muestran/notifican a la vez en el carrusel del cliente.
+    // Con locales creando las suyas, sin este límite el carrusel del home crecería sin control.
+    const MAX_PROMOCIONES_CLIENTE = 15;
+
     public function index(Request $request)
     {
         if ($request->showAll === 'true') {
-            return response()->json(Promocion::all());
+            $promociones = Promocion::with('businessRegistration.establecimiento')
+                ->latest()
+                ->get()
+                ->map(function ($promocion) {
+                    $promocion->local_nombre = $promocion->businessRegistration?->establecimiento?->nombre_establecimiento;
+                    unset($promocion->businessRegistration);
+                    return $promocion;
+                });
+
+            return response()->json($promociones);
         }
 
         $promociones = Promocion::where('estado', 1)
+            ->latest()
+            ->take(self::MAX_PROMOCIONES_CLIENTE)
             ->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado', 'tipo_destino', 'pantalla', 'destino_id'])
             ->map(function ($promocion) {
                 // Construir URL completa si solo tiene el path

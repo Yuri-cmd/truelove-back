@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Google\Client as GoogleClient;
@@ -33,23 +34,29 @@ class FirebaseService
 
     public function getAccessToken()
     {
-        try {
-            $client = new GoogleClient();
-            $client->setAuthConfig($this->config);
-            $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
-            $accessToken = $client->fetchAccessTokenWithAssertion();
+        // Cacheado: antes se pedía un token nuevo a Google en CADA notificación individual.
+        // Al mandar una tanda a muchos clientes (ej. al crear una promoción), eso duplicaba
+        // la cantidad de llamadas HTTP salientes. El token de Google dura ~1h, así que se
+        // reutiliza mientras siga vigente.
+        return Cache::remember('firebase_access_token', 3300, function () {
+            try {
+                $client = new GoogleClient();
+                $client->setAuthConfig($this->config);
+                $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
+                $accessToken = $client->fetchAccessTokenWithAssertion();
 
-            if (isset($accessToken["error"])) {
-                Log::error("Error obteniendo access token: " . json_encode($accessToken));
+                if (isset($accessToken["error"])) {
+                    Log::error("Error obteniendo access token: " . json_encode($accessToken));
+                    return null;
+                }
+
+                Log::info("Access Token obtenido: " . json_encode($accessToken));
+                return $accessToken["access_token"] ?? null;
+            } catch (\Exception $e) {
+                Log::error("Excepción obteniendo Access Token: " . $e->getMessage());
                 return null;
             }
-
-            Log::info("Access Token obtenido: " . json_encode($accessToken));
-            return $accessToken["access_token"] ?? null;
-        } catch (\Exception $e) {
-            Log::error("Excepción obteniendo Access Token: " . $e->getMessage());
-            return null;
-        }
+        });
     }
 
     private function createLog($token, $title, $body, $data, $appName = null, $userId = null, $userType = null)
