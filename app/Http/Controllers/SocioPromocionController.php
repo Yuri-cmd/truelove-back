@@ -75,18 +75,17 @@ class SocioPromocionController extends Controller
         // para no dejar al socio esperando mientras se le manda push a cada cliente.
         dispatch(function () use ($promocion, $nombreLocal) {
             $clientes = Cliente::whereNotNull('token_fmc')->get();
-            foreach ($clientes as $cliente) {
-                $titulo = $nombreLocal
-                    ? "{$nombreLocal}: " . $promocion->titulo
-                    : $promocion->titulo;
-                $subtitulo = $promocion->subtitulo;
+            $titulo = $nombreLocal ? "{$nombreLocal}: " . $promocion->titulo : $promocion->titulo;
 
-                $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo, [], 'cliente', $cliente->id, 'cliente');
+            $recipients = $clientes->map(fn ($cliente) => [
+                'token' => $cliente->token_fmc,
+                'title' => $titulo,
+                'body' => $promocion->subtitulo,
+                'userId' => $cliente->id,
+                'userType' => 'cliente',
+            ])->all();
 
-                if (!$resultado) {
-                    error_log("No se pudo enviar notificación a {$cliente->nombre} (ID: {$cliente->id})");
-                }
-            }
+            $this->firebaseService->sendNotificationsBatch($recipients);
         })->afterResponse();
 
         return response()->json(['success' => true, 'data' => $promocion], 201);

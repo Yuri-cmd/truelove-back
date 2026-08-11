@@ -149,6 +149,92 @@ class FirebaseService
         }
     }
 
+    /**
+     * Igual que sendNotification(), pero para mandar una tanda grande de una sola vez
+     * (ej. avisar a todos los clientes de una promoción nueva). FCM v1 no soporta un
+     * array de tokens en un solo mensaje, así que en vez de una llamada HTTP secuencial
+     * por cliente, se disparan en paralelo por lotes con Http::pool().
+     *
+     * @param array $recipients cada item: ['token','title','body','data'?,'appName'?,'userId'?,'userType'?]
+     */
+    public function sendNotificationsBatch(array $recipients, int $chunkSize = 20): void
+    {
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            Log::error("No se pudo obtener access token para el envío en lote");
+            return;
+        }
+
+        $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
+        $headers = [
+            'Authorization' => 'Bearer ' . $accessToken,
+            'Content-Type' => 'application/json',
+        ];
+
+        foreach (array_chunk($recipients, $chunkSize) as $lote) {
+            $logs = [];
+            foreach ($lote as $item) {
+                $logs[] = $this->createLog(
+                    $item['token'],
+                    $item['title'],
+                    $item['body'],
+                    $item['data'] ?? [],
+                    $item['appName'] ?? null,
+                    $item['userId'] ?? null,
+                    $item['userType'] ?? null
+                );
+            }
+
+            $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($lote, $logs, $headers, $url) {
+                return array_map(function ($item, $log) use ($pool, $headers, $url) {
+                    $data = $item['data'] ?? [];
+                    if ($log) {
+                        $data['notification_id'] = (string) $log->id;
+                    }
+
+                    $dataPayload = array_map('strval', array_merge($data, [
+                        'title' => $item['title'],
+                        'body' => $item['body'],
+                        'sound' => 'default',
+                        'channel_id' => 'general_channel',
+                    ]));
+
+                    $payload = [
+                        'message' => [
+                            'token' => $item['token'],
+                            'data' => $dataPayload,
+                            'android' => ['priority' => 'high'],
+                            'apns' => [
+                                'headers' => ['apns-priority' => '10'],
+                                'payload' => ['aps' => ['content-available' => 1, 'sound' => 'default']],
+                            ],
+                        ],
+                    ];
+
+                    return $pool->withHeaders($headers)->post($url, $payload);
+                }, $lote, $logs);
+            });
+
+            foreach ($lote as $index => $item) {
+                $response = $responses[$index] ?? null;
+
+                if (!$response instanceof \Illuminate\Http\Client\Response) {
+                    error_log("Fallo de red enviando notificación a token {$item['token']}");
+                    continue;
+                }
+
+                if ($response->status() === 404) {
+                    $responseJson = $response->json();
+                    foreach ($responseJson['error']['details'] ?? [] as $detail) {
+                        if (($detail['errorCode'] ?? null) === 'UNREGISTERED') {
+                            $this->handleUnregisteredToken($item['token'], $item['userType'] ?? null, $item['userId'] ?? null);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private function handleUnregisteredToken($token, $userType = null, $userId = null)
     {
         Log::warning("⚠️ Token FCM no registrado detectado. Procediendo a limpiar el token: " . $token);

@@ -50,8 +50,9 @@ class PromocionController extends Controller
      *     )
      * )
      */
-    // Máximo de promociones activas que se muestran/notifican a la vez en el carrusel del cliente.
-    // Con locales creando las suyas, sin este límite el carrusel del home crecería sin control.
+    // Tamaño de página del carrusel del cliente. Con locales creando las suyas, sin límite
+    // el carrusel del home crecería sin control; con esto se pagina (15 por tanda) en vez
+    // de mandarlas todas de golpe.
     const MAX_PROMOCIONES_CLIENTE = 15;
 
     public function index(Request $request)
@@ -69,8 +70,11 @@ class PromocionController extends Controller
             return response()->json($promociones);
         }
 
+        $pagina = max(1, (int) $request->input('page', 1));
+
         $promociones = Promocion::where('estado', 1)
             ->latest()
+            ->skip(($pagina - 1) * self::MAX_PROMOCIONES_CLIENTE)
             ->take(self::MAX_PROMOCIONES_CLIENTE)
             ->get(['id', 'titulo', 'subtitulo', 'imagen', 'estado', 'tipo_destino', 'pantalla', 'destino_id'])
             ->map(function ($promocion) {
@@ -117,21 +121,20 @@ class PromocionController extends Controller
             }
             $promocion->save();
 
-            // Notificar a los clientes DESPUÉS de responder al admin: con muchos clientes,
-            // enviar un push por uno de forma síncrona aquí dejaba el POST "pending" varios
-            // segundos y el modal del admin nunca recibía la respuesta para cerrarse.
+            // Notificar a los clientes DESPUÉS de responder al admin (no bloquea el POST),
+            // y en lotes concurrentes en vez de uno por uno (no multiplica el tiempo con
+            // muchos clientes).
             dispatch(function () use ($promocion) {
                 $clientes = Cliente::whereNotNull('token_fmc')->get();
-                foreach ($clientes as $cliente) {
-                    $titulo = "¡Hola {$cliente->nombre}! " . $promocion->titulo;
-                    $subtitulo = $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.";
+                $recipients = $clientes->map(fn ($cliente) => [
+                    'token' => $cliente->token_fmc,
+                    'title' => "¡Hola {$cliente->nombre}! " . $promocion->titulo,
+                    'body' => $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.",
+                    'userId' => $cliente->id,
+                    'userType' => 'cliente',
+                ])->all();
 
-                    $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo, [], 'cliente', $cliente->id, 'cliente');
-
-                    if (!$resultado) {
-                        error_log("No se pudo enviar notificación a {$cliente->nombre} (ID: {$cliente->id})");
-                    }
-                }
+                $this->firebaseService->sendNotificationsBatch($recipients);
             })->afterResponse();
 
             return response()->json($promocion, 201);
