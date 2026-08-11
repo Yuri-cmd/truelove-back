@@ -71,6 +71,20 @@ class PedidoController extends Controller
             if ($clienteDireccionActual) {
                 $data['direccion'] = $clienteDireccionActual->direccion;
                 $data['referencia'] = $clienteDireccionActual->referencia;
+
+                // Salvavidas: apps del cliente aún sin actualizar pueden mandar
+                // 0,0 cuando no tienen una posición guardada localmente (bug
+                // conocido). En vez de crear el pedido con coordenadas inválidas
+                // ("Null Island"), usamos la dirección guardada del cliente.
+                $latEnviada = (float) ($data['latitud'] ?? 0);
+                $lonEnviada = (float) ($data['longitud'] ?? 0);
+                if ($latEnviada == 0.0 && $lonEnviada == 0.0 && $clienteDireccionActual->coordenadas) {
+                    $coordenadas = json_decode($clienteDireccionActual->coordenadas);
+                    if ($coordenadas && isset($coordenadas->coordinates[0], $coordenadas->coordinates[1])) {
+                        $data['latitud'] = (float) $coordenadas->coordinates[1];
+                        $data['longitud'] = (float) $coordenadas->coordinates[0];
+                    }
+                }
             }
 
             // Sanitizar campos decimales
