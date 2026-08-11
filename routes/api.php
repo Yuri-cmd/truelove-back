@@ -472,6 +472,9 @@ Route::post('/socio/sendCode', [SocioController::class, 'sendCode']);
 Route::post('/socio/update-password', [SocioController::class, 'updatePassword']);
 Route::post('socio/update-token', [SocioController::class, 'updateToken']);
 Route::get('/get/documentos/{id}', [SocioController::class, 'getDocumentos']);
+// Puente temporal: emite un token para sesiones antiguas guardadas antes del fix
+// que empezó a persistir el token de login (no requiere auth:sanctum a propósito).
+Route::post('socio/renovar-token', [SocioController::class, 'renovarToken']);
 
 Route::post('/crear/menus', [MenuController::class, 'store']);
 Route::get('/listar/menus/{empresa_id}', [MenuController::class, 'index']);

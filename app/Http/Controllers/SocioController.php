@@ -301,6 +301,42 @@ class SocioController extends Controller
         ]);
     }
 
+    /**
+     * Puente temporal de migración: emite un token Sanctum nuevo para socios que
+     * ya tenían sesión guardada en el dispositivo antes de que el app empezara a
+     * enviar el token (bug corregido en la versión actual). No pedimos contraseña
+     * porque muchos socios no la recuerdan; en su lugar validamos el id del socio
+     * contra su documentNumber, ambos ya guardados localmente desde su login anterior.
+     * Ruta pública a propósito: quitar cuando ya no queden sesiones antiguas sin token.
+     */
+    public function renovarToken(Request $request)
+    {
+        $data = $request->validate([
+            'id' => 'required|integer',
+            'documentNumber' => 'required|string',
+        ]);
+
+        $socio = BusinessRegistration::where('id', $data['id'])
+            ->where('documentNumber', $data['documentNumber'])
+            ->where('estado', 1)
+            ->where('aprobado', 1)
+            ->first();
+
+        if (!$socio || !$socio->user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo renovar la sesión',
+            ], 404);
+        }
+
+        $token = $socio->user->createToken('your-app-name')->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'token' => $token,
+        ]);
+    }
+
     public function getPedidos($id, Request $request)
     {
         // Verificar cuota/acceso del socio
