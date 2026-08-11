@@ -73,12 +73,18 @@ class PedidoController extends Controller
                 $data['referencia'] = $clienteDireccionActual->referencia;
 
                 // Salvavidas: apps del cliente aún sin actualizar pueden mandar
-                // 0,0 cuando no tienen una posición guardada localmente (bug
-                // conocido). En vez de crear el pedido con coordenadas inválidas
-                // ("Null Island"), usamos la dirección guardada del cliente.
+                // 0,0 (sin posición guardada localmente) o latitud/longitud
+                // invertidas (bug conocido de un fallback que lee las mismas
+                // coordenadas en otro orden de como se guardaron). En vez de
+                // crear el pedido con coordenadas inválidas ("Null Island") o
+                // invertidas (cae del otro lado del mundo), validamos que caigan
+                // dentro del rango geográfico de Perú y, si no, usamos la
+                // dirección guardada del cliente como fuente de verdad.
                 $latEnviada = (float) ($data['latitud'] ?? 0);
                 $lonEnviada = (float) ($data['longitud'] ?? 0);
-                if ($latEnviada == 0.0 && $lonEnviada == 0.0 && $clienteDireccionActual->coordenadas) {
+                $dentroDePeru = $latEnviada >= -19 && $latEnviada <= 0 && $lonEnviada >= -82 && $lonEnviada <= -68;
+
+                if (!$dentroDePeru && $clienteDireccionActual->coordenadas) {
                     $coordenadas = json_decode($clienteDireccionActual->coordenadas);
                     if ($coordenadas && isset($coordenadas->coordinates[0], $coordenadas->coordinates[1])) {
                         $data['latitud'] = (float) $coordenadas->coordinates[1];
