@@ -102,22 +102,22 @@ class PromocionController extends Controller
             }
             $promocion->save();
 
-            if($promocion){
+            // Notificar a los clientes DESPUÉS de responder al admin: con muchos clientes,
+            // enviar un push por uno de forma síncrona aquí dejaba el POST "pending" varios
+            // segundos y el modal del admin nunca recibía la respuesta para cerrarse.
+            dispatch(function () use ($promocion) {
                 $clientes = Cliente::whereNotNull('token_fmc')->get();
                 foreach ($clientes as $cliente) {
-                    // Personaliza el título y subtítulo
                     $titulo = "¡Hola {$cliente->nombre}! " . $promocion->titulo;
                     $subtitulo = $promocion->subtitulo . " Aprovecha esta oferta exclusiva solo para ti.";
-                
-                    // Envía la notificación y guarda el resultado
+
                     $resultado = $this->firebaseService->sendNotification($cliente->token_fmc, $titulo, $subtitulo, [], 'cliente', $cliente->id, 'cliente');
-                
-                    // Registra si hubo éxito o error
+
                     if (!$resultado) {
                         error_log("No se pudo enviar notificación a {$cliente->nombre} (ID: {$cliente->id})");
                     }
                 }
-            }
+            })->afterResponse();
 
             return response()->json($promocion, 201);
         } catch (\Exception $e) {
