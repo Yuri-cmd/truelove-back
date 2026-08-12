@@ -186,6 +186,109 @@ class PerfilNegocioController extends Controller
         ], 500);
     }
 }
+    /**
+     * Igual que actualizarLogo, pero para uso del admin: el negocio se
+     * identifica por el business_registration_id de la ruta, no por el
+     * usuario autenticado. Pensado para asignar/corregir logos en bloque
+     * desde el panel sin depender de que cada socio lo suba.
+     */
+    public function actualizarLogoAdmin(Request $request, $businessId)
+    {
+        try {
+            $request->validate([
+                'logo' => 'required|image|max:2048'
+            ]);
+
+            $rutaRelativa = $this->guardarImagenNegocio(
+                $request->file('logo'),
+                'logos-negocio',
+                $businessId,
+                'ruta_logo'
+            );
+
+            return response()->json([
+                'success' => true,
+                'ruta_logo' => url($rutaRelativa),
+                'message' => 'Logo actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Igual que actualizarBanner, pero para uso del admin (ver actualizarLogoAdmin).
+     */
+    public function actualizarBannerAdmin(Request $request, $businessId)
+    {
+        try {
+            $validator = \Validator::make($request->all(), [
+                'banner' => 'required|file|mimes:jpeg,jpg,png,gif|max:4096'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $rutaRelativa = $this->guardarImagenNegocio(
+                $request->file('banner'),
+                'banners-negocio',
+                $businessId,
+                'banner'
+            );
+
+            return response()->json([
+                'success' => true,
+                'banner' => url($rutaRelativa),
+                'message' => 'Banner actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error interno del servidor',
+                'error' => config('app.debug') ? $e->getMessage() : 'Error al procesar la imagen'
+            ], 500);
+        }
+    }
+
+    /**
+     * Mueve la imagen al disco público, borra la anterior si existía, y
+     * actualiza el campo correspondiente ($campo: 'ruta_logo' o 'banner')
+     * en el perfil del negocio indicado. Retorna la ruta relativa guardada.
+     */
+    private function guardarImagenNegocio($file, string $carpeta, $businessId, string $campo): string
+    {
+        $fileName = time() . '_' . $file->getClientOriginalName();
+
+        $path = public_path($carpeta);
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0777, true, true);
+        }
+
+        $file->move($path, $fileName);
+        $rutaRelativa = $carpeta . '/' . $fileName;
+
+        $perfilActual = PerfilNegocio::where('business_registration_id', $businessId)->first();
+        if ($perfilActual && $perfilActual->$campo) {
+            $rutaAnterior = public_path($perfilActual->$campo);
+            if (File::exists($rutaAnterior)) {
+                File::delete($rutaAnterior);
+            }
+        }
+
+        PerfilNegocio::updateOrCreate(
+            ['business_registration_id' => $businessId],
+            [$campo => $rutaRelativa]
+        );
+
+        return $rutaRelativa;
+    }
+
     public function obtenerLogo(Request $request)
     {
         try {

@@ -705,12 +705,14 @@ class SocioController extends Controller
             // Transformar la colección de locales
             $localesFormateados = $locales->getCollection()->map(function ($local) {
                 $logo = null;
-                if (
-                    $local->businessRegistration &&
-                    $local->businessRegistration->perfil &&
-                    $local->businessRegistration->perfil->ruta_logo
-                ) {
-                    $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+                $banner = null;
+                if ($local->businessRegistration && $local->businessRegistration->perfil) {
+                    if ($local->businessRegistration->perfil->ruta_logo) {
+                        $logo = '/' . ltrim($local->businessRegistration->perfil->ruta_logo, '/');
+                    }
+                    if ($local->businessRegistration->perfil->banner) {
+                        $banner = '/' . ltrim($local->businessRegistration->perfil->banner, '/');
+                    }
                 }
 
                 return [
@@ -721,6 +723,7 @@ class SocioController extends Controller
                     'business_id' => $local->business_registration_id,
                     'empresa' => $local->businessRegistration->name . ' ' . $local->businessRegistration->lastName,
                     'logo' => $logo,
+                    'banner' => $banner,
                     'prioridad' => $local->prioridad ?? 0,
                     'latitud' => $local->latitud,
                     'longitud' => $local->longitud

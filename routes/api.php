@@ -108,6 +108,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/locales/all', 'getAllLocales');
         });
 
+        // Fotos de negocios (logo/banner) asignadas por el admin
+        Route::controller(PerfilNegocioController::class)->prefix('negocios')->group(function () {
+            Route::post('/{businessId}/logo', 'actualizarLogoAdmin');
+            Route::post('/{businessId}/banner', 'actualizarBannerAdmin');
+        });
+
         // Gestión de motorizados
         Route::controller(MotorizadoController::class)->group(function () {
             Route::get('/motorizado', 'all');
