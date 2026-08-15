@@ -391,6 +391,7 @@ Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'get
 Route::post('/login/cliente', [ClienteController::class, 'login']);
 Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
 Route::get('notificaciones/cliente/{idCliente}', [App\Http\Controllers\NotificationTrackingController::class, 'misNotificaciones']);
+Route::post('notificaciones/cliente/{idCliente}/marcar-todas-leidas', [App\Http\Controllers\NotificationTrackingController::class, 'marcarTodasLeidas']);
 Route::post('/ratings', [RatingController::class, 'store']);  // Guardar calificación
 Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']);
 Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado']);

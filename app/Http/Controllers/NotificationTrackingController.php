@@ -123,6 +123,27 @@ class NotificationTrackingController extends Controller
         }
     }
 
+    /**
+     * Marcar todas las notificaciones de un cliente como leídas (botón "marcar todas")
+     */
+    public function marcarTodasLeidas($idCliente)
+    {
+        try {
+            NotificationLog::where('user_type', 'cliente')
+                ->where('user_id', $idCliente)
+                ->whereNull('opened_at')
+                ->update(['opened_at' => now()]);
+
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            Log::error("Error marcando notificaciones como leídas: " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al marcar las notificaciones como leídas'
+            ], 500);
+        }
+    }
+
     public function updateStatus(Request $request)
     {
         $request->validate([
