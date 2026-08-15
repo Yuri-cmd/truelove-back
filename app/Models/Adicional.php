@@ -19,6 +19,11 @@ class Adicional extends Model
         'foto',
         'precio',
         'status',
+        'agotado_hasta',
+    ];
+
+    protected $casts = [
+        'agotado_hasta' => 'datetime',
     ];
 
     /**

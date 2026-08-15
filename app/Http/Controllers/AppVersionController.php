@@ -8,8 +8,49 @@ use Illuminate\Http\Request;
 class AppVersionController extends Controller
 {
     /**
+     * Listar todas las configuraciones de versión (uso administrativo).
+     */
+    public function index()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => AppVersion::orderBy('app_name')->get(),
+        ]);
+    }
+
+    /**
+     * Actualizar una configuración de versión existente por id (uso administrativo).
+     */
+    public function updateAdmin(Request $request, $id)
+    {
+        $version = AppVersion::findOrFail($id);
+
+        $validated = $request->validate([
+            'min_version' => 'required|string',
+            'min_version_android' => 'nullable|string',
+            'min_version_ios' => 'nullable|string',
+            'latest_version' => 'required|string',
+            'latest_version_android' => 'nullable|string',
+            'latest_version_ios' => 'nullable|string',
+            'force_update' => 'required|boolean',
+            'force_update_android' => 'required|boolean',
+            'force_update_ios' => 'required|boolean',
+            'url_android' => 'nullable|string',
+            'url_ios' => 'nullable|string',
+        ]);
+
+        $version->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Versión actualizada correctamente',
+            'data' => $version,
+        ]);
+    }
+
+    /**
      * Obtener la versión de la aplicación por su nombre.
-     * 
+     *
      * @param string $app_name
      * @return \Illuminate\Http\JsonResponse
      */

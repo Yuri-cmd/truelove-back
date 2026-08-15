@@ -15,8 +15,13 @@ class Menu extends Model
         'foto',
         'precio',
         'status',
+        'agotado_hasta',
         'empresa_id',
         'orden',
+    ];
+
+    protected $casts = [
+        'agotado_hasta' => 'datetime',
     ];
 
     // Relación muchos a muchos con Categorias a través de la tabla pivot CategoriaMenu

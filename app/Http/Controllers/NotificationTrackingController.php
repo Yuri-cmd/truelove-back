@@ -93,6 +93,36 @@ class NotificationTrackingController extends Controller
         }
     }
 
+    /**
+     * Listar notificaciones de un cliente para la campanita del app
+     */
+    public function misNotificaciones($idCliente)
+    {
+        try {
+            $notificaciones = NotificationLog::where('user_type', 'cliente')
+                ->where('user_id', $idCliente)
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            $noLeidas = NotificationLog::where('user_type', 'cliente')
+                ->where('user_id', $idCliente)
+                ->whereNull('opened_at')
+                ->count();
+
+            return response()->json([
+                'data' => $notificaciones,
+                'no_leidas' => $noLeidas,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error obteniendo notificaciones del cliente: " . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener las notificaciones'
+            ], 500);
+        }
+    }
+
     public function updateStatus(Request $request)
     {
         $request->validate([

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Adicional;
+use App\Services\AgotadoService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
@@ -118,6 +119,43 @@ class AdicionalController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al actualizar el adicional', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Marcar varias opciones/adicionales como agotadas hasta una fecha calculada según la duración indicada
+     */
+    public function marcarAgotados(Request $request, AgotadoService $agotadoService)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:adicionales,id',
+            'duracion' => 'required|in:' . implode(',', AgotadoService::DURACIONES),
+        ]);
+
+        $actualizados = $agotadoService->marcarAdicionalesAgotados($request->ids, $request->duracion);
+
+        return response()->json([
+            'message' => "{$actualizados} opción(es) marcada(s) como agotada(s)",
+            'actualizados' => $actualizados,
+        ]);
+    }
+
+    /**
+     * Marcar varias opciones/adicionales como disponibles nuevamente
+     */
+    public function marcarDisponibles(Request $request, AgotadoService $agotadoService)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:adicionales,id',
+        ]);
+
+        $actualizados = $agotadoService->marcarAdicionalesDisponibles($request->ids);
+
+        return response()->json([
+            'message' => "{$actualizados} opción(es) marcada(s) como disponible(s)",
+            'actualizados' => $actualizados,
+        ]);
     }
 
     /**

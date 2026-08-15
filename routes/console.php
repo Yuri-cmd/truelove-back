@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\EnviarMensajeAutomaticoDriver;
 use App\Console\Commands\MarcarPeriodosVencidos;
+use App\Console\Commands\ReactivarProductosAgotados;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -16,3 +17,6 @@ Schedule::command(EnviarMensajeAutomaticoDriver::class)
 
 Schedule::command(MarcarPeriodosVencidos::class)
     ->dailyAt('00:05');
+
+Schedule::command(ReactivarProductosAgotados::class)
+    ->everyFiveMinutes();

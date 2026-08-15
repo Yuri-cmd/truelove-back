@@ -239,6 +239,12 @@ Route::middleware('auth:sanctum')->group(function () {
             // IMPORTANTE: Esta ruta debe ir al final para evitar conflictos
             Route::get('/{id}', 'show');
         });
+
+        // Rutas para administración de Versiones de Apps
+        Route::controller(AppVersionController::class)->prefix('app-versions')->group(function () {
+            Route::get('/', 'index');
+            Route::put('/{id}', 'updateAdmin');
+        });
     });
 
     // Rutas para socios (accesibles por usuarios con rol 'negocio')
@@ -384,6 +390,7 @@ Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getM
 Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
 Route::post('/login/cliente', [ClienteController::class, 'login']);
 Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
+Route::get('notificaciones/cliente/{idCliente}', [App\Http\Controllers\NotificationTrackingController::class, 'misNotificaciones']);
 Route::post('/ratings', [RatingController::class, 'store']);  // Guardar calificación
 Route::get('/ratings/{id_pedido}', [RatingController::class, 'getRatings']);
 Route::get('/getMotorizado/{idPedido}', [PedidoController::class, 'getMotorizado']);
@@ -402,6 +409,12 @@ Route::get('menu/{menu_id}/adicionales', [MenuController::class, 'getMenuAdicion
 Route::post('menu/{menu_id}/adicionales', [MenuController::class, 'createMenuAdicional']);
 Route::put('menu/{menu_id}/adicionales/{adicional_id}', [MenuController::class, 'updateMenuAdicional']);
 Route::delete('menu/{menu_id}/adicionales/{adicional_id}', [MenuController::class, 'deleteMenuAdicional']);
+
+// Marcar productos y opciones como agotados (con fecha límite) / disponibles, en lote
+Route::post('menu/agotar-lote', [MenuController::class, 'marcarAgotados']);
+Route::post('menu/disponible-lote', [MenuController::class, 'marcarDisponibles']);
+Route::post('adicionales/agotar-lote', [AdicionalController::class, 'marcarAgotados']);
+Route::post('adicionales/disponible-lote', [AdicionalController::class, 'marcarDisponibles']);
 Route::get('get/medios/pago/{idEmpresa?}', [MedioPagoController::class, 'index']);
 Route::get('/promociones', [PromocionController::class, 'index']);
 Route::post('/promociones', [PromocionController::class, 'store']);

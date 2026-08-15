@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Adicional;
 use App\Models\CategoriaMenu;
 use App\Models\Menu;
+use App\Services\AgotadoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +79,43 @@ class MenuController extends Controller
         $dish->save();
 
         return response()->json(['message' => 'Estado actualizado correctamente', 'dish' => $dish], 200);
+    }
+
+    /**
+     * Marcar varios productos como agotados hasta una fecha calculada según la duración indicada
+     */
+    public function marcarAgotados(Request $request, AgotadoService $agotadoService)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:menu,id',
+            'duracion' => 'required|in:' . implode(',', AgotadoService::DURACIONES),
+        ]);
+
+        $actualizados = $agotadoService->marcarMenusAgotados($request->ids, $request->duracion);
+
+        return response()->json([
+            'message' => "{$actualizados} producto(s) marcado(s) como agotado(s)",
+            'actualizados' => $actualizados,
+        ]);
+    }
+
+    /**
+     * Marcar varios productos como disponibles nuevamente
+     */
+    public function marcarDisponibles(Request $request, AgotadoService $agotadoService)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:menu,id',
+        ]);
+
+        $actualizados = $agotadoService->marcarMenusDisponibles($request->ids);
+
+        return response()->json([
+            'message' => "{$actualizados} producto(s) marcado(s) como disponible(s)",
+            'actualizados' => $actualizados,
+        ]);
     }
 
     /**
