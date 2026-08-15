@@ -1,4 +1,4 @@
-name: Deploy Scorpion (Laravel on CentOS)
+name: Deploy Scorpion (Laravel on Ubuntu)
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚀 Deploy to CentOS via SSH
+      - name: 🚀 Deploy to Ubuntu via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -23,27 +23,26 @@ jobs:
             cd /var/www/html/truelove-back
 
             echo "Asegurando permisos iniciales..."
-            chown -R apache:apache storage bootstrap/cache
-            chmod -R 775 storage bootstrap/cache
+            chown -R www-data:www-data storage bootstrap/cache public
+            chmod -R 775 storage bootstrap/cache public
 
             echo "Actualizando repositorio..."
             git pull origin master
 
             echo "Instalando dependencias..."
             # Forzamos que composer no cree archivos como root si es posible
-            # o corregimos inmediatamente después. Prefiero usar sudo -u apache
-            # pero a veces apache no tiene shell, así que usamos chown justo después.
+            # o corregimos inmediatamente después.
             composer install --no-interaction --prefer-dist --optimize-autoloader
-            chown -R apache:apache vendor storage bootstrap/cache
+            chown -R www-data:www-data vendor storage bootstrap/cache public
 
             echo "Optimizando Laravel..."
-            sudo -u apache php artisan config:cache
-            sudo -u apache php artisan route:cache
-            sudo -u apache php artisan view:cache
-            sudo -u apache php artisan event:cache
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            sudo -u www-data php artisan event:cache
 
             echo "Permisos finales de seguridad..."
-            chown -R apache:apache storage bootstrap/cache
-            chmod -R 775 storage bootstrap/cache
+            chown -R www-data:www-data storage bootstrap/cache public
+            chmod -R 775 storage bootstrap/cache public
 
             echo "Deploy completado exitosamente."
