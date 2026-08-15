@@ -27,7 +27,7 @@ jobs:
             chmod -R 775 storage bootstrap/cache public
 
             echo "Actualizando repositorio..."
-            git pull origin master
+            git pull origin main
 
             echo "Instalando dependencias..."
             # Forzamos que composer no cree archivos como root si es posible
