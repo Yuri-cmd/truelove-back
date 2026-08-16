@@ -48,7 +48,7 @@ class SocioPromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'required|string|max:255',
             'subtitulo' => 'required|string|max:255',
-            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'estado' => 'boolean',
         ]);
 
@@ -108,7 +108,7 @@ class SocioPromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'sometimes|required|string|max:255',
             'subtitulo' => 'sometimes|required|string|max:255',
-            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'estado' => 'sometimes|boolean',
         ]);
 
