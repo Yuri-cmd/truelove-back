@@ -73,6 +73,10 @@ class PromocionController extends Controller
         $pagina = max(1, (int) $request->input('page', 1));
 
         $promociones = Promocion::where('estado', 1)
+            // El carrusel del cliente necesita imagen sí o sí (CustomCard la requiere);
+            // una promo sin imagen (ej. creada sin foto) rompía el parseo completo en la app.
+            ->whereNotNull('imagen')
+            ->where('imagen', '!=', '')
             ->latest()
             ->skip(($pagina - 1) * self::MAX_PROMOCIONES_CLIENTE)
             ->take(self::MAX_PROMOCIONES_CLIENTE)
