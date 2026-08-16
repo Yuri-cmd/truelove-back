@@ -48,7 +48,7 @@ class SocioPromocionController extends Controller
         $data = $request->validate([
             'titulo' => 'required|string|max:255',
             'subtitulo' => 'required|string|max:255',
-            'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'imagen' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'estado' => 'boolean',
         ]);
 
@@ -121,6 +121,15 @@ class SocioPromocionController extends Controller
                 Storage::disk('custom_public')->delete($promocion->imagen);
             }
             $promocion->imagen = $request->file('imagen')->store('promociones-img', 'custom_public');
+        }
+
+        // Registros antiguos podían quedar sin imagen (validación previa la permitía);
+        // si sigue sin tener una, no se deja guardar hasta que se le agregue una.
+        if (!$promocion->imagen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La promoción debe tener una imagen. Selecciona una para continuar.',
+            ], 422);
         }
 
         $promocion->save();

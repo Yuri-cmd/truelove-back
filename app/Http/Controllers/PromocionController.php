@@ -98,7 +98,7 @@ class PromocionController extends Controller
             $data = $request->validate([
                 'titulo' => 'required|string|max:255',
                 'subtitulo' => 'required|string|max:255',
-                'imagen' => 'nullable|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
+                'imagen' => 'required|image|mimes:jpg,jpeg,png,gif,svg|max:2048',
                 'estado' => 'boolean',
                 'tipo_destino' => 'nullable|in:pantalla,restaurante,categoria',
                 'pantalla' => 'nullable|required_if:tipo_destino,pantalla|in:cupones,perfil,home',
@@ -115,14 +115,8 @@ class PromocionController extends Controller
                 ? $data['destino_id']
                 : null;
 
-            if ($request->hasFile('imagen')) {
-                $imagePath = $request->file('imagen')->store('promociones-img', 'public');
-
-                // Guarda solo la ruta relativa a public
-                $promocion->imagen = $imagePath;
-            } else {
-                $promocion->imagen = null;
-            }
+            // Guarda solo la ruta relativa a public (la imagen es obligatoria, ver validación arriba)
+            $promocion->imagen = $request->file('imagen')->store('promociones-img', 'public');
             $promocion->save();
 
             // Notificar a los clientes DESPUÉS de responder al admin (no bloquea el POST),
@@ -211,6 +205,14 @@ class PromocionController extends Controller
                 } else {
                     throw new \Exception('No se pudo guardar la nueva imagen');
                 }
+            }
+
+            // Registros antiguos podían quedar sin imagen; si sigue sin tener una, no se
+            // deja guardar hasta que se le agregue una.
+            if (!$promocion->imagen) {
+                return response()->json([
+                    'error' => 'La promoción debe tener una imagen. Selecciona una para continuar.',
+                ], 422);
             }
 
             return response()->json($promocion);
