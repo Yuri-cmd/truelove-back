@@ -89,6 +89,30 @@ class PedidoTrackingController extends Controller
         if (!$pedido) {
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
+
+        $estado = (int) $request->estado;
+        $ultimoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest('id')->first();
+        if ($ultimoTracking) {
+            $estadoAnterior = (int) $ultimoTracking->estado;
+
+            // Si el pedido ya está cancelado o entregado, no permitir más cambios
+            if (in_array($estadoAnterior, [0, 8], true)) {
+                return response()->json(['status' => 'error', 'message' => 'El pedido ya se encuentra en un estado final (Entregado/Cancelado)'], 400);
+            }
+
+            // No permitir volver a estados anteriores (excepto la transición 9 -> 8)
+            $esTransicionAEntregadoDesdeListo = ($estadoAnterior === 9 && $estado === 8);
+            if ($estado > 0 && $estado < $estadoAnterior && !$esTransicionAEntregadoDesdeListo) {
+                return response()->json(['status' => 'error', 'message' => 'No es posible volver a un estado anterior'], 400);
+            }
+
+            // El pedido ya fue recogido por el motorizado: no se permite cancelar directamente,
+            // debe solicitarse la cancelación con una justificación para que el admin la apruebe.
+            if ($estado === 0 && in_array($estadoAnterior, [5, 6, 7], true)) {
+                return response()->json(['status' => 'error', 'message' => 'El pedido ya fue recogido por el motorizado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
+            }
+        }
+
         // Registrar el tracking del pedido
         $tracking = new PedidoTracking([
             'pedido_id' => $pedido->id,

@@ -18,6 +18,7 @@ use App\Models\ClienteDireccion;
 use App\Models\Establecimiento;
 use App\Models\MedioPago;
 use App\Models\Pedido;
+use App\Models\PedidoCancelacionSolicitud;
 use Carbon\Carbon;
 use App\Models\PedidoDetalle;
 use App\Models\RepartoRegistro;
@@ -411,6 +412,9 @@ class SocioController extends Controller
             $ultimoTracking = $pedido->trackings->first();
             $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
             $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
+            $pedido->cancelacion_solicitud_pendiente = PedidoCancelacionSolicitud::where('pedido_id', $pedido->id)
+                ->where('status', 'pending')
+                ->exists();
 
             // Agregar información adicional
             $pedido->detalle = $namesString;
@@ -550,6 +554,12 @@ class SocioController extends Controller
                 // No permitir volver a estados anteriores (ej: de 6 a 2)
                 if ($estado > 0 && $estado < $ultimoTracking->estado) {
                     return response()->json(['status' => 'error', 'message' => 'No es posible volver a un estado anterior'], 400);
+                }
+
+                // El pedido ya fue recogido por el motorizado: no se permite cancelar directamente,
+                // debe solicitarse la cancelación con una justificación para que el admin la apruebe.
+                if ($estado === 0 && in_array((int) $ultimoTracking->estado, [5, 6, 7], true)) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido ya fue recogido por el motorizado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
                 }
             }
 
@@ -1010,9 +1020,11 @@ class SocioController extends Controller
         if ($motorizado) {
             $pedido->motorizado = $motorizado['nombres'] . ' ' . $motorizado['apellidos'] ?? '';
             $pedido->celular_motorizado = $motorizado['celular'] ?? '';
+            $pedido->foto_motorizado = $motorizadoRegistro->foto_perfil_url;
         } else {
             $pedido->motorizado = '';
             $pedido->celular_motorizado = '';
+            $pedido->foto_motorizado = null;
         }
 
         $names = array_map(function ($item) {
@@ -1024,6 +1036,9 @@ class SocioController extends Controller
         $ultimoTracking = $pedido->trackings->first();
         $pedido->ultimo_estado_tracking = $ultimoTracking ? $ultimoTracking->estado : 'Sin seguimiento';
         $pedido->estado = $ultimoTracking ? estadoPedido($ultimoTracking->estado) : 'Sin seguimiento';
+        $pedido->cancelacion_solicitud_pendiente = PedidoCancelacionSolicitud::where('pedido_id', $pedido->id)
+            ->where('status', 'pending')
+            ->exists();
 
         // Agregar información adicional
         $pedido->detalle = $namesString;

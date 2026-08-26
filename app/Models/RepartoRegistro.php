@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class RepartoRegistro extends Model
 {
@@ -29,7 +30,19 @@ class RepartoRegistro extends Model
         'pedidos_consecutivos',
         'nivel', // 1 principante, 2 intermedio , 3avanzado , 4 experto y 5 masteer
         'activo',
+        'foto_perfil',
     ];
+
+    protected $appends = [
+        'foto_perfil_url',
+    ];
+
+    public function getFotoPerfilUrlAttribute()
+    {
+        return $this->foto_perfil
+            ? url(Storage::disk('custom_public')->url($this->foto_perfil))
+            : null;
+    }
 
     protected $casts = [
         'mayor_edad' => 'boolean',

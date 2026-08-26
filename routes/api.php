@@ -31,6 +31,8 @@ use App\Http\Controllers\MedioPagoController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MotorizadoController;
 use App\Http\Controllers\NegocioController;
+use App\Http\Controllers\PedidoAdminController;
+use App\Http\Controllers\PedidoCancelacionController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\PedidoTrackingController;
 use App\Http\Controllers\PerfilNegocioController;
@@ -244,6 +246,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::controller(AppVersionController::class)->prefix('app-versions')->group(function () {
             Route::get('/', 'index');
             Route::put('/{id}', 'updateAdmin');
+        });
+
+        // Solicitudes de cancelación de pedidos (aprobar/declinar).
+        // Debe registrarse ANTES de "pedidos/{id}" para que "cancelacion-solicitudes"
+        // no sea interpretado como un {id} de pedido.
+        Route::controller(PedidoCancelacionController::class)->prefix('pedidos/cancelacion-solicitudes')->group(function () {
+            Route::get('/', 'getPendingRequests');
+            Route::get('/history', 'getRequestHistory');
+            Route::post('/{id}/approve', 'approveRequest');
+            Route::post('/{id}/reject', 'rejectRequest');
+        });
+
+        // Módulo de Pedidos (listado general y cambio de estado libre por el admin)
+        Route::controller(PedidoAdminController::class)->prefix('pedidos')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/{id}', 'show');
+            Route::put('/{id}/estado', 'updateEstado');
+            Route::put('/{id}/fecha', 'updateFecha');
         });
     });
 
@@ -482,6 +502,7 @@ Route::post('socio/login', [SocioController::class, 'login']);
 Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
 Route::get('socio/get/pedido/{id}', [SocioController::class, 'getPedido']);
 Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateEstadoPedido']);
+Route::post('socio/pedidos/{id}/solicitar-cancelacion', [PedidoCancelacionController::class, 'requestCancellation']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
@@ -513,6 +534,7 @@ Route::post('biker/location/update', [BikerController::class, 'updateLocation'])
 Route::post('biker/update-token', [BikerController::class, 'updateToken']);
 Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']);
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
+Route::post('/biker/foto-perfil/{id}', [BikerController::class, 'actualizarFotoPerfil']);
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
 Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);

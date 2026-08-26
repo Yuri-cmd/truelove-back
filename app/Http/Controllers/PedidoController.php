@@ -502,6 +502,12 @@ class PedidoController extends Controller
             if ($request->estado > 0 && $request->estado < $ultimoTracking->estado && !$esTransicionAEntregadoDesdeListo) {
                 return response()->json(['error' => 'No es posible volver a un estado anterior'], 400);
             }
+
+            // El pedido ya fue recogido por el motorizado: no se permite cancelar directamente,
+            // debe solicitarse la cancelación con una justificación para que el admin la apruebe.
+            if ((int) $request->estado === 0 && in_array((int) $ultimoTracking->estado, [5, 6, 7], true)) {
+                return response()->json(['error' => 'El pedido ya fue recogido por el motorizado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
+            }
         }
 
         // Guardar el tiempo o fecha de inicio si se envía
@@ -744,7 +750,7 @@ class PedidoController extends Controller
             'id' => $motorizado->id,
             'nombre' => $motorizado->nombres . ' ' . $motorizado->apellidos,
             'celular' => $motorizado->celular,
-            'foto' => $motorizado->datosPersonales ? (config('app.url') . '/' . $motorizado->datosPersonales->url_selfie) : null,
+            'foto' => $motorizado->foto_perfil_url,
             'vehiculo' => $motorizado->vehiculo ?? 'Sin vehículo registrado',
             'placa' => $motorizado->registroVehiculo ? $motorizado->registroVehiculo->placa : 'S/P',
             'pedidoCount' => $pedidoCount,
@@ -865,6 +871,7 @@ class PedidoController extends Controller
 
         $pedido->motorizado = $motorizado ? trim(($motorizado->nombres ?? '') . ' ' . ($motorizado->apellidos ?? '')) : '';
         $pedido->celular_motorizado = $motorizado->celular ?? '';
+        $pedido->foto_motorizado = $motorizado ? $motorizado->foto_perfil_url : null;
 
         $pedido->detalle = $detalleNombres;
         $pedido->detalleArray = $pedidoDetalles;

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -188,6 +189,15 @@ class BikerController extends Controller
                     return $item['nombre'] . ' x ' . $item['cantidad'];
                 }, $pedidoDetalles->toArray());
                 $namesString = implode(', ', $names);
+                $pedido->detalleArray = $pedidoDetalles->map(function ($d) {
+                    return [
+                        'id' => $d->id,
+                        'nombre' => $d->nombre,
+                        'cantidad' => $d->cantidad,
+                        'precio' => $d->precio,
+                        'tipo' => $d->tipo,
+                    ];
+                })->values();
                 $pedido->celularLocal = Negocio::where('business_registration_id', $pedido->id_local)->first()->telefono ?? '';
                 $pedido->tiempo_estimado = $tiempoEstimado;
                 $pedido->detalle = $namesString;
@@ -267,6 +277,31 @@ class BikerController extends Controller
             'repartidor' => $reparto,
             'usuario' => $user,
             'cuentaBancaria' => $cuentaBancaria,
+        ]);
+    }
+
+    public function actualizarFotoPerfil(Request $request, $id)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $reparto = RepartoRegistro::find($id);
+        if (!$reparto) {
+            return response()->json(['error' => 'Repartidor no encontrado'], 404);
+        }
+
+        if ($reparto->foto_perfil) {
+            Storage::disk('custom_public')->delete($reparto->foto_perfil);
+        }
+
+        $filename = $request->file('foto')->store('repartidores/foto_perfil', 'custom_public');
+        $reparto->foto_perfil = $filename;
+        $reparto->save();
+
+        return response()->json([
+            'success' => true,
+            'foto_perfil_url' => $reparto->foto_perfil_url,
         ]);
     }
 
@@ -646,6 +681,16 @@ class BikerController extends Controller
                 ? null
                 : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
+            $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+            $detalleArray = $pedidoDetalles->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'nombre' => $d->nombre,
+                    'cantidad' => $d->cantidad,
+                    'precio' => $d->precio,
+                    'tipo' => $d->tipo,
+                ];
+            })->values();
 
             $pedido = [
                 'id' => $pedido->id,
@@ -663,6 +708,7 @@ class BikerController extends Controller
                 'latitud' => $pedido->latitud,
                 'longitud' => $pedido->longitud,
                 'productos' => $pedido->productos,
+                'detalleArray' => $detalleArray,
                 'estado' => $estado->estado,
                 'tiempo' => $pedido->tiempo,
                 'nota' => $pedido->nota,
@@ -711,6 +757,15 @@ class BikerController extends Controller
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
+                $detalleArray = $productos->map(function ($d) {
+                    return [
+                        'id' => $d->id,
+                        'nombre' => $d->nombre,
+                        'cantidad' => $d->cantidad,
+                        'precio' => $d->precio,
+                        'tipo' => $d->tipo,
+                    ];
+                })->values();
 
                 // Saltar pedidos con datos huérfanos (cliente o local eliminado)
                 if (!$establecimiento || !$cliente) {
@@ -746,6 +801,7 @@ class BikerController extends Controller
                     'paga_con' => $pedido->paga_con,
                     'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
+                    'detalleArray' => $detalleArray,
                     'actualizado' => $pedido->updated_at?->toIso8601String(),
                     'descuento' => $pedido->descuento,
                     'celularLocal' => Negocio::where('business_registration_id', $establecimiento->business_registration_id)->first()->telefono ?? '',
@@ -786,6 +842,15 @@ class BikerController extends Controller
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
                     ->pluck('descripcion');
+                $detalleArray = $productos->map(function ($d) {
+                    return [
+                        'id' => $d->id,
+                        'nombre' => $d->nombre,
+                        'cantidad' => $d->cantidad,
+                        'precio' => $d->precio,
+                        'tipo' => $d->tipo,
+                    ];
+                })->values();
                 if (!$cliente) {
                     continue;
                 }
@@ -815,6 +880,7 @@ class BikerController extends Controller
                     'tipoComprobante' => $pedido->tipo_comprobante ?? 'Sin comprobante',
                     'productosList' => $productosListCantidad,
                     'productos' => implode(', ', $productosList->toArray()),
+                    'detalleArray' => $detalleArray,
                     'actualizado' => $pedido->updated_at?->toIso8601String(),
                     'descuento' => $pedido->descuento,
                     'fecha_inicio' => $pedido->fecha_hora_inicio ? $pedido->fecha_hora_inicio->toIso8601String() : PedidoTracking::where('pedido_id', $pedido->id)->where('estado', 2)->first()?->created_at?->toIso8601String(),
