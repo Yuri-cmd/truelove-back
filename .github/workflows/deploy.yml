@@ -35,6 +35,9 @@ jobs:
             composer install --no-interaction --prefer-dist --optimize-autoloader
             chown -R www-data:www-data vendor storage bootstrap/cache public
 
+            echo "Ejecutando migraciones..."
+            sudo -u www-data php artisan migrate --force
+
             echo "Optimizando Laravel..."
             sudo -u www-data php artisan config:cache
             sudo -u www-data php artisan route:cache

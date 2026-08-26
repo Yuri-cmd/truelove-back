@@ -34,15 +34,43 @@ class PedidoAdminController extends Controller
             }
         ]);
 
+        // Compatibilidad con el atajo antiguo ?fecha=hoy
         $fecha = $request->query('fecha');
         if ($fecha === 'hoy') {
             $query->whereDate('created_at', now()->toDateString());
-        } elseif ($fecha) {
-            $query->whereDate('created_at', $fecha);
+        }
+
+        $fechaDesde = $request->query('fecha_desde');
+        if ($fechaDesde) {
+            $query->whereDate('created_at', '>=', $fechaDesde);
+        }
+
+        $fechaHasta = $request->query('fecha_hasta');
+        if ($fechaHasta) {
+            $query->whereDate('created_at', '<=', $fechaHasta);
         }
 
         if ($request->query('local_id')) {
             $query->where('id_local', $request->query('local_id'));
+        }
+
+        $localBusqueda = $request->query('local');
+        if ($localBusqueda) {
+            $localIds = Establecimiento::where('nombre_establecimiento', 'like', '%' . $localBusqueda . '%')
+                ->pluck('business_registration_id');
+            $query->whereIn('id_local', $localIds);
+        }
+
+        // El estado se filtra a nivel de query (no post-paginación) porque no es
+        // una columna de "pedidos": es el último estado en pedido_trackings.
+        $estado = $request->query('estado');
+        if ($estado !== null && $estado !== '') {
+            $query->whereIn('id', function ($q) use ($estado) {
+                $q->select('pedido_id')
+                    ->from('pedido_trackings as pt1')
+                    ->where('estado', $estado)
+                    ->whereRaw('pt1.id = (SELECT MAX(id) FROM pedido_trackings as pt2 WHERE pt2.pedido_id = pt1.pedido_id)');
+            });
         }
 
         $pedidos = $query->orderBy('created_at', 'desc')->paginate(30);
@@ -50,14 +78,6 @@ class PedidoAdminController extends Controller
         $pedidos->getCollection()->transform(function ($pedido) {
             return $this->enrich($pedido);
         });
-
-        $estado = $request->query('estado');
-        if ($estado !== null && $estado !== '') {
-            $filtrados = $pedidos->getCollection()->filter(function ($pedido) use ($estado) {
-                return (string) $pedido->ultimo_estado_tracking === (string) $estado;
-            })->values();
-            $pedidos->setCollection($filtrados);
-        }
 
         return response()->json($pedidos);
     }
