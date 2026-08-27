@@ -49,6 +49,10 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'apiperu' => [
+        'token' => env('APIPERU_DEV_TOKEN'),
+    ],
+
     'biker_firebase' => [
         'project_id' => env('BIKER_FIREBASE_PROJECT_ID'),
         'private_key_id' => env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY_ID'),

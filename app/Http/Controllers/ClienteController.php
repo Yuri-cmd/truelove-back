@@ -12,6 +12,7 @@ use App\Models\EmailLog;
 use App\Models\Pedido;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Services\TwilioService;
@@ -135,20 +136,84 @@ class ClienteController extends Controller
             return response()->json(['message' => 'Error al obtener la información.'], 500);
         }
 
-        $token = env('API_TOKEN');
-        $url = "https://dniruc.apisperu.com/api/v1/dni/{$request->documento}?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6Inl1cmltMTZAaG90bWFpbC5jb20ifQ.AEnuNMXrrkul5ZPLj7L0WM-lUqfvGkAXDAAlrHYFQqs";
+        $data = $this->consultarDniPrimario($request->documento);
+
+        if (!$this->dniEncontrado($data)) {
+            Log::warning('API DNI primaria sin resultado, usando fallback apiperu.dev', ['documento' => $request->documento]);
+            $data = $this->consultarDniFallback($request->documento);
+        }
+
+        if (!$this->dniEncontrado($data)) {
+            return response()->json(['message' => 'No se pudo obtener la información del DNI.', 'status' => 500], 500);
+        }
+
+        return response()->json($data, 200);
+    }
+
+    private function dniEncontrado($data)
+    {
+        return is_array($data) && !empty($data['nombres']);
+    }
+
+    /**
+     * API principal de consulta DNI (dniruc.apisperu.com).
+     */
+    private function consultarDniPrimario($documento)
+    {
+        $url = "https://dniruc.apisperu.com/api/v1/dni/{$documento}?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6Inl1cmltMTZAaG90bWFpbC5jb20ifQ.AEnuNMXrrkul5ZPLj7L0WM-lUqfvGkAXDAAlrHYFQqs";
 
         try {
-            $response = file_get_contents($url);
+            $response = @file_get_contents($url);
             if ($response === false) {
-                return response()->json(['message' => 'Error al obtener la información.'], 500);
+                return null;
             }
             $data = json_decode($response, true);
+            if (!is_array($data)) {
+                return null;
+            }
             $data['status'] = 200;
-
-            return response()->json($data, 200);
+            return $data;
         } catch (Exception $e) {
-            return response()->json(['message' => 'Excepción capturada: ' . $e->getMessage()], 500);
+            Log::warning('Excepción en API DNI primaria: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * API de respaldo (apiperu.dev) usada cuando la primaria falla o no encuentra el DNI.
+     * Se normaliza al mismo formato que ya consume la app (nombres/apellidoPaterno/apellidoMaterno)
+     * para no requerir cambios en el cliente.
+     */
+    private function consultarDniFallback($documento)
+    {
+        try {
+            $response = Http::withToken(config('services.apiperu.token'))
+                ->acceptJson()
+                ->timeout(10)
+                ->post('https://api.apiperu.dev/dni', ['dni' => $documento]);
+
+            if (!$response->successful()) {
+                Log::warning('Fallo API DNI fallback (apiperu.dev): status ' . $response->status());
+                return null;
+            }
+
+            $json = $response->json();
+            if (!($json['success'] ?? false) || empty($json['data'])) {
+                return null;
+            }
+
+            $datosPersona = $json['data'];
+
+            return [
+                'numeroDocumento' => $datosPersona['numero'] ?? $documento,
+                'nombres' => $datosPersona['nombres'] ?? '',
+                'apellidoPaterno' => $datosPersona['apellido_paterno'] ?? '',
+                'apellidoMaterno' => $datosPersona['apellido_materno'] ?? '',
+                'status' => 200,
+            ];
+        } catch (Exception $e) {
+            Log::warning('Excepción en API DNI fallback: ' . $e->getMessage());
+            return null;
         }
     }
 
