@@ -17,6 +17,7 @@ use App\Http\Controllers\DatosBancariosRepartoController;
 use App\Http\Controllers\DatosClaveNegocioController;
 use App\Http\Controllers\DatosPersonalesRepartoController;
 use App\Http\Controllers\DescuentoClienteController;
+use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\EntregaCalendarioController;
 use App\Http\Controllers\EstablecimientoController;
@@ -395,6 +396,12 @@ Route::get('local-esta-abierto/{idLocal}', [NegocioController::class, 'localEsta
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
 Route::post('/profile', [ClienteController::class, 'store']);
 Route::post('/get-dni', [ClienteController::class, 'getDni']);
+
+// Consulta pública de DNI/RUC (usada por formularios de registro antes de tener sesión:
+// socio, motorizado, datos de negocio). Centraliza la consulta en el backend en vez de
+// que el frontend llame directo a la API externa.
+Route::get('/documento/dni/{numero}', [DocumentoController::class, 'dni']);
+Route::get('/documento/ruc/{numero}', [DocumentoController::class, 'ruc']);
 Route::post('/upload-photos', [ClienteController::class, 'uploadPhotos']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone']);
