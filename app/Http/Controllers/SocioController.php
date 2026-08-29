@@ -1503,31 +1503,11 @@ class SocioController extends Controller
     }
 
     /**
-     * ⚠️ PARCHE TEMPORAL (2026-08-28) — QUITAR cuando la nueva versión de la app
-     * `truelovesocio` (con la columna de adicionales mostrando el precio a la derecha,
-     * ver PedidoProductosAgrupados/PedidoProductosList) esté publicada y adoptada
-     * por los locales.
-     *
-     * Motivo: la app instalada actualmente solo pinta `nombre` en la etiqueta del
-     * adicional, sin mostrar su precio. Cuando un adicional NO es gratis (ej. "Salsa
-     * acevichada" a S/4.00), el local no se entera de por qué el total no coincide
-     * con la suma de sus productos "base" y termina cobrando de menos al cliente.
-     * Como publicar una actualización de la app toma tiempo (revisión de tiendas),
-     * se antepone el precio al nombre aquí en el backend para que el local lo vea
-     * de inmediato sin necesitar actualizar. Esto NO cambia ningún cálculo de
-     * totales (esos ya sumaban bien el precio del adicional) — solo hace visible
-     * en el texto lo que ya se estaba cobrando correctamente.
-     *
-     * Una vez que los locales estén todos en la versión nueva, remover esta llamada
-     * (y este método) para volver a mandar el `nombre` tal cual está en la BD.
+     * ⚠️ PARCHE TEMPORAL — ver App\Services\PedidoDetalleFormatter para el detalle
+     * de por qué existe y cuándo quitarlo.
      */
     private function anotarPrecioAdicionales($pedidoDetalles)
     {
-        foreach ($pedidoDetalles as $detalle) {
-            if ($detalle->tipo === 'adicional' && (float) $detalle->precio > 0) {
-                $detalle->nombre = $detalle->nombre . ' (+S/ ' . number_format((float) $detalle->precio, 2) . ')';
-            }
-        }
-        return $pedidoDetalles;
+        return \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales($pedidoDetalles);
     }
 }

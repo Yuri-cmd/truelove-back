@@ -177,7 +177,9 @@ class BikerController extends Controller
                     $pedido->longitud,
                 );
                 // Si el tiempo estimado es válido, agregarlo al pedido
-                $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $pedidoDetalles = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
+                    PedidoDetalle::where('pedido_id', $pedido->id)->get()
+                );
                 $cliente = Cliente::find($pedido->id_cliente);
                 // Solo se usa como fallback de texto para pedidos antiguos sin
                 // dirección congelada; ya no se usa para pisar coordenadas.
@@ -681,7 +683,9 @@ class BikerController extends Controller
                 ? null
                 : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-            $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+            $pedidoDetalles = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
+                PedidoDetalle::where('pedido_id', $pedido->id)->get()
+            );
             $detalleArray = $pedidoDetalles->map(function ($d) {
                 return [
                     'id' => $d->id,
@@ -752,7 +756,9 @@ class BikerController extends Controller
                     ? null
                     : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-                $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $productos = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
+                    PedidoDetalle::where('pedido_id', $pedido->id)->get()
+                );
                 $productosList = $productos->pluck('nombre');
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
@@ -837,7 +843,9 @@ class BikerController extends Controller
                     ? null
                     : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
-                $productos = PedidoDetalle::where('pedido_id', $pedido->id)->get();
+                $productos = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
+                    PedidoDetalle::where('pedido_id', $pedido->id)->get()
+                );
                 $productosList = $productos->pluck('nombre');
                 $productosListCantidad = PedidoDetalle::where('pedido_id', $pedido->id)
                     ->selectRaw("CONCAT(nombre, ' x ', cantidad) as descripcion")
