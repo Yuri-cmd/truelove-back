@@ -44,6 +44,20 @@ class PedidoController extends Controller
 
     public function store(Request $request)
     {
+        // El app solo guarda un id_cliente válido en el dispositivo al terminar
+        // el registro (perfil + dirección). Si llega sin sesión (0, vacío, o un
+        // id que ya no existe) el pedido quedaría huérfano: no aparece en el
+        // panel del local porque ahí se descarta cualquier pedido cuyo cliente
+        // no se pueda encontrar. Mejor cortarlo aquí con un mensaje claro.
+        $idCliente = (int) $request->id_cliente;
+        if ($idCliente <= 0 || !Cliente::where('id', $idCliente)->exists()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Debes iniciar sesión nuevamente para poder pedir.',
+                'code' => 'CLIENTE_NO_AUTENTICADO',
+            ], 500);
+        }
+
         try {
             DB::beginTransaction();
 
