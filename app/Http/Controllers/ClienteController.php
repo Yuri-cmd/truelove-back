@@ -94,6 +94,7 @@ class ClienteController extends Controller
             'nacionalidad' => 'required|string|max:255',
             'type' => 'required|string|in:celular,email', // Validación adicional
             'content' => 'required|string',
+            'celular' => 'nullable|string',
             'celular_whatsapp' => 'nullable|string',
         ]);
 
@@ -113,9 +114,18 @@ class ClienteController extends Controller
         $profile->{$validatedData['type']} = $validatedData['content']; // Asignación dinámica (si type=celular, guarda en celular)
         $profile->documento = $validatedData['documento'];
         $profile->nacionalidad = $validatedData['nacionalidad'];
-        
-        // Si no se envía whatsapp, usar el contenido si el tipo es celular
-        $profile->celular_whatsapp = $request->celular_whatsapp ?: ($validatedData['type'] === 'celular' ? $validatedData['content'] : null);
+
+        // Si el registro fue por email, el número de contacto solo llega en
+        // 'celular' (no via type/content), así que hay que guardarlo aparte.
+        // Mientras las apps viejas (que aún no mandan 'celular') siguen en
+        // rollout, si no llega 'celular' pero sí 'celular_whatsapp', se usa
+        // ese como celular para no dejar el campo vacío.
+        if ($validatedData['type'] !== 'celular') {
+            $profile->celular = $request->celular ?: $request->celular_whatsapp;
+        }
+
+        // Si no se envía whatsapp, usar el número de celular ya asignado
+        $profile->celular_whatsapp = $request->celular_whatsapp ?: $profile->celular;
         
         $profile->save();
 
