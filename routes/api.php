@@ -25,6 +25,7 @@ use App\Http\Controllers\FavoritoController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\IdsController;
 use App\Http\Controllers\KilometrosTarifaController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\TarifaRangoController;
 use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
@@ -391,6 +392,7 @@ Route::post('/cancelar-pedido', [PedidoController::class, 'cancelarPedido']);
 Route::get('motorcycle-location/{idPedido}', [LocationController::class, 'fetchMotorcycleLocation']);
 
 Route::get('prueba', [PedidoController::class, 'prueba']);
+Route::get('landing/stats', [LandingController::class, 'stats']);
 Route::get('local-esta-abierto/{idLocal}', [NegocioController::class, 'localEstaAbierto']);
 // rutas app clientes
 Route::post('/send-code', [ClienteController::class, 'sendCode']);
