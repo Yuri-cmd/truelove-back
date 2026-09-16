@@ -149,7 +149,7 @@
             <p style="margin: 5px 0;">
                 <strong>TRUE LOVE Delivery</strong><br>
                 Domingo Torero 120, Huachipa, Lima, Perú<br>
-                📧 info@deliverytruelove.com | 📱 +51 989 815 260
+                📧 truelovedeliveryperu@hotmail.com | 📱 +51 989 815 260
             </p>
             <p style="margin: 15px 0 5px 0; color: #999; font-size: 11px;">
                 Este correo fue generado automáticamente desde el formulario de soporte web.

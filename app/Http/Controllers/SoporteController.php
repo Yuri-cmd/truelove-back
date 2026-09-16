@@ -41,7 +41,7 @@ class SoporteController extends Controller
             ];
 
             // Enviar correo al equipo de soporte
-            Mail::to('info@deliverytruelove.com')->send(new SoporteMail($datos));
+            Mail::to('truelovedeliveryperu@hotmail.com')->send(new SoporteMail($datos));
 
             return response()->json([
                 'success' => true,
