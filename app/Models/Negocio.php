@@ -22,7 +22,8 @@ class Negocio extends Model
         'business_registration_id',
         'tipo_pago_digital', // 0 ninguno ,1 yapé y 2 plin
         'numero_pago_digital', // numero de pago digital segun el tipo
-        'nombre_titular_pago_digital' // nombre de la persona del pago digital
+        'nombre_titular_pago_digital', // nombre de la persona del pago digital
+        'qr_pago_digital', // ruta de la imagen del QR de Yape/Plin (opcional)
     ];
 
     public function tipoNegocio()

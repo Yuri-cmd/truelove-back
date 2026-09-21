@@ -1009,6 +1009,9 @@ class PedidoController extends Controller
             'numero_local' => $telefono,
             'tipo_pago_digital' => $tipoPago,
             'titular' => $negocio->nombre_titular_pago_digital ?? $businessRegistration->name . '  ' . $businessRegistration->lastName ?? '',
+            // Si el negocio subió su QR de Yape/Plin, el cliente debe ver el QR
+            // en vez del número; el número queda como respaldo si no hay QR.
+            'qr_pago_digital' => $negocio->qr_pago_digital ? url($negocio->qr_pago_digital) : null,
             'estado' => $estadoPedido,
             'omitir_pago_adelantado' => $businessRegistration->omitir_pago_adelantado ?? false,
         ]);

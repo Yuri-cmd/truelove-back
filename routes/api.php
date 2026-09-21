@@ -567,6 +567,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/negocio/pago-digital', [PerfilNegocioController::class, 'obtenerConfiguracionPagoDigital']);
     Route::put('/negocio/pago-digital', [PerfilNegocioController::class, 'actualizarConfiguracionPagoDigital']);
+    Route::post('/negocio/pago-digital/qr', [PerfilNegocioController::class, 'actualizarQrPagoDigital']);
+    Route::delete('/negocio/pago-digital/qr', [PerfilNegocioController::class, 'eliminarQrPagoDigital']);
     // categorias
 
     Route::get('/categoria/web/{id_empresa}', [CategoriaController::class, 'obtenerCategories']);
