@@ -682,3 +682,6 @@ Route::post('/reparto/validate-document-email', [RepartoRegistroController::clas
 
 // Ruta para formulario de soporte
 Route::post('/soporte/enviar', [App\Http\Controllers\SoporteController::class, 'enviarConsulta']);
+
+// Rutas de autenticación de clientes para la web (truelove-front)
+require __DIR__.'/api_web_cliente.php';
