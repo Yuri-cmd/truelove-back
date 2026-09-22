@@ -20,3 +20,8 @@ Schedule::command(MarcarPeriodosVencidos::class)
 
 Schedule::command(ReactivarProductosAgotados::class)
     ->everyFiveMinutes();
+
+Schedule::command('backup:clean')->dailyAt('01:00');
+Schedule::command('backup:run')->dailyAt('02:00')->onFailure(function () {
+    \Illuminate\Support\Facades\Log::error('El backup automático (backup:run) falló.');
+});
