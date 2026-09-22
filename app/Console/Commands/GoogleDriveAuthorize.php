@@ -22,14 +22,17 @@ class GoogleDriveAuthorize extends Command
         $client->setScopes(['https://www.googleapis.com/auth/drive']);
         $client->setAccessType('offline');
         $client->setPrompt('consent');
-        $client->setRedirectUri('urn:ietf:wg:oauth:2.0:oob');
+        $client->setRedirectUri('http://localhost');
 
         $authUrl = $client->createAuthUrl();
 
         $this->info('Abre esta URL en tu navegador, inicia sesión con la cuenta de Google que usarás para los backups y autoriza el acceso:');
         $this->line($authUrl);
+        $this->newLine();
+        $this->info('Después de autorizar, el navegador te llevará a una URL que empieza con "http://localhost/?code=..." (puede mostrar "no se puede acceder al sitio", eso es normal).');
+        $this->info('Copia SOLO el valor entre "code=" y "&scope" (o hasta el final si no hay "&scope") de esa URL, sin el resto.');
 
-        $code = $this->ask('Pega aquí el código que te muestra Google después de autorizar');
+        $code = $this->ask('Pega aquí ese código');
 
         $token = $client->fetchAccessTokenWithAuthCode($code);
 
