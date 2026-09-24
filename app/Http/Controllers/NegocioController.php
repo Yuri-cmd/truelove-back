@@ -143,6 +143,42 @@ class NegocioController extends Controller
             return response()->json(['error' => 'Error al actualizar el negocio'], 500);
         }
     }
+    // QR de Yape/Plin subido durante el registro (paso "Detalles del negocio")
+    public function subirQrPagoDigital(Request $request, Negocio $negocio)
+    {
+        $validator = Validator::make($request->all(), [
+            'qr' => 'required|image|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $rutaRelativa = $negocio->reemplazarQrPagoDigital($request->file('qr'));
+
+            return response()->json([
+                'success' => true,
+                'qr_pago_digital' => url($rutaRelativa),
+                'message' => 'QR actualizado correctamente',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al subir QR de pago digital: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al subir el QR'], 500);
+        }
+    }
+
+    public function eliminarQrPagoDigital(Negocio $negocio)
+    {
+        try {
+            $negocio->eliminarQrPagoDigital();
+            return response()->json(['success' => true, 'message' => 'QR eliminado correctamente']);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar QR de pago digital: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al eliminar el QR'], 500);
+        }
+    }
+
     public function show($businessRegistrationId)
     {
         try {
@@ -155,6 +191,7 @@ class NegocioController extends Controller
 
             // Convertir el número a string para el frontend
             $negocio->tipo_pago_digital = (string) $negocio->tipo_pago_digital;
+            $negocio->qr_pago_digital_url = $negocio->qr_pago_digital ? url($negocio->qr_pago_digital) : null;
 
             return response()->json($negocio);
         } catch (\Exception $e) {

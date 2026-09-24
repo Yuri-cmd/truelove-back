@@ -735,25 +735,7 @@ public function actualizarQrPagoDigital(Request $request)
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
 
-        $file = $request->file('qr');
-        $fileName = time() . '_' . $file->getClientOriginalName();
-
-        $path = public_path('qr-pago-digital');
-        if (!File::isDirectory($path)) {
-            File::makeDirectory($path, 0777, true, true);
-        }
-
-        if ($negocio->qr_pago_digital) {
-            $rutaAnterior = public_path($negocio->qr_pago_digital);
-            if (File::exists($rutaAnterior)) {
-                File::delete($rutaAnterior);
-            }
-        }
-
-        $file->move($path, $fileName);
-        $rutaRelativa = 'qr-pago-digital/' . $fileName;
-
-        $negocio->update(['qr_pago_digital' => $rutaRelativa]);
+        $rutaRelativa = $negocio->reemplazarQrPagoDigital($request->file('qr'));
 
         return response()->json([
             'success' => true,
@@ -782,13 +764,7 @@ public function eliminarQrPagoDigital(Request $request)
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
 
-        if ($negocio->qr_pago_digital) {
-            $rutaAnterior = public_path($negocio->qr_pago_digital);
-            if (File::exists($rutaAnterior)) {
-                File::delete($rutaAnterior);
-            }
-            $negocio->update(['qr_pago_digital' => null]);
-        }
+        $negocio->eliminarQrPagoDigital();
 
         return response()->json(['success' => true, 'message' => 'QR eliminado correctamente']);
     } catch (\Exception $e) {

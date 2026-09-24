@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 
 class Negocio extends Model
 {
@@ -49,5 +51,45 @@ class Negocio extends Model
     public function businessRegistration()
     {
         return $this->belongsTo(BusinessRegistration::class);
+    }
+
+    /**
+     * Guarda la imagen del QR de Yape/Plin en public/qr-pago-digital, reemplazando la anterior.
+     * Usado desde el registro del socio y desde su panel.
+     */
+    public function reemplazarQrPagoDigital(UploadedFile $file): string
+    {
+        $path = public_path('qr-pago-digital');
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0777, true, true);
+        }
+
+        $this->borrarArchivoQrPagoDigital();
+
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        $file->move($path, $fileName);
+        $rutaRelativa = 'qr-pago-digital/' . $fileName;
+
+        $this->update(['qr_pago_digital' => $rutaRelativa]);
+
+        return $rutaRelativa;
+    }
+
+    public function eliminarQrPagoDigital(): void
+    {
+        if ($this->qr_pago_digital) {
+            $this->borrarArchivoQrPagoDigital();
+            $this->update(['qr_pago_digital' => null]);
+        }
+    }
+
+    private function borrarArchivoQrPagoDigital(): void
+    {
+        if ($this->qr_pago_digital) {
+            $rutaAnterior = public_path($this->qr_pago_digital);
+            if (File::exists($rutaAnterior)) {
+                File::delete($rutaAnterior);
+            }
+        }
     }
 }

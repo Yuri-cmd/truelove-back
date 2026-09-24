@@ -336,6 +336,8 @@ Route::get('/tipos-negocio', [NegocioController::class, 'getTiposNegocio']);
 Route::get('/categorias/{tipoNegocioId}', [NegocioController::class, 'getCategorias']);
 Route::post('/negocios', [NegocioController::class, 'store']);
 Route::put('/negocios/{negocio}', [NegocioController::class, 'update']);
+Route::post('/negocios/{negocio}/qr-pago-digital', [NegocioController::class, 'subirQrPagoDigital']);
+Route::delete('/negocios/{negocio}/qr-pago-digital', [NegocioController::class, 'eliminarQrPagoDigital']);
 Route::post('/negocios/{negocio}/sucursales', [SucursalController::class, 'store']);
 Route::get('/negocios/{businessRegistrationId}/approval-status', [NegocioController::class, 'checkApprovalStatus']);
 
