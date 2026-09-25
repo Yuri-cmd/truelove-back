@@ -65,8 +65,8 @@ class PedidoController extends Controller
 
             // La app envía una clave única por intento de confirmación. Si la
             // conexión se corta después de crear el pedido pero antes de que la
-            // respuesta le llegue al cliente, este reintenta con la MISMA clave:
-            // devolvemos el pedido ya creado en vez de duplicarlo.
+            // respuesta le llegue al cliente, un reintento AUTOMÁTICO llega con la
+            // MISMA clave: devolvemos el pedido ya creado en vez de duplicarlo.
             $claveIdempotencia = $request->input('clave_idempotencia');
             if ($claveIdempotencia) {
                 $pedidoExistente = Pedido::where('clave_idempotencia', $claveIdempotencia)->first();
@@ -80,11 +80,15 @@ class PedidoController extends Controller
                     ]);
                 }
                 $data['clave_idempotencia'] = $claveIdempotencia;
-            } elseif ($request->id_cliente && $request->id_local) {
-                // Salvavidas para apps del cliente aún sin actualizar (no mandan
-                // clave): si hace menos de 2 minutos el mismo cliente ya creó un
-                // pedido idéntico al mismo local, es casi seguro un reintento por
-                // corte de conexión y no un pedido nuevo.
+            }
+
+            // Salvavidas por ventana de tiempo: cubre tanto a las apps sin
+            // actualizar (nunca mandan clave) como un toque MANUAL de "Confirmar"
+            // en la app nueva tras un error (genera una clave nueva, así que la
+            // comprobación de arriba no la reconoce). Si hace menos de 2 minutos
+            // el mismo cliente ya creó un pedido idéntico al mismo local, es casi
+            // seguro un reintento y no un pedido nuevo.
+            if ($request->id_cliente && $request->id_local) {
                 $subtotalSanitizado = preg_replace('/[^\d.]/', '', (string) ($data['subtotal'] ?? '0'));
                 $pedidoReciente = Pedido::where('id_cliente', $request->id_cliente)
                     ->where('id_local', $request->id_local)
