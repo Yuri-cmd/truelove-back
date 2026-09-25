@@ -63,6 +63,55 @@ class PedidoController extends Controller
                 'paga_con',
             ]);
 
+            // La app envía una clave única por intento de confirmación. Si la
+            // conexión se corta después de crear el pedido pero antes de que la
+            // respuesta le llegue al cliente, este reintenta con la MISMA clave:
+            // devolvemos el pedido ya creado en vez de duplicarlo.
+            $claveIdempotencia = $request->input('clave_idempotencia');
+            if ($claveIdempotencia) {
+                $pedidoExistente = Pedido::where('clave_idempotencia', $claveIdempotencia)->first();
+                if ($pedidoExistente) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'success',
+                        'pedido_id' => $pedidoExistente->id,
+                        'requiere_confirmacion' => (bool) $pedidoExistente->requiere_confirmacion_local,
+                        'precio_delivery' => $pedidoExistente->precio_delivery ?? 0,
+                    ]);
+                }
+                $data['clave_idempotencia'] = $claveIdempotencia;
+            } elseif ($request->id_cliente && $request->id_local) {
+                // Salvavidas para apps del cliente aún sin actualizar (no mandan
+                // clave): si hace menos de 2 minutos el mismo cliente ya creó un
+                // pedido idéntico al mismo local, es casi seguro un reintento por
+                // corte de conexión y no un pedido nuevo.
+                $subtotalSanitizado = preg_replace('/[^\d.]/', '', (string) ($data['subtotal'] ?? '0'));
+                $pedidoReciente = Pedido::where('id_cliente', $request->id_cliente)
+                    ->where('id_local', $request->id_local)
+                    ->where('subtotal', $subtotalSanitizado === '' ? 0 : $subtotalSanitizado)
+                    ->where('created_at', '>=', now()->subMinutes(2))
+                    ->whereDoesntHave('trackings', function ($q) {
+                        $q->where('estado', 0); // cancelado
+                    })
+                    ->latest('id')
+                    ->first();
+
+                if ($pedidoReciente) {
+                    DB::rollBack();
+                    Log::warning('Pedido duplicado evitado (mismo cliente/local/monto en menos de 2 min)', [
+                        'pedido_existente' => $pedidoReciente->id,
+                        'id_cliente' => $request->id_cliente,
+                        'id_local' => $request->id_local,
+                    ]);
+                    return response()->json([
+                        'status' => 'success',
+                        'pedido_id' => $pedidoReciente->id,
+                        'requiere_confirmacion' => (bool) $pedidoReciente->requiere_confirmacion_local,
+                        'precio_delivery' => $pedidoReciente->precio_delivery ?? 0,
+                    ]);
+                }
+            }
+
             // Congelar la dirección de entrega vigente del cliente en el momento
             // de crear el pedido. Así, si el cliente la cambia después, los
             // pedidos ya creados no se ven afectados (motorizado y socio deben
@@ -205,23 +254,30 @@ class PedidoController extends Controller
 
             DB::commit();
 
-            // Notificaciones (fuera de la transacción por si fallan)
-            try {
-                $cliente = Cliente::find($request->id_cliente);
-                $nombreCliente = $cliente ? $cliente->nombre : 'Cliente';
-                $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
-                $cuerpoNotif = 'El pedido #' . $pedido->id . ' ya está disponible para procesar.';
+            // Notificaciones enviadas DESPUÉS de responder al cliente: FCM puede
+            // tardar, y mientras la app espera esa respuesta es más fácil que se
+            // corte la conexión (lo que antes hacía creer que el pedido había
+            // fallado y llevaba a reintentarlo, duplicándolo).
+            $pedidoId = $pedido->id;
+            $idCliente = $request->id_cliente;
+            dispatch(function () use ($comercio, $pedidoId, $idCliente) {
+                try {
+                    $cliente = Cliente::find($idCliente);
+                    $nombreCliente = $cliente ? $cliente->nombre : 'Cliente';
+                    $tituloNotif = '🛒 Nuevo Pedido de ' . $nombreCliente;
+                    $cuerpoNotif = 'El pedido #' . $pedidoId . ' ya está disponible para procesar.';
 
-                if ($comercio->token_fmc && $comercio->activo == 1) {
-                    $this->firebaseService->sendNotificationWithSound($comercio->token_fmc, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio', $comercio->id, 'socio');
-                }
+                    if ($comercio->token_fmc && $comercio->activo == 1) {
+                        $this->firebaseService->sendNotificationWithSound($comercio->token_fmc, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio', $comercio->id, 'socio');
+                    }
 
-                if ($comercio->token_fmc_web && $comercio->activo == 1) {
-                    $this->firebaseService->sendNotificationWithSound($comercio->token_fmc_web, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio_web', $comercio->id, 'socio');
+                    if ($comercio->token_fmc_web && $comercio->activo == 1) {
+                        $this->firebaseService->sendNotificationWithSound($comercio->token_fmc_web, $tituloNotif, $cuerpoNotif, 'nuevo_pedido', 'pedidos_v3', [], 'socio_web', $comercio->id, 'socio');
+                    }
+                } catch (\Exception $e) {
+                    Log::warning("Error enviando notificación: " . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                Log::warning("Error enviando notificación: " . $e->getMessage());
-            }
+            })->afterResponse();
 
             return response()->json([
                 'status' => 'success',
