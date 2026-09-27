@@ -23,13 +23,25 @@
 
         .header {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+        }
+
+        .header .brand {
+            font-size: 9px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #444;
+            border: 1px solid #000;
+            border-radius: 3px;
+            display: inline-block;
+            padding: 2px 8px;
+            margin-bottom: 6px;
         }
 
         .header .local-name {
             font-size: 18px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .pedido-numero {
@@ -40,9 +52,10 @@
         .pedido-numero .numero {
             font-size: 14px;
             font-weight: bold;
-            border-top: 1px solid #000;
-            border-bottom: 1px solid #000;
-            padding: 6px 0;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            padding: 7px 0;
+            letter-spacing: 0.5px;
         }
 
         .info-table {
@@ -59,11 +72,12 @@
         .info-table .label {
             font-weight: bold;
             width: 35%;
+            color: #333;
         }
 
         .separator {
-            border-top: 1px solid #000;
-            margin: 8px 0;
+            border-top: 1px dashed #000;
+            margin: 10px 0;
             text-align: center;
             position: relative;
         }
@@ -74,6 +88,7 @@
             position: relative;
             top: -8px;
             font-size: 9px;
+            letter-spacing: 1px;
         }
 
         .productos-table {
@@ -88,7 +103,8 @@
             text-align: left;
             padding: 4px 0;
             font-weight: bold;
-            border-bottom: 1px solid #000;
+            border-bottom: 1.5px solid #000;
+            letter-spacing: 0.3px;
         }
 
         .productos-table th:nth-child(1) { width: 12%; }
@@ -108,7 +124,7 @@
         }
 
         .separator-line {
-            border-top: 1px solid #000;
+            border-top: 1.5px solid #000;
             margin: 8px 0;
         }
 
@@ -116,6 +132,14 @@
             width: 100%;
             font-size: 10px;
             margin-bottom: 8px;
+        }
+
+        .totales-table .total-final {
+            border-top: 1px dashed #000;
+        }
+
+        .totales-table .total-final td {
+            padding-top: 6px;
         }
 
         .totales-table td {
@@ -158,19 +182,27 @@
 
         .footer {
             text-align: center;
-            margin-top: 12px;
-            padding-top: 8px;
+            margin-top: 14px;
+            padding-top: 10px;
             border-top: 1px dashed #999;
         }
 
         .footer .gracias {
             font-size: 10px;
+            margin-bottom: 6px;
+        }
+
+        .footer .brand-footer {
+            font-size: 8px;
+            letter-spacing: 1.5px;
+            color: #555;
         }
     </style>
 </head>
 <body>
     <!-- Header -->
     <div class="header">
+        <div class="brand">TRUELOVE DELIVERY</div>
         <div class="local-name">{{ $localName }}</div>
     </div>
 
@@ -281,6 +313,7 @@
     <!-- Footer -->
     <div class="footer">
         <div class="gracias">Gracias por su preferencia!</div>
+        <div class="brand-footer">TRUELOVE DELIVERY</div>
     </div>
 </body>
 </html>

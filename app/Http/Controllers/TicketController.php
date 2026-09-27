@@ -71,7 +71,9 @@ class TicketController extends Controller
         $pdf = Pdf::loadView('tickets.pedido', $data);
         
         // Calcular altura dinámica basada en el contenido
-        $alturaBase = 350;
+        // (+30 respecto al diseño anterior: la etiqueta de marca en el header
+        // y la línea de marca en el footer ocupan un poco más de espacio)
+        $alturaBase = 365;
         $alturaPorProducto = 25;
         $alturaExtras = 0;
         
