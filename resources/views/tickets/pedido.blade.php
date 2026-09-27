@@ -23,25 +23,39 @@
 
         .header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
-        .header .brand {
-            font-size: 9px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            color: #444;
-            border: 1px solid #000;
-            border-radius: 3px;
+        .header .brand-row {
+            margin-bottom: 8px;
+        }
+
+        .header .brand-icon {
             display: inline-block;
-            padding: 2px 8px;
-            margin-bottom: 6px;
+            width: 30px;
+            height: 30px;
+            vertical-align: middle;
+            border-radius: 6px;
+        }
+
+        .header .brand-name {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-left: 6px;
         }
 
         .header .local-name {
-            font-size: 18px;
+            font-family: Arial, sans-serif;
+            font-size: 15px;
             font-weight: bold;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
+            color: #222;
+            padding-top: 4px;
+            border-top: 1px solid #000;
+            display: inline-block;
         }
 
         .pedido-numero {
@@ -202,7 +216,12 @@
 <body>
     <!-- Header -->
     <div class="header">
-        <div class="brand">TRUELOVE DELIVERY</div>
+        <div class="brand-row">
+            @if($logoBase64)
+                <img src="{{ $logoBase64 }}" class="brand-icon" alt="TrueLove">
+            @endif
+            <span class="brand-name">TRUELOVE DELIVERY</span>
+        </div>
         <div class="local-name">{{ $localName }}</div>
     </div>
 

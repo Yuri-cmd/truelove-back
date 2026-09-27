@@ -52,12 +52,21 @@ class TicketController extends Controller
         // Tipo de pago
         $tipoPago = $pedido->tipo_pago ?? 'EFECTIVO';
 
+        // Logo de la marca embebido en base64: el ticket se genera con Pdf::loadView
+        // (sin pasar por HTTP), así que un <img> con ruta local o URL pública no
+        // siempre resuelve igual en todos los entornos; el base64 sí es fiable.
+        $logoPath = public_path('images/logo-truelove.png');
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+
         $data = [
             'pedido' => $pedido,
             'cliente' => $cliente,
             'direccion' => $pedido->direccion ?? ($clienteDireccion?->direccion ?? ''),
             'local' => $local,
             'localName' => $local->nombre_establecimiento ?? 'TRUE LOVE',
+            'logoBase64' => $logoBase64,
             'motorizado' => $motorizado,
             'detalles' => $detalles,
             'descuento' => $descuento,
