@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('web/cliente')->group(function () {
     Route::post('login', [ClienteWebAuthController::class, 'login']);
+    Route::post('google-login', [ClienteWebAuthController::class, 'googleLogin']);
     Route::post('register', [ClienteWebAuthController::class, 'register']);
 
     // Reutilizan el envío de código OTP ya existente para la app.

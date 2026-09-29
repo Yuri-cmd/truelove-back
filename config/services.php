@@ -53,6 +53,10 @@ return [
         'token' => env('APIPERU_DEV_TOKEN'),
     ],
 
+    'firebase_web' => [
+        'project_id' => env('FIREBASE_WEB_PROJECT_ID', env('BIKER_FIREBASE_PROJECT_ID')),
+    ],
+
     'biker_firebase' => [
         'project_id' => env('BIKER_FIREBASE_PROJECT_ID'),
         'private_key_id' => env('BIKER_FIREBASE_GOOGLE_PRIVATE_KEY_ID'),

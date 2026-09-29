@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\ClienteDireccion;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -42,6 +46,74 @@ class ClienteWebAuthController extends Controller
             'token' => $token,
             'cliente' => $this->withDireccion($cliente),
         ]);
+    }
+
+    /**
+     * Inicio de sesión con Google (Firebase Auth). Solo permite entrar si ya
+     * existe un cliente con ese correo; si no, responde 404 con
+     * code=not_registered para que la web le pida registrarse.
+     */
+    public function googleLogin(Request $request)
+    {
+        $request->validate(['id_token' => 'required|string']);
+
+        $claims = $this->verifyFirebaseIdToken($request->id_token);
+
+        if (!$claims || empty($claims->email) || empty($claims->email_verified)) {
+            return response()->json([
+                'message' => 'No se pudo validar tu cuenta de Google.',
+            ], 401);
+        }
+
+        $cliente = Cliente::where('email', $claims->email)->first();
+
+        if (!$cliente) {
+            return response()->json([
+                'code' => 'not_registered',
+                'message' => 'No encontramos una cuenta con este correo de Google. Regístrate para continuar.',
+                'email' => $claims->email,
+            ], 404);
+        }
+
+        $token = $cliente->createToken('truelove-web')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Sesión iniciada correctamente',
+            'token' => $token,
+            'cliente' => $this->withDireccion($cliente),
+        ]);
+    }
+
+    private function verifyFirebaseIdToken(string $idToken): ?object
+    {
+        $projectId = config('services.firebase_web.project_id');
+        if (!$projectId) {
+            return null;
+        }
+
+        try {
+            $certs = Cache::remember('firebase_securetoken_certs', 3600, function () {
+                return Http::get('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com')
+                    ->throw()
+                    ->json();
+            });
+
+            $keys = [];
+            foreach ($certs as $kid => $cert) {
+                $keys[$kid] = new Key($cert, 'RS256');
+            }
+
+            $claims = JWT::decode($idToken, $keys);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (($claims->aud ?? null) !== $projectId
+            || ($claims->iss ?? null) !== "https://securetoken.google.com/{$projectId}") {
+            return null;
+        }
+
+        return $claims;
     }
 
     /**
