@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
-class Cliente extends Model
+class Cliente extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
     protected $table = 'clientes';
     protected $fillable = [
         'nombre',
@@ -24,5 +25,9 @@ class Cliente extends Model
         'foto_perfil',
         'password',
         'token_fmc',
+    ];
+
+    protected $hidden = [
+        'password',
     ];
 }
