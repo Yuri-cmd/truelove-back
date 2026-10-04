@@ -346,13 +346,15 @@ class FirebaseService
                 "android" => [
                     "priority" => "high",
                 ],
+                // iOS: igual que sendNotification() (que sí se entrega) pero con el sonido
+                // personalizado. Sin content-available: combinado con alert no se entregaba.
                 "apns" => [
                     "headers" => [
-                        "apns-priority" => "10"
+                        "apns-priority" => "10",
+                        "apns-push-type" => "alert"
                     ],
                     "payload" => [
                         "aps" => [
-                            "content-available" => 1,
                             "sound" => $soundFile . ".wav",
                             "alert" => [
                                 "title" => $title,
