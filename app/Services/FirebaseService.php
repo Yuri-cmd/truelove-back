@@ -112,13 +112,21 @@ class FirebaseService
                 "android" => [
                     "priority" => "high",
                 ],
+                // iOS: un mensaje solo con content-available es silencioso (no muestra
+                // banner). Se manda el alert para que iOS lo muestre por su cuenta, aun con
+                // la app cerrada. Sin content-available para no despertar la app y evitar
+                // que dibuje una segunda notificación local duplicada.
                 "apns" => [
                     "headers" => [
-                        "apns-priority" => "10"
+                        "apns-priority" => "10",
+                        "apns-push-type" => "alert"
                     ],
                     "payload" => [
                         "aps" => [
-                            "content-available" => 1,
+                            "alert" => [
+                                "title" => $title,
+                                "body"  => $body
+                            ],
                             "sound" => "default"
                         ]
                     ]
@@ -204,9 +212,13 @@ class FirebaseService
                             'token' => $item['token'],
                             'data' => $dataPayload,
                             'android' => ['priority' => 'high'],
+                            // iOS: alert para que se muestre el banner (ver sendNotification()).
                             'apns' => [
-                                'headers' => ['apns-priority' => '10'],
-                                'payload' => ['aps' => ['content-available' => 1, 'sound' => 'default']],
+                                'headers' => ['apns-priority' => '10', 'apns-push-type' => 'alert'],
+                                'payload' => ['aps' => [
+                                    'alert' => ['title' => $item['title'], 'body' => $item['body']],
+                                    'sound' => 'default',
+                                ]],
                             ],
                         ],
                     ];
