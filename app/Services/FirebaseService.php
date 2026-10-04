@@ -339,6 +339,28 @@ class FirebaseService
             'tipo'         => 'nuevo_pedido',
         ]));
 
+        // iOS. Para motorizados (canal pedidos_v7) el mensaje va como alert puro: con
+        // content-available + alert no se entregaba en su app. Socio y demás conservan el
+        // formato original (con content-available), que ya funciona.
+        $esMotorizado = in_array($userType, ['motorizado', 'biker'], true) || $channelId === 'pedidos_v7';
+        $aps = [
+            "sound" => $soundFile . ".wav",
+            "alert" => [
+                "title" => $title,
+                "body"  => $body
+            ]
+        ];
+        $apnsHeaders = ["apns-priority" => "10"];
+        if ($esMotorizado) {
+            $apnsHeaders["apns-push-type"] = "alert";
+        } else {
+            $aps = ["content-available" => 1] + $aps;
+        }
+        $apns = [
+            "headers" => $apnsHeaders,
+            "payload" => ["aps" => $aps]
+        ];
+
         $payload = [
             "message" => [
                 "token" => $token,
@@ -346,23 +368,7 @@ class FirebaseService
                 "android" => [
                     "priority" => "high",
                 ],
-                // iOS: igual que sendNotification() (que sí se entrega) pero con el sonido
-                // personalizado. Sin content-available: combinado con alert no se entregaba.
-                "apns" => [
-                    "headers" => [
-                        "apns-priority" => "10",
-                        "apns-push-type" => "alert"
-                    ],
-                    "payload" => [
-                        "aps" => [
-                            "sound" => $soundFile . ".wav",
-                            "alert" => [
-                                "title" => $title,
-                                "body"  => $body
-                            ]
-                        ]
-                    ]
-                ]
+                "apns" => $apns
             ]
         ];
 
