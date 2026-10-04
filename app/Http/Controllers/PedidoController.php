@@ -336,6 +336,11 @@ class PedidoController extends Controller
 
     public function pruebaNoticacion(Request $request)
     {
+        Log::info("[FCM-DIAG][pruebaNoticacion] sonido=" . json_encode($request->sonido)
+            . " channel_id=" . json_encode($request->channel_id)
+            . " token=" . (is_string($request->token) && strlen($request->token) > 20
+                ? substr($request->token, 0, 10) . '...' . substr($request->token, -8)
+                : json_encode($request->token)));
         if ($request->sonido == 'true') {
             $this->firebaseService->sendNotificationWithSound($request->token, 'Prueba', 'Notificacion con sonido', 'nuevo_pedido', $request->channel_id);
         } else {

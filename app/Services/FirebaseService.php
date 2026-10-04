@@ -59,6 +59,29 @@ class FirebaseService
         });
     }
 
+    /** [DIAG] Token abreviado para no volcar el token completo al log. */
+    private function tokenCorto($token): string
+    {
+        $token = (string) $token;
+        return strlen($token) > 20 ? substr($token, 0, 10) . '...' . substr($token, -8) : $token;
+    }
+
+    /** [DIAG] Registra el envío: qué se manda a FCM (apns incluido) y qué responde. */
+    private function logEnvio(string $origen, $token, $payload, $response, $appName = null, $userType = null, $userId = null): void
+    {
+        try {
+            $apns = $payload['message']['apns']['payload']['aps'] ?? null;
+            Log::info("[FCM-DIAG][{$origen}] token=" . $this->tokenCorto($token)
+                . " app=" . ($appName ?? '-') . " tipo=" . ($userType ?? '-') . " user=" . ($userId ?? '-')
+                . " http=" . $response->status()
+                . " aps=" . json_encode($apns)
+                . " apns_headers=" . json_encode($payload['message']['apns']['headers'] ?? null)
+                . " respuesta=" . $response->body());
+        } catch (\Throwable $e) {
+            Log::warning("[FCM-DIAG] no se pudo registrar el envío: " . $e->getMessage());
+        }
+    }
+
     private function createLog($token, $title, $body, $data, $appName = null, $userId = null, $userType = null)
     {
         try {
@@ -138,6 +161,7 @@ class FirebaseService
 
         try {
             $response = Http::withHeaders($headers)->post($url, $payload);
+            $this->logEnvio('sendNotification', $token, $payload, $response, $appName, $userType, $userId);
             $responseJson = $response->json();
             Log::info("Respuesta de Firebase: " . json_encode($responseJson));
 
@@ -229,6 +253,9 @@ class FirebaseService
 
             foreach ($lote as $index => $item) {
                 $response = $responses[$index] ?? null;
+                if ($response instanceof \Illuminate\Http\Client\Response) {
+                    Log::info("[FCM-DIAG][batch] token=" . $this->tokenCorto($item['token']) . " http=" . $response->status() . " respuesta=" . $response->body());
+                }
 
                 if (!$response instanceof \Illuminate\Http\Client\Response) {
                     error_log("Fallo de red enviando notificación a token {$item['token']}");
@@ -341,6 +368,7 @@ class FirebaseService
 
         try {
             $response = Http::withHeaders($headers)->post($url, $payload);
+            $this->logEnvio('sendNotificationWithSound', $token, $payload, $response, $appName, $userType, $userId);
             $responseJson = $response->json();
             Log::info("Respuesta de Firebase con sonido personalizado: " . json_encode($responseJson));
 
