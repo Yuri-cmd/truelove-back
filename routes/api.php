@@ -419,6 +419,8 @@ Route::get('/favoritos/{idCliente}/empresa/{idEmpresa}', [FavoritoController::cl
 Route::get('/favoritos/{idCliente}', [FavoritoController::class, 'porCliente']);
 Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getMenuCategoria']);
 Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
+Route::post('/pedido/ubicacion-cliente', [PedidoController::class, 'actualizarUbicacionCliente']);
+Route::get('/pedido/{idPedido}/ubicacion-cliente', [PedidoController::class, 'obtenerUbicacionCliente']);
 Route::post('/login/cliente', [ClienteController::class, 'login']);
 Route::get('pedidos/cliente/{idCliente}', [PedidoController::class, 'getPedidosCliente']);
 Route::get('notificaciones/cliente/{idCliente}', [App\Http\Controllers\NotificationTrackingController::class, 'misNotificaciones']);

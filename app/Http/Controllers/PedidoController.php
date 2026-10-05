@@ -66,6 +66,16 @@ class PedidoController extends Controller
                 'paga_con',
             ]);
 
+            // GPS real del teléfono del cliente (opcional, distinto del punto de
+            // entrega). Solo se guarda si es numérico y cae dentro de Perú.
+            $gpsLat = $request->input('cliente_latitud');
+            $gpsLng = $request->input('cliente_longitud');
+            if (is_numeric($gpsLat) && is_numeric($gpsLng)
+                && $this->coordenadasService->enPeru((float) $gpsLat, (float) $gpsLng)) {
+                $data['cliente_latitud'] = (float) $gpsLat;
+                $data['cliente_longitud'] = (float) $gpsLng;
+            }
+
             // La app envía una clave única por intento de confirmación. Si la
             // conexión se corta después de crear el pedido pero antes de que la
             // respuesta le llegue al cliente, un reintento AUTOMÁTICO llega con la
@@ -737,9 +747,63 @@ class PedidoController extends Controller
             'locallon' => $local->longitud,
             'custlat' => $pedido->latitud,
             'custlon' => $pedido->longitud,
+            // GPS real del teléfono del cliente al pedir (null si no lo compartió)
+            'cliente_lat' => $pedido->cliente_latitud,
+            'cliente_lon' => $pedido->cliente_longitud,
         ];
         // Retornar respuesta exitosa
         return response()->json($resp);
+    }
+
+    /**
+     * La app del cliente envía su GPS mientras el pedido va en camino, para que
+     * el repartidor lo vea moverse. Solo acepta al cliente dueño del pedido,
+     * posiciones dentro de Perú y pedidos de delivery aún activos.
+     */
+    public function actualizarUbicacionCliente(Request $request)
+    {
+        $request->validate([
+            'id_pedido' => 'required|integer',
+            'id_cliente' => 'required|integer',
+            'latitud' => 'required|numeric',
+            'longitud' => 'required|numeric',
+        ]);
+
+        $pedido = Pedido::find($request->id_pedido);
+        if (!$pedido || (int) $pedido->id_cliente !== (int) $request->id_cliente) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        $lat = (float) $request->latitud;
+        $lng = (float) $request->longitud;
+        if (!$this->coordenadasService->enPeru($lat, $lng)) {
+            return response()->json(['error' => 'Ubicación fuera de rango'], 422);
+        }
+
+        // Solo mientras el repartidor está en camino (asignado hasta antes de entregar)
+        $ultimo = PedidoTracking::where('pedido_id', $pedido->id)->latest('id')->first();
+        if (!$ultimo || !in_array((int) $ultimo->estado, [4, 5, 6, 7], true)) {
+            return response()->json(['status' => 'ignorado']);
+        }
+
+        $pedido->cliente_latitud = $lat;
+        $pedido->cliente_longitud = $lng;
+        $pedido->save();
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function obtenerUbicacionCliente($idPedido)
+    {
+        $pedido = Pedido::find($idPedido);
+        if (!$pedido) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        return response()->json([
+            'cliente_lat' => $pedido->cliente_latitud,
+            'cliente_lon' => $pedido->cliente_longitud,
+        ]);
     }
 
     public function getPedidosCliente($idCliente)
