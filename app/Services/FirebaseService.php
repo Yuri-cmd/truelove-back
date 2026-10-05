@@ -328,6 +328,38 @@ class FirebaseService
             'Content-Type' => 'application/json',
         ];
 
+        $payload = $this->buildSoundPayload($token, $title, $body, $soundFile, $channelId, $data, $userType);
+
+        $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
+
+        try {
+            $response = Http::withHeaders($headers)->post($url, $payload);
+            $this->logEnvio('sendNotificationWithSound', $token, $payload, $response, $appName, $userType, $userId);
+            $responseJson = $response->json();
+            Log::info("Respuesta de Firebase con sonido personalizado: " . json_encode($responseJson));
+
+            // Manejo de tokens no registrados (UNREGISTERED)
+            if ($response->status() === 404 && isset($responseJson['error']['details'])) {
+                foreach ($responseJson['error']['details'] as $detail) {
+                    if (isset($detail['errorCode']) && $detail['errorCode'] === 'UNREGISTERED') {
+                        $this->handleUnregisteredToken($token, $userType, $userId);
+                    }
+                }
+            }
+
+            return $responseJson;
+        } catch (\Exception $e) {
+            Log::error("🔥 Error enviando notificación con sonido: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Arma el mensaje FCM con sonido personalizado (el mismo que usa sendNotificationWithSound).
+     * $data debe incluir ya el notification_id si corresponde.
+     */
+    private function buildSoundPayload($token, $title, $body, $soundFile, $channelId, $data, $userType): array
+    {
         // Mensaje data-only: Android lo entrega de inmediato con priority=high
         // El campo "notification" queda sujeto al Doze Mode del SO (causa retrasos)
         $dataPayload = array_map('strval', array_merge($data, [
@@ -372,27 +404,65 @@ class FirebaseService
             ]
         ];
 
+        return $payload;
+    }
+
+    /**
+     * Misma notificación con sonido para varios destinatarios, enviada en PARALELO
+     * (Http::pool por lotes) en vez de una petición secuencial por destinatario.
+     * Pensado para avisar a todos los motorizados de golpe.
+     *
+     * @param array $recipients cada item: ['token','userId'?,'userType'?,'appName'?]
+     */
+    public function sendNotificationsWithSoundBatch(array $recipients, $title, $body, $soundFile = 'nuevo_pedido', $channelId = 'pedidos_v3', int $chunkSize = 25): void
+    {
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            Log::error("No se pudo obtener access token para el envío en lote con sonido");
+            return;
+        }
+
         $url = 'https://fcm.googleapis.com/v1/projects/' . $this->config['project_id'] . '/messages:send';
+        $headers = [
+            'Authorization' => 'Bearer ' . $accessToken,
+            'Content-Type' => 'application/json',
+        ];
 
-        try {
-            $response = Http::withHeaders($headers)->post($url, $payload);
-            $this->logEnvio('sendNotificationWithSound', $token, $payload, $response, $appName, $userType, $userId);
-            $responseJson = $response->json();
-            Log::info("Respuesta de Firebase con sonido personalizado: " . json_encode($responseJson));
+        foreach (array_chunk($recipients, $chunkSize) as $lote) {
+            $payloads = [];
+            foreach ($lote as $i => $item) {
+                $data = [];
+                $log = $this->createLog($item['token'], $title, $body, $data, $item['appName'] ?? null, $item['userId'] ?? null, $item['userType'] ?? null);
+                if ($log) {
+                    $data['notification_id'] = (string) $log->id;
+                }
+                $payloads[$i] = $this->buildSoundPayload($item['token'], $title, $body, $soundFile, $channelId, $data, $item['userType'] ?? null);
+            }
 
-            // Manejo de tokens no registrados (UNREGISTERED)
-            if ($response->status() === 404 && isset($responseJson['error']['details'])) {
-                foreach ($responseJson['error']['details'] as $detail) {
-                    if (isset($detail['errorCode']) && $detail['errorCode'] === 'UNREGISTERED') {
-                        $this->handleUnregisteredToken($token, $userType, $userId);
+            $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($payloads, $headers, $url) {
+                return array_map(
+                    fn ($payload) => $pool->withHeaders($headers)->timeout(10)->post($url, $payload),
+                    array_values($payloads)
+                );
+            });
+
+            foreach (array_values($lote) as $index => $item) {
+                $response = $responses[$index] ?? null;
+                if (!$response instanceof \Illuminate\Http\Client\Response) {
+                    Log::warning("Fallo de red enviando notificación a token " . $this->tokenCorto($item['token']));
+                    continue;
+                }
+
+                Log::info("[FCM-DIAG][batch-sound] token=" . $this->tokenCorto($item['token']) . " http=" . $response->status());
+
+                if ($response->status() === 404) {
+                    foreach ($response->json('error.details') ?? [] as $detail) {
+                        if (($detail['errorCode'] ?? null) === 'UNREGISTERED') {
+                            $this->handleUnregisteredToken($item['token'], $item['userType'] ?? null, $item['userId'] ?? null);
+                        }
                     }
                 }
             }
-
-            return $responseJson;
-        } catch (\Exception $e) {
-            Log::error("🔥 Error enviando notificación con sonido: " . $e->getMessage());
-            return null;
         }
     }
 }

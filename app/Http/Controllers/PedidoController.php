@@ -391,24 +391,31 @@ class PedidoController extends Controller
         );
     }
 
-    public function sendMotorizadosCerca()
+    /**
+     * Avisa a los motorizados cercanos al local del pedido. Todos los avisos se
+     * envían en paralelo para que lleguen al mismo tiempo.
+     */
+    public function sendMotorizadosCerca(int $idLocal)
     {
-        $motorizados = $this->pedidoService->obtenerPedidosCercanos();
-        foreach ($motorizados as $motorizado) {
+        $destinatarios = [];
+        foreach ($this->pedidoService->motorizadosCercanosALocales([$idLocal]) as $motorizado) {
             if ($motorizado['token']) {
-                $this->firebaseService->sendNotificationWithSound(
-                    $motorizado['token'], 
-                    '🛵 Nuevo Pedido Disponible', 
-                    '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!', 
-                    'nuevo_pedido', 
-                    'pedidos_v7',
-                    [],
-                    'motorizado',
-                    $motorizado['id'],
-                    'motorizado'
-                );
+                $destinatarios[] = [
+                    'token' => $motorizado['token'],
+                    'userId' => $motorizado['id'],
+                    'userType' => 'motorizado',
+                    'appName' => 'motorizado',
+                ];
             }
         }
+
+        $this->firebaseService->sendNotificationsWithSoundBatch(
+            $destinatarios,
+            '🛵 Nuevo Pedido Disponible',
+            '📍 Un nuevo pedido está disponible. ¡No lo dejes pasar!',
+            'nuevo_pedido',
+            'pedidos_v7'
+        );
     }
 
     public function iniciarViaje(Request $request)
@@ -607,8 +614,18 @@ class PedidoController extends Controller
         $tracking->setTraceability($request);
         $tracking->save();
 
-        // El aviso a los motorizados ya no es inmediato: lo envía el comando programado
-        // pedidos:notificar-motorizados unos minutos después de que el local acepta.
+        // Al aceptar el local, avisar a los motorizados de inmediato. Se envía después
+        // de responder al local para que la aceptación no espere a Firebase.
+        if ($request->estado == 2 && $pedido->id_motorizado == null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
+            $idLocalPedido = (int) $pedido->id_local;
+            dispatch(function () use ($idLocalPedido) {
+                try {
+                    $this->sendMotorizadosCerca($idLocalPedido);
+                } catch (\Throwable $e) {
+                    Log::warning('Error avisando a los motorizados: ' . $e->getMessage());
+                }
+            })->afterResponse();
+        }
 
         // Notificación para Live Activity en resto de estados
         if ($request->estado != 0 && $request->estado != 3) {
