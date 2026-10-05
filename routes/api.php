@@ -70,6 +70,10 @@ Route::get('/app-version/{app_name}', [AppVersionController::class, 'getVersion'
 
 Route::post('/error-logs', [App\Http\Controllers\ErrorLogController::class, 'store']);
 
+// Webhook de WhatsApp Cloud (Meta): la URL se registra en el panel de Meta
+Route::get('/webhooks/whatsapp', [App\Http\Controllers\WhatsappWebhookController::class, 'verificar']);
+Route::post('/webhooks/whatsapp', [App\Http\Controllers\WhatsappWebhookController::class, 'recibir']);
+
 Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController::class, 'checkAuth']);
 
 Route::middleware('auth:sanctum')->group(function () {

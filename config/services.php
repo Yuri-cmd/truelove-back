@@ -41,6 +41,18 @@ return [
         'phone_number' => env('TWILIO_PHONE_NUMBER'),
     ],
 
+    // WhatsApp Cloud API (Meta)
+    'whatsapp' => [
+        'token' => env('META_TOKEN'),
+        'phone_number_id' => env('META_PHONE_NUMBER_ID'),
+        'waba_id' => env('META_WABA_ID'),
+        'graph_version' => env('META_GRAPH_VERSION', 'v25.0'),
+        // Webhook: token que se escribe en Meta al verificar la URL, y secreto de la
+        // app (opcional) para comprobar la firma X-Hub-Signature-256 de cada evento.
+        'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
+        'app_secret' => env('META_APP_SECRET'),
+    ],
+
     'mapbox' => [
         'access_token' => env('MAPBOX_ACCESS_TOKEN'),
     ],
