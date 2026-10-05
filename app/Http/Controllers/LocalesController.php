@@ -11,11 +11,14 @@ class LocalesController extends Controller
 {
     private $pedidoService;
     private $negocioService;
+    private $coordenadasService;
 
     public function __construct(
         \App\Services\PedidoService $pedidoService,
-        \App\Services\NegocioService $negocioService
+        \App\Services\NegocioService $negocioService,
+        \App\Services\CoordenadasService $coordenadasService
     ) {
+        $this->coordenadasService = $coordenadasService;
         $this->pedidoService = $pedidoService;
         $this->negocioService = $negocioService;
     }
@@ -31,22 +34,12 @@ class LocalesController extends Controller
             return response()->json(['error' => 'Dirección no encontrada'], 404);
         }
 
-        $coordenadas = json_decode($direccion->coordenadas);
-        if ($coordenadas && isset($coordenadas->coordinates)) {
-            $lat = (double) $coordenadas->coordinates[0];
-            $lng = (double) $coordenadas->coordinates[1];
-        } else {
-            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
-            if (count($coords) >= 2) {
-                // Asumiendo formato antiguo [lat, lng] o similar
-                $lat = (double) trim($coords[0]);
-                $lng = (double) trim($coords[1]);
-            } else {
-                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
-            }
+        $c = $this->coordenadasService->desdeDireccion($direccion);
+        if (!$c) {
+            return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
         }
 
-        $locales = $this->getLocalesCercanos($lng, $lat, false, false, false);
+        $locales = $this->getLocalesCercanos($c['lat'], $c['lng'], false, false, false);
 
         return response()->json($locales);
     }
@@ -60,21 +53,12 @@ class LocalesController extends Controller
             return response()->json(['error' => 'Dirección no encontrada'], 404);
         }
 
-        $coordenadas = json_decode($direccion->coordenadas);
-        if ($coordenadas && isset($coordenadas->coordinates)) {
-            $lat = (double) $coordenadas->coordinates[0];
-            $lng = (double) $coordenadas->coordinates[1];
-        } else {
-            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
-            if (count($coords) >= 2) {
-                $lat = (double) trim($coords[0]);
-                $lng = (double) trim($coords[1]);
-            } else {
-                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
-            }
+        $c = $this->coordenadasService->desdeDireccion($direccion);
+        if (!$c) {
+            return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
         }
 
-        $locales = $this->getLocalesCercanos($lng, $lat, $category, false, false);
+        $locales = $this->getLocalesCercanos($c['lat'], $c['lng'], $category, false, false);
 
         return response()->json($locales);
     }
@@ -87,21 +71,12 @@ class LocalesController extends Controller
             return response()->json(['error' => 'Dirección no encontrada'], 404);
         }
 
-        $coordenadas = json_decode($direccion->coordenadas);
-        if ($coordenadas && isset($coordenadas->coordinates)) {
-            $lat = (double) $coordenadas->coordinates[0];
-            $lng = (double) $coordenadas->coordinates[1];
-        } else {
-            $coords = explode(',', (string)($direccion->coordenadas ?? ''));
-            if (count($coords) >= 2) {
-                $lat = (double) trim($coords[0]);
-                $lng = (double) trim($coords[1]);
-            } else {
-                return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
-            }
+        $c = $this->coordenadasService->desdeDireccion($direccion);
+        if (!$c) {
+            return response()->json(['error' => 'Formato de coordenadas inválido'], 400);
         }
 
-        $locales = $this->getLocalesCercanos($lng, $lat, false, $term, false);
+        $locales = $this->getLocalesCercanos($c['lat'], $c['lng'], false, $term, false);
 
         return response()->json($locales);
     }

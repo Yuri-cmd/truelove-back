@@ -19,6 +19,7 @@ use App\Models\PedidoTracking;
 use App\Models\PerfilNegocio;
 use App\Models\Rating;
 use App\Models\RepartoRegistro;
+use App\Services\CoordenadasService;
 use App\Services\FirebaseService;
 use App\Services\HorarioService;
 use App\Services\PedidoService;
@@ -34,9 +35,11 @@ class PedidoController extends Controller
     private $firebaseService;
     private $pedidoService;
     private $horarioService;
+    private $coordenadasService;
 
-    public function __construct(FirebaseService $firebaseService, PedidoService $pedidoService, HorarioService $horarioService)
+    public function __construct(FirebaseService $firebaseService, PedidoService $pedidoService, HorarioService $horarioService, CoordenadasService $coordenadasService)
     {
+        $this->coordenadasService = $coordenadasService;
         $this->firebaseService = $firebaseService;
         $this->pedidoService = $pedidoService;
         $this->horarioService = $horarioService;
@@ -138,9 +141,10 @@ class PedidoController extends Controller
                 $dentroDePeru = $latEnviada >= -19 && $latEnviada <= 0 && $lonEnviada >= -82 && $lonEnviada <= -68;
 
                 if (!$dentroDePeru && $clienteDireccionActual->coordenadas) {
-                    $latLng = $this->latLngDeDireccion($clienteDireccionActual);
-                    if ($latLng) {
-                        [$data['latitud'], $data['longitud']] = $latLng;
+                    $c = $this->coordenadasService->desdeDireccion($clienteDireccionActual);
+                    if ($c && $c['valida']) {
+                        $data['latitud'] = $c['lat'];
+                        $data['longitud'] = $c['lng'];
                     }
                 }
             }
@@ -304,44 +308,21 @@ class PedidoController extends Controller
     }
 
 
-    /**
-     * Devuelve [latitud, longitud] de una dirección guardada como GeoJSON
-     * ([lng, lat]). Algunas direcciones se guardaron con el orden invertido
-     * ([lat, lng]); si el valor no cuadra con el rango de Perú, se intercambia.
-     */
-    private function latLngDeDireccion(ClienteDireccion $direccion): ?array
-    {
-        $coordenadas = json_decode($direccion->coordenadas);
-        if (!$coordenadas || !isset($coordenadas->coordinates[0], $coordenadas->coordinates[1])) {
-            return null;
-        }
-
-        $lng = (float) $coordenadas->coordinates[0];
-        $lat = (float) $coordenadas->coordinates[1];
-
-        $enPeru = fn ($la, $lo) => $la >= -19 && $la <= 0 && $lo >= -82 && $lo <= -68;
-        if (!$enPeru($lat, $lng) && $enPeru($lng, $lat)) {
-            [$lat, $lng] = [$lng, $lat];
-        }
-
-        return [$lat, $lng];
-    }
-
     public function calcularPrecioDelivery($idLocal, $idCliente)
     {
         $local = Establecimiento::where('business_registration_id', $idLocal)->first();
 
         $clienteDireccion = ClienteDireccion::where('id_cliente', $idCliente)->latest('id')->first();
-        $latLng = $clienteDireccion ? $this->latLngDeDireccion($clienteDireccion) : null;
-        if (!$latLng) {
+        $c = $clienteDireccion ? $this->coordenadasService->desdeDireccion($clienteDireccion) : null;
+        if (!$c || !$c['valida']) {
             return response()->json(['error' => 'El cliente no tiene una dirección con coordenadas válidas'], 422);
         }
 
         // Normalizar precisión: 6 decimales (≈0.11 m), usa 5 si quieres más tolerancia
         $lat1 = round((float) $local->latitud, 6);
         $lon1 = round((float) $local->longitud, 6);
-        $lat2 = round($latLng[0], 6);
-        $lon2 = round($latLng[1], 6);
+        $lat2 = round($c['lat'], 6);
+        $lon2 = round($c['lng'], 6);
 
         // Google Distance: origen=cliente, destino=local (mismo sentido que getLocales/buscador)
         $googleDistancias = $this->pedidoService->obtenerDistanciaGoogle($lat2, $lon2, [

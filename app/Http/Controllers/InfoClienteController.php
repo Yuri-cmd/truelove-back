@@ -100,17 +100,10 @@ class InfoClienteController extends Controller
                         'updated_at' => $cliente->updated_at,
                     ],
                     'direcciones' => $direcciones->map(function ($direccion) {
-                        // Parsear coordenadas si existen (formato: "lat,lng")
-                        $latitud = null;
-                        $longitud = null;
-                        if ($direccion->coordenadas) {
-                            $coords = explode(',', $direccion->coordenadas);
-                            if (count($coords) === 2) {
-                                $latitud = trim($coords[0]);
-                                $longitud = trim($coords[1]);
-                            }
-                        }
-                        
+                        $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($direccion);
+                        $latitud = $c ? $c['lat'] : null;
+                        $longitud = $c ? $c['lng'] : null;
+
                         return [
                             'id' => $direccion->id,
                             'direccion' => $direccion->direccion,

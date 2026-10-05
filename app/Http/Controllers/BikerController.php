@@ -117,10 +117,11 @@ class BikerController extends Controller
     {
         // Definir los puntos A (motorizado), B (local) y C (cliente)
         $start = [$lon1, $lat1];  // Punto A: Ubicación del motorizado
-        $end = [$lon2, $lat2, $lon3, $lat3];  // Puntos B (local) y C (cliente)
+        $puntoB = [$lon2, $lat2];  // Punto B: Local
+        $puntoC = [$lon3, $lat3];  // Punto C: Cliente
 
-        // URL para la API Directions de Mapbox con tres puntos
-        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/" . implode(',', $start) . ";" . implode(',', $end) . "?access_token={$this->apiKey}&geometries=geojson";
+        // URL para la API Directions de Mapbox con tres puntos (separados por ";")
+        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/" . implode(',', $start) . ";" . implode(',', $puntoB) . ";" . implode(',', $puntoC) . "?access_token={$this->apiKey}&geometries=geojson";
 
         // Realizar la solicitud GET a la API Directions de Mapbox
         $response = Http::get($url);
@@ -129,7 +130,7 @@ class BikerController extends Controller
             $data = $response->json();
             if (isset($data['routes'][0]['duration'])) {
                 // La duración es en segundos, la convertimos a minutos
-                return round($data['routes'][0]['duration'] / 60); // De segundos a minutos
+                return (int) round($data['routes'][0]['duration'] / 60); // De segundos a minutos (entero: la app biker lo espera como int)
             }
         }
 

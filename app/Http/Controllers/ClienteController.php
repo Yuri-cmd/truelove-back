@@ -179,7 +179,7 @@ class ClienteController extends Controller
                 'departamento' => $request->departamento,
                 'referencia' => $request->referencia,
                 'alias' => $request->alias,
-                'coordenadas' => json_encode($request->selectedPosition),
+                'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition),
             ]
         );
 
@@ -324,16 +324,10 @@ class ClienteController extends Controller
             if ($isPasswordValid || $isDocumentoMatch) {
                 $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
                 if ($direccion) {
-                    $coordenadas = json_decode($direccion->coordenadas);
-                    if ($coordenadas && isset($coordenadas->coordinates)) {
-                        $cliente->latitud = $coordenadas->coordinates[0];
-                        $cliente->longitud = $coordenadas->coordinates[1];
-                    } else {
-                        $coords = explode(',', (string)($direccion->coordenadas ?? ''));
-                        if (count($coords) >= 2) {
-                            $cliente->latitud = (double) trim($coords[0]);
-                            $cliente->longitud = (double) trim($coords[1]);
-                        }
+                    $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($direccion);
+                    if ($c) {
+                        $cliente->latitud = $c['lat'];
+                        $cliente->longitud = $c['lng'];
                     }
                     $cliente->direccion = $direccion->direccion;
                 } else {
@@ -360,16 +354,10 @@ class ClienteController extends Controller
         if ($profile) {
             $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
             if ($direccion) {
-                $coordenadas = json_decode($direccion->coordenadas);
-                if ($coordenadas && isset($coordenadas->coordinates)) {
-                    $profile->latitud = $coordenadas->coordinates[0];
-                    $profile->longitud = $coordenadas->coordinates[1];
-                } else {
-                    $coords = explode(',', (string)($direccion->coordenadas ?? ''));
-                    if (count($coords) >= 2) {
-                        $profile->latitud = (double) trim($coords[0]);
-                        $profile->longitud = (double) trim($coords[1]);
-                    }
+                $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($direccion);
+                if ($c) {
+                    $profile->latitud = $c['lat'];
+                    $profile->longitud = $c['lng'];
                 }
                 $profile->direccion = $direccion->direccion;
             } else {
@@ -469,7 +457,7 @@ class ClienteController extends Controller
             [
                 'direccion' => $request->direccion,
                 'departamento' => $request->departamento ?? '',
-                'coordenadas' => json_encode($request->selectedPosition)
+                'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition)
             ]
         );
 

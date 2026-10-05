@@ -428,11 +428,15 @@ class TarifaRangoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No se encontró dirección para el cliente'], 404);
             }
 
-            $coordenadas = json_decode($clienteDireccion->coordenadas);
+            $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($clienteDireccion);
+            if (!$c || !$c['valida']) {
+                return response()->json(['success' => false, 'message' => 'La dirección del cliente no tiene coordenadas válidas'], 422);
+            }
+
             $lat1 = round((float) $local->latitud, 6);
             $lon1 = round((float) $local->longitud, 6);
-            $lat2 = round((float) $coordenadas->coordinates[1], 6);
-            $lon2 = round((float) $coordenadas->coordinates[0], 6);
+            $lat2 = round($c['lat'], 6);
+            $lon2 = round($c['lng'], 6);
 
             // Usar Mapbox (ruta real por carretera), mismo sentido que el app cliente: cliente → local
             $distanciaKm = $this->pedidoService->obtenerDistancia($lat2, $lon2, $lat1, $lon1);
