@@ -75,6 +75,11 @@ Route::middleware('auth:sanctum')->get('/admin/check-auth', [AuthAdminController
 Route::middleware('auth:sanctum')->group(function () {
     // Rutas para administradores
     Route::middleware('role:admin')->prefix('admin')->group(function () {
+        // Revisión de notas y fotos de las casas (repartidores)
+        Route::get('/entrega-notas', [App\Http\Controllers\AdminEntregaNotaController::class, 'index']);
+        Route::post('/entrega-notas/{id}/aprobar', [App\Http\Controllers\AdminEntregaNotaController::class, 'aprobar']);
+        Route::post('/entrega-notas/{id}/rechazar', [App\Http\Controllers\AdminEntregaNotaController::class, 'rechazar']);
+        Route::delete('/entrega-notas/{id}', [App\Http\Controllers\AdminEntregaNotaController::class, 'destroy']);
         // Gestión de usuarios
         Route::controller(UserController::class)->group(function () {
             Route::get('/user', 'all');
@@ -548,6 +553,12 @@ Route::post('biker/update-token', [BikerController::class, 'updateToken']);
 Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']);
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/biker/foto-perfil/{id}', [BikerController::class, 'actualizarFotoPerfil']);
+// Notas de la casa: requieren el token del repartidor (Sanctum)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/biker/pedidos/{idPedido}/notas-entrega', [App\Http\Controllers\EntregaNotaController::class, 'index']);
+    Route::post('/biker/pedidos/{idPedido}/notas-entrega', [App\Http\Controllers\EntregaNotaController::class, 'store']);
+    Route::delete('/biker/notas-entrega/{id}', [App\Http\Controllers\EntregaNotaController::class, 'destroy']);
+});
 Route::post('/update-estado/pedido', [PedidoTrackingController::class, 'updateEstado']);
 Route::post('/biker/alerta-auxilio', [PedidoController::class, 'mandarAlertaDeAuxilio']);
 Route::post('/repartidor/estado', [BikerController::class, 'actualizarEstado']);
