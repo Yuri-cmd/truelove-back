@@ -591,9 +591,8 @@ class PedidoController extends Controller
         $tracking->setTraceability($request);
         $tracking->save();
 
-        if ($request->estado == 2 && $pedido->id_motorizado == null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
-            $this->sendMotorizadosCerca();
-        }
+        // El aviso a los motorizados ya no es inmediato: lo envía el comando programado
+        // pedidos:notificar-motorizados unos minutos después de que el local acepta.
 
         // Notificación para Live Activity en resto de estados
         if ($request->estado != 0 && $request->estado != 3) {

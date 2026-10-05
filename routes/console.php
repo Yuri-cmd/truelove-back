@@ -15,6 +15,10 @@ Artisan::command('inspire', function () {
 Schedule::command(EnviarMensajeAutomaticoDriver::class)
     ->everyFiveMinutes();
 
+Schedule::command('pedidos:notificar-motorizados --minutos=4')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Schedule::command(MarcarPeriodosVencidos::class)
     ->dailyAt('00:05');
 
