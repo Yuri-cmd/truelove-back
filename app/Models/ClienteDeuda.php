@@ -55,11 +55,17 @@ class ClienteDeuda extends Model
     /** Deudas pendientes de un cliente y su total (para bloquear pedidos nuevos). */
     public static function resumenPendiente(int $clienteId): array
     {
-        $deudas = self::pendientes()->where('cliente_id', $clienteId)->orderBy('id')->get();
+        $deudas = self::pendientes()
+            ->where('cliente_id', $clienteId)
+            ->where('monto', '>', 0)
+            ->orderBy('id')
+            ->get();
+
+        $total = round((float) $deudas->sum('monto'), 2);
 
         return [
-            'tiene_deuda' => $deudas->isNotEmpty(),
-            'total_adeudado' => round((float) $deudas->sum('monto'), 2),
+            'tiene_deuda' => $deudas->isNotEmpty() && $total > 0,
+            'total_adeudado' => $total,
             'deudas' => $deudas->map(fn ($d) => [
                 'id' => $d->id,
                 'pedido_id' => $d->pedido_id,
