@@ -9,7 +9,8 @@ class OptimizarImagenesNegocios extends Command
 {
     protected $signature = 'negocios:optimizar-imagenes
         {--dry-run : Solo muestra qué imágenes se reducirían, sin tocar nada}
-        {--sin-respaldo : No guarda copia de los originales}';
+        {--sin-respaldo : No guarda copia de los originales}
+        {--limite= : Procesa como máximo N imágenes (para probar con pocas antes de hacerlas todas)}';
 
     protected $description = 'Reduce el peso de los logos y banners de los negocios ya subidos';
 
@@ -28,6 +29,7 @@ class OptimizarImagenesNegocios extends Command
         @ini_set('memory_limit', '768M');
 
         $dry = (bool) $this->option('dry-run');
+        $limite = (int) $this->option('limite');
         $respaldar = !$dry && !$this->option('sin-respaldo');
         $totalAntes = $totalDespues = $procesadas = $fallidas = 0;
 
@@ -48,6 +50,11 @@ class OptimizarImagenesNegocios extends Command
                 $ancho = $info[0] ?? 0;
                 if ($peso <= self::UMBRAL_BYTES && $ancho <= $anchoMax) {
                     continue; // ya es liviana
+                }
+
+                if ($limite > 0 && ($procesadas + $fallidas) >= $limite) {
+                    $this->warn("Se alcanzó el límite de {$limite} imágenes. Quedan más por procesar: quita --limite para hacerlas todas.");
+                    break 2;
                 }
 
                 $nombre = basename($archivo);

@@ -17,8 +17,11 @@ use Illuminate\Support\Facades\Storage;
  */
 class EntregaNotaController extends Controller
 {
-    /** Radio (km) dentro del cual una nota se considera del mismo lugar. */
+    /** Radio (km) para buscar notas candidatas alrededor del pedido. */
     private const RADIO_KM = 0.06;
+
+    /** Si falta la dirección escrita (nota antigua o pedido sin dirección), solo cuenta la cercanía (km). */
+    private const RADIO_SIN_DIRECCION_KM = 0.03;
 
     public function __construct(private PedidoService $pedidoService)
     {
@@ -29,6 +32,36 @@ class EntregaNotaController extends Controller
     {
         $user = $request->user();
         return $user ? RepartoRegistro::where('user_id', $user->id)->first() : null;
+    }
+
+    /**
+     * ¿La nota es de la dirección de este pedido? Si el cliente cambió de dirección, o es la
+     * casa de al lado, no. Reglas:
+     *  - Lejos (más de 60 m): nunca.
+     *  - Con dirección escrita en la nota y en el pedido: solo si es la MISMA dirección. Así,
+     *    aunque el pin quede casi igual, una dirección distinta no hereda la nota.
+     *  - Si falta la dirección escrita en alguno (nota antigua): solo si está muy cerca.
+     */
+    private function esDelMismoLugar(EntregaNota $nota, Pedido $pedido, float $lat, float $lng): bool
+    {
+        $km = $this->pedidoService->calcularDistanciaHaversine($lat, $lng, (float) $nota->latitud, (float) $nota->longitud);
+
+        if ($km > self::RADIO_KM) {
+            return false;
+        }
+        if ($nota->direccion && $pedido->direccion) {
+            return $this->normalizarDireccion($nota->direccion) === $this->normalizarDireccion($pedido->direccion);
+        }
+
+        return $km <= self::RADIO_SIN_DIRECCION_KM;
+    }
+
+    /** Minúsculas, sin tildes ni signos, para comparar direcciones escritas de forma distinta. */
+    private function normalizarDireccion(string $direccion): string
+    {
+        $texto = mb_strtolower(trim($direccion));
+        $texto = strtr($texto, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+        return trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9]+/', ' ', $texto)));
     }
 
     /** Pedido, solo si está asignado a este repartidor. */
@@ -61,7 +94,7 @@ class EntregaNotaController extends Controller
             ->latest('id')
             ->limit(50)
             ->get()
-            ->filter(fn ($n) => $this->pedidoService->calcularDistanciaHaversine($lat, $lng, $n->latitud, $n->longitud) <= self::RADIO_KM)
+            ->filter(fn ($n) => $this->esDelMismoLugar($n, $pedido, $lat, $lng))
             ->values();
 
         $data = $notas->map(fn ($n) => [
@@ -106,6 +139,7 @@ class EntregaNotaController extends Controller
             'cliente_id' => $pedido->id_cliente,
             'latitud' => $pedido->latitud,
             'longitud' => $pedido->longitud,
+            'direccion' => $pedido->direccion,
             'nota' => $nota !== '' ? $nota : null,
             'foto_path' => $fotoPath,
             'estado' => EntregaNota::PENDIENTE,

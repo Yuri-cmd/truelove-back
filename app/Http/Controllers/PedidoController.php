@@ -154,19 +154,13 @@ class PedidoController extends Controller
                 $data['direccion'] = $clienteDireccionActual->direccion;
                 $data['referencia'] = $clienteDireccionActual->referencia;
 
-                // Salvavidas: apps del cliente aún sin actualizar pueden mandar
-                // 0,0 (sin posición guardada localmente) o latitud/longitud
-                // invertidas (bug conocido de un fallback que lee las mismas
-                // coordenadas en otro orden de como se guardaron). En vez de
-                // crear el pedido con coordenadas inválidas ("Null Island") o
-                // invertidas (cae del otro lado del mundo), validamos que caigan
-                // dentro del rango geográfico de Perú y, si no, usamos la
-                // dirección guardada del cliente como fuente de verdad.
-                $latEnviada = (float) ($data['latitud'] ?? 0);
-                $lonEnviada = (float) ($data['longitud'] ?? 0);
-                $dentroDePeru = $latEnviada >= -19 && $latEnviada <= 0 && $lonEnviada >= -82 && $lonEnviada <= -68;
-
-                if (!$dentroDePeru && $clienteDireccionActual->coordenadas) {
+                // La dirección guardada es la fuente de verdad también para las COORDENADAS.
+                // El cliente edita su dirección en el mismo registro (desde la app o la web)
+                // y el teléfono puede conservar una posición vieja; si se tomara la que envía
+                // la app, el pedido quedaría con la dirección nueva y el punto de la anterior
+                // (el repartidor navegaría al lugar equivocado). Además cubre las apps que
+                // mandan 0,0 o latitud/longitud invertidas.
+                if ($clienteDireccionActual->coordenadas) {
                     $c = $this->coordenadasService->desdeDireccion($clienteDireccionActual);
                     if ($c && $c['valida']) {
                         $data['latitud'] = $c['lat'];

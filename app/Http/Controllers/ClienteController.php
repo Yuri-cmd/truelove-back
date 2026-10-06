@@ -451,14 +451,28 @@ class ClienteController extends Controller
             'selectedPosition' => 'required',
         ]);
 
+        // La dirección se edita en el mismo registro. Si la dirección cambia, la referencia
+        // anterior ("casa de reja negra") describía OTRO lugar: se borra para que el repartidor
+        // no la reciba con la dirección nueva. Si solo se mueve el pin y el texto es el mismo, se conserva.
+        $actual = ClienteDireccion::where('id_cliente', $request->idCliente)->first();
+        $norm = fn (?string $t) => trim(preg_replace('/\s+/', ' ', mb_strtolower((string) $t)));
+        $cambioDeDireccion = $actual && $norm($actual->direccion) !== $norm($request->direccion);
+
+        $datos = [
+            'direccion' => $request->direccion,
+            'departamento' => $request->departamento ?? '',
+            'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition),
+        ];
+        if ($request->filled('referencia')) {
+            $datos['referencia'] = $request->referencia;
+        } elseif ($cambioDeDireccion) {
+            $datos['referencia'] = null;
+        }
+
         // Usar updateOrCreate para evitar error 500 si no existe el registro previo
         $direccion = ClienteDireccion::updateOrCreate(
             ['id_cliente' => $request->idCliente],
-            [
-                'direccion' => $request->direccion,
-                'departamento' => $request->departamento ?? '',
-                'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition)
-            ]
+            $datos
         );
 
         return response()->json([
