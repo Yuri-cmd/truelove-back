@@ -15,7 +15,7 @@ class EntregaNota extends Model
 
     protected $fillable = [
         'motorizado_id', 'pedido_id', 'cliente_id',
-        'latitud', 'longitud', 'direccion', 'nota', 'foto_path',
+        'latitud', 'longitud', 'direccion', 'id_direccion', 'direccion_version', 'nota', 'foto_path',
         'estado', 'revisada_por', 'revisada_at', 'motivo_rechazo',
     ];
 

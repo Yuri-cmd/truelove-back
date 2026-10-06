@@ -26,7 +26,7 @@ class TicketController extends Controller
         $cliente = Cliente::find($pedido->id_cliente);
         $clienteDireccion = $pedido->direccion
             ? null
-            : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            : ClienteDireccion::vigente($pedido->id_cliente);
         $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
         $motorizado = RepartoRegistro::find($pedido->id_motorizado);
         $detalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();

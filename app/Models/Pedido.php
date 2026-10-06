@@ -9,7 +9,7 @@ class Pedido extends Model
 {
     use HasFactory;
     protected $table = 'pedidos';
-    protected $fillable = ['clave_idempotencia', 'id_local', 'id_cliente', 'id_motorizado', 'latitud', 'longitud', 'cliente_latitud', 'cliente_longitud', 'direccion', 'referencia', 'tiempo', 'nota', 'id_tipo_pago', 'tipo_comprobante', 'documento', 'precio_delivery', 'requiere_confirmacion_local', 'subtotal', 'descuento', 'codigo', 'foto_pago', 'tipo_pedido', 'fecha_hora_inicio', 'paga_con'];
+    protected $fillable = ['clave_idempotencia', 'id_local', 'id_cliente', 'id_motorizado', 'latitud', 'longitud', 'id_direccion', 'direccion_version', 'cliente_latitud', 'cliente_longitud', 'direccion', 'referencia', 'tiempo', 'nota', 'id_tipo_pago', 'tipo_comprobante', 'documento', 'precio_delivery', 'requiere_confirmacion_local', 'subtotal', 'descuento', 'codigo', 'foto_pago', 'tipo_pedido', 'fecha_hora_inicio', 'paga_con'];
     protected $casts = [
         'fecha_hora_inicio' => 'datetime',
     ];

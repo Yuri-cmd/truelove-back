@@ -209,7 +209,7 @@ class ClienteWebAuthController extends Controller
 
     private function withDireccion(Cliente $cliente)
     {
-        $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
+        $direccion = ClienteDireccion::vigente($cliente->id);
 
         if ($direccion) {
             $cliente->direccion = $direccion->direccion;

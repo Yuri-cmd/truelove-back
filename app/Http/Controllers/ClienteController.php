@@ -154,6 +154,7 @@ class ClienteController extends Controller
         return response()->json($data, 200);
     }
 
+    // TODO(legacy-direcciones): las apps nuevas usan ClienteDireccionController; borrar la parte de dirección cuando no queden apps antiguas
     public function actualizarInfoCliente(Request $request)
     {
         $request->validate([
@@ -172,16 +173,27 @@ class ClienteController extends Controller
         $profile->celular_whatsapp = $request->celular_whatsapp ?: $request->celular;
         $profile->save();
 
-        $direccion = ClienteDireccion::updateOrCreate(
-            ['id_cliente' => $request->idCliente],
-            [
+        $coordenadas = app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition);
+        $direccion = ClienteDireccion::vigente($request->idCliente);
+        if ($direccion) {
+            $direccion->actualizarUbicacion([
+                'direccion' => $request->direccion,
+                'coordenadas' => $coordenadas,
+                'departamento' => $request->departamento,
+                'referencia' => $request->referencia,
+                'alias' => $request->alias,
+            ]);
+        } else {
+            $direccion = ClienteDireccion::create([
+                'id_cliente' => $request->idCliente,
                 'direccion' => $request->direccion,
                 'departamento' => $request->departamento,
                 'referencia' => $request->referencia,
                 'alias' => $request->alias,
-                'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition),
-            ]
-        );
+                'coordenadas' => $coordenadas,
+                'activa' => true,
+            ]);
+        }
 
         // Enviar correo con credenciales al cliente
         if ($profile->email) {
@@ -322,7 +334,7 @@ class ClienteController extends Controller
             $isDocumentoMatch = $cliente->documento === $request->password;
 
             if ($isPasswordValid || $isDocumentoMatch) {
-                $direccion = ClienteDireccion::where('id_cliente', $cliente->id)->first();
+                $direccion = ClienteDireccion::vigente($cliente->id);
                 if ($direccion) {
                     $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($direccion);
                     if ($c) {
@@ -352,7 +364,7 @@ class ClienteController extends Controller
     {
         $profile = Cliente::find($idCliente);
         if ($profile) {
-            $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
+            $direccion = ClienteDireccion::vigente($idCliente);
             if ($direccion) {
                 $c = app(\App\Services\CoordenadasService::class)->desdeDireccion($direccion);
                 if ($c) {
@@ -443,6 +455,7 @@ class ClienteController extends Controller
     }
 
 
+    // TODO(legacy-direcciones): endpoint solo para apps antiguas (una sola dirección); eliminar con ellas
     public function actualizarDireccion(Request $request)
     {
         $request->validate([
@@ -451,30 +464,27 @@ class ClienteController extends Controller
             'selectedPosition' => 'required',
         ]);
 
-        // La dirección se edita en el mismo registro. Si la dirección cambia, la referencia
-        // anterior ("casa de reja negra") describía OTRO lugar: se borra para que el repartidor
-        // no la reciba con la dirección nueva. Si solo se mueve el pin y el texto es el mismo, se conserva.
-        $actual = ClienteDireccion::where('id_cliente', $request->idCliente)->first();
-        $norm = fn (?string $t) => trim(preg_replace('/\s+/', ' ', mb_strtolower((string) $t)));
-        $cambioDeDireccion = $actual && $norm($actual->direccion) !== $norm($request->direccion);
-
-        $datos = [
-            'direccion' => $request->direccion,
-            'departamento' => $request->departamento ?? '',
-            'coordenadas' => app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition),
-        ];
-        if ($request->filled('referencia')) {
-            $datos['referencia'] = $request->referencia;
-        } elseif ($cambioDeDireccion) {
-            $datos['referencia'] = null;
+        // Las apps antiguas solo conocen una dirección: se edita la VIGENTE (la activa). Si el
+        // lugar cambia de verdad se sube la versión de la dirección y se borra la referencia
+        // anterior (describía otro sitio). Si solo se mueve el pin y el texto es el mismo, se conserva.
+        $coordenadas = app(\App\Services\CoordenadasService::class)->geoJson($request->selectedPosition);
+        $direccion = ClienteDireccion::vigente($request->idCliente);
+        if ($direccion) {
+            $direccion->actualizarUbicacion([
+                'direccion' => $request->direccion,
+                'coordenadas' => $coordenadas,
+                'departamento' => $request->departamento ?? '',
+                'referencia' => $request->referencia,
+            ]);
+        } else {
+            $direccion = ClienteDireccion::create([
+                'id_cliente' => $request->idCliente,
+                'direccion' => $request->direccion,
+                'departamento' => $request->departamento ?? '',
+                'coordenadas' => $coordenadas,
+                'activa' => true,
+            ]);
         }
-
-        // Usar updateOrCreate para evitar error 500 si no existe el registro previo
-        $direccion = ClienteDireccion::updateOrCreate(
-            ['id_cliente' => $request->idCliente],
-            $datos
-        );
-
         return response()->json([
             'message' => 'Dirección actualizada exitosamente',
             'direccion' => $direccion,

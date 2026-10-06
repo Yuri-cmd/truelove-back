@@ -423,7 +423,7 @@ class TarifaRangoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No se encontraron coordenadas para el local'], 404);
             }
 
-            $clienteDireccion = ClienteDireccion::where('id_cliente', $request->id_cliente)->first();
+            $clienteDireccion = ClienteDireccion::vigente($request->id_cliente);
             if (!$clienteDireccion) {
                 return response()->json(['success' => false, 'message' => 'No se encontró dirección para el cliente'], 404);
             }

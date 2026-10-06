@@ -21,6 +21,7 @@ class EntregaNotaController extends Controller
     private const RADIO_KM = 0.06;
 
     /** Si falta la dirección escrita (nota antigua o pedido sin dirección), solo cuenta la cercanía (km). */
+    // TODO(legacy-direcciones): eliminar RADIO_SIN_DIRECCION_KM y la regla por texto/ubicación cuando todas las apps envíen id_direccion
     private const RADIO_SIN_DIRECCION_KM = 0.03;
 
     public function __construct(private PedidoService $pedidoService)
@@ -37,13 +38,23 @@ class EntregaNotaController extends Controller
     /**
      * ¿La nota es de la dirección de este pedido? Si el cliente cambió de dirección, o es la
      * casa de al lado, no. Reglas:
+     *  - Pedido y nota ligados a una dirección (apps nuevas): se muestra si es la MISMA dirección
+     *    y la misma versión (la versión sube cuando el lugar de esa dirección cambia). No hace
+     *    falta comparar ubicación ni texto.
+     *  - Si no (apps antiguas o notas antiguas), se usa la lógica por ubicación y texto:
      *  - Lejos (más de 60 m): nunca.
      *  - Con dirección escrita en la nota y en el pedido: solo si es la MISMA dirección. Así,
      *    aunque el pin quede casi igual, una dirección distinta no hereda la nota.
      *  - Si falta la dirección escrita en alguno (nota antigua): solo si está muy cerca.
      */
+    // TODO(legacy-direcciones): dejar solo la comparación por id_direccion/direccion_version y borrar la regla por ubicación y texto
     private function esDelMismoLugar(EntregaNota $nota, Pedido $pedido, float $lat, float $lng): bool
     {
+        if ($nota->id_direccion && $pedido->id_direccion) {
+            return (int) $nota->id_direccion === (int) $pedido->id_direccion
+                && (int) $nota->direccion_version === (int) $pedido->direccion_version;
+        }
+
         $km = $this->pedidoService->calcularDistanciaHaversine($lat, $lng, (float) $nota->latitud, (float) $nota->longitud);
 
         if ($km > self::RADIO_KM) {
@@ -89,8 +100,20 @@ class EntregaNotaController extends Controller
 
         $notas = EntregaNota::visiblesParaRepartidores()
             ->with('motorizado:id,nombres,apellidos,foto_perfil')
-            ->whereBetween('latitud', [$lat - $delta, $lat + $delta])
-            ->whereBetween('longitud', [$lng - $delta, $lng + $delta])
+            ->where(function ($q) use ($pedido, $lat, $lng, $delta) {
+                // Pedido ligado a una dirección (apps nuevas): las notas de ESA dirección y versión
+                // valen sin importar las coordenadas del pedido.
+                if ($pedido->id_direccion) {
+                    $q->where(fn ($m) => $m->where('id_direccion', $pedido->id_direccion)
+                        ->where('direccion_version', $pedido->direccion_version));
+                }
+                // TODO(legacy-direcciones): quitar este bloque (notas sin id_direccion) cuando las apps antiguas ya no existan
+                // Lógica antigua (por ubicación y texto): notas cercanas sin dirección ligada
+                $q->orWhere(fn ($c) => $c
+                    ->when($pedido->id_direccion, fn ($w) => $w->whereNull('id_direccion'))
+                    ->whereBetween('latitud', [$lat - $delta, $lat + $delta])
+                    ->whereBetween('longitud', [$lng - $delta, $lng + $delta]));
+            })
             ->latest('id')
             ->limit(50)
             ->get()
@@ -140,6 +163,8 @@ class EntregaNotaController extends Controller
             'latitud' => $pedido->latitud,
             'longitud' => $pedido->longitud,
             'direccion' => $pedido->direccion,
+            'id_direccion' => $pedido->id_direccion,
+            'direccion_version' => $pedido->direccion_version,
             'nota' => $nota !== '' ? $nota : null,
             'foto_path' => $fotoPath,
             'estado' => EntregaNota::PENDIENTE,

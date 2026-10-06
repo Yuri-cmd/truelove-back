@@ -149,10 +149,34 @@ class PedidoController extends Controller
             // de crear el pedido. Así, si el cliente la cambia después, los
             // pedidos ya creados no se ven afectados (motorizado y socio deben
             // leer esta columna, no la dirección actual del cliente).
-            $clienteDireccionActual = ClienteDireccion::where('id_cliente', $request->id_cliente)->first();
+            // TODO(legacy-direcciones): hacer id_direccion obligatorio y quitar el uso de la dirección vigente cuando todas las apps lo envíen
+            // Apps nuevas: mandan id_direccion (la dirección elegida entre varias). Apps antiguas:
+            // no lo mandan y se usa la dirección vigente (la activa, que para quien tiene una sola
+            // es siempre la misma).
+            $direccionElegida = $request->filled('id_direccion');
+            if ($direccionElegida) {
+                $clienteDireccionActual = ClienteDireccion::where('id', $request->id_direccion)
+                    ->where('id_cliente', $request->id_cliente)
+                    ->first();
+                if (!$clienteDireccionActual) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'La dirección elegida ya no existe. Elige otra dirección e inténtalo de nuevo.',
+                    ], 422);
+                }
+            } else {
+                $clienteDireccionActual = ClienteDireccion::vigente($request->id_cliente);
+            }
+
             if ($clienteDireccionActual) {
                 $data['direccion'] = $clienteDireccionActual->direccion;
                 $data['referencia'] = $clienteDireccionActual->referencia;
+                if ($direccionElegida) {
+                    // Liga el pedido a la dirección (y a su versión) para las notas de la casa
+                    $data['id_direccion'] = $clienteDireccionActual->id;
+                    $data['direccion_version'] = $clienteDireccionActual->version;
+                }
 
                 // La dirección guardada es la fuente de verdad también para las COORDENADAS.
                 // El cliente edita su dirección en el mismo registro (desde la app o la web)
@@ -328,11 +352,15 @@ class PedidoController extends Controller
     }
 
 
-    public function calcularPrecioDelivery($idLocal, $idCliente)
+    public function calcularPrecioDelivery(Request $request, $idLocal, $idCliente)
     {
         $local = Establecimiento::where('business_registration_id', $idLocal)->first();
+        // TODO(legacy-direcciones): exigir id_direccion y quitar el fallback a la vigente
 
-        $clienteDireccion = ClienteDireccion::where('id_cliente', $idCliente)->latest('id')->first();
+        // ?id_direccion=: la app nueva calcula el envío para la dirección elegida; sin él, la vigente
+        $clienteDireccion = $request->filled('id_direccion')
+            ? ClienteDireccion::where('id', $request->query('id_direccion'))->where('id_cliente', $idCliente)->first()
+            : ClienteDireccion::vigente($idCliente);
         $c = $clienteDireccion ? $this->coordenadasService->desdeDireccion($clienteDireccion) : null;
         if (!$c || !$c['valida']) {
             return response()->json(['error' => 'El cliente no tiene una dirección con coordenadas válidas'], 422);
@@ -876,7 +904,7 @@ class PedidoController extends Controller
                             'precio' => $detalle->precio
                         ];
                     }),
-                    'direccion' => $pedido->direccion ?? (ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first()?->direccion ?? ''),
+                    'direccion' => $pedido->direccion ?? (ClienteDireccion::vigente($pedido->id_cliente)?->direccion ?? ''),
                     'created_at' => $pedido->created_at,
                     'requiere_confirmacion_local' => $pedido->requiere_confirmacion_local == 1 ? true : false,
                     'existeCalificacion' => $existeCalificacion,
@@ -1030,7 +1058,7 @@ class PedidoController extends Controller
 
         $local = Establecimiento::where('business_registration_id', $pedido->id_local)->first();
         $cliente = Cliente::find($pedido->id_cliente);
-        $clienteDireccion = ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+        $clienteDireccion = ClienteDireccion::vigente($pedido->id_cliente);
         $motorizado = RepartoRegistro::find($pedido->id_motorizado);
 
         $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();

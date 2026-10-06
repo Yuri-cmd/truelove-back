@@ -393,7 +393,7 @@ class SocioController extends Controller
 
             $clienteDireccion = $pedido->direccion
                 ? null
-                : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                : ClienteDireccion::vigente($pedido->id_cliente);
 
             $motorizadoRegistro = $pedido->id_motorizado ? RepartoRegistro::find($pedido->id_motorizado) : null;
             $motorizado = $motorizadoRegistro ? $motorizadoRegistro->only(['nombres', 'apellidos', 'celular']) : null;
@@ -1012,7 +1012,7 @@ class SocioController extends Controller
         $cliente = Cliente::find($pedido->id_cliente);
         $clienteDireccion = $pedido->direccion
             ? null
-            : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+            : ClienteDireccion::vigente($pedido->id_cliente);
 
         // Si el cliente no existe, devolver error
         if (!$cliente) {

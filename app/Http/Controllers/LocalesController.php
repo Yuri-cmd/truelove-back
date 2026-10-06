@@ -28,7 +28,7 @@ class LocalesController extends Controller
         if ($idCliente == null) {
             $locales = $this->getLocalesCercanos(-12.171099966956891, -77.02171014857589, false, false, false);
         }
-        $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
+        $direccion = ClienteDireccion::vigente($idCliente);
 
         if (!$direccion || !$direccion->coordenadas) {
             return response()->json(['error' => 'Dirección no encontrada'], 404);
@@ -47,7 +47,7 @@ class LocalesController extends Controller
     public function getLocales($idCliente, $category = false)
     {
 
-        $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
+        $direccion = ClienteDireccion::vigente($idCliente);
 
         if (!$direccion || !$direccion->coordenadas) {
             return response()->json(['error' => 'Dirección no encontrada'], 404);
@@ -65,7 +65,7 @@ class LocalesController extends Controller
 
     public function searchLocales($idCliente, $term = false)
     {
-        $direccion = ClienteDireccion::where('id_cliente', $idCliente)->first();
+        $direccion = ClienteDireccion::vigente($idCliente);
 
         if (!$direccion || !$direccion->coordenadas) {
             return response()->json(['error' => 'Dirección no encontrada'], 404);

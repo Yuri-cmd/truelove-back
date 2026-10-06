@@ -186,7 +186,7 @@ class BikerController extends Controller
                 // dirección congelada; ya no se usa para pisar coordenadas.
                 $clienteDireccion = $pedido->direccion
                     ? null
-                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                    : ClienteDireccion::vigente($pedido->id_cliente);
 
                 $names = array_map(function ($item) {
                     return $item['nombre'] . ' x ' . $item['cantidad'];
@@ -682,7 +682,7 @@ class BikerController extends Controller
             $cliente = Cliente::find($pedido->id_cliente);
             $clienteDireccion = $pedido->direccion
                 ? null
-                : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                : ClienteDireccion::vigente($pedido->id_cliente);
             $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
             $pedidoDetalles = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
                 PedidoDetalle::where('pedido_id', $pedido->id)->get()
@@ -755,7 +755,7 @@ class BikerController extends Controller
                 $cliente = Cliente::find($pedido->id_cliente);
                 $clienteDireccion = $pedido->direccion
                     ? null
-                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                    : ClienteDireccion::vigente($pedido->id_cliente);
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
                     PedidoDetalle::where('pedido_id', $pedido->id)->get()
@@ -842,7 +842,7 @@ class BikerController extends Controller
                 $cliente = Cliente::find($pedido->id_cliente);
                 $clienteDireccion = $pedido->direccion
                     ? null
-                    : ClienteDireccion::where('id_cliente', $pedido->id_cliente)->first();
+                    : ClienteDireccion::vigente($pedido->id_cliente);
                 $estado = PedidoTracking::where('pedido_id', $pedido->id)->latest()->first();
                 $productos = \App\Services\PedidoDetalleFormatter::anotarPrecioAdicionales(
                     PedidoDetalle::where('pedido_id', $pedido->id)->get()

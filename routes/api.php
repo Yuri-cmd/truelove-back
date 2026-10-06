@@ -536,6 +536,13 @@ Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateE
 Route::post('socio/pedidos/{id}/solicitar-cancelacion', [PedidoCancelacionController::class, 'requestCancellation']);
 // Estado de cuenta del cliente (deudas pendientes): la app lo consulta antes de pedir
 Route::get('/clientes/{idCliente}/deudas', [App\Http\Controllers\ClienteDeudaController::class, 'estadoCuenta']);
+
+// Múltiples direcciones del cliente (app de clientes nueva). La activa es la que usa todo lo demás.
+Route::get('/clientes/{idCliente}/direcciones', [App\Http\Controllers\ClienteDireccionController::class, 'index']);
+Route::post('/clientes/{idCliente}/direcciones', [App\Http\Controllers\ClienteDireccionController::class, 'store']);
+Route::put('/clientes/{idCliente}/direcciones/{id}', [App\Http\Controllers\ClienteDireccionController::class, 'update']);
+Route::delete('/clientes/{idCliente}/direcciones/{id}', [App\Http\Controllers\ClienteDireccionController::class, 'destroy']);
+Route::post('/clientes/{idCliente}/direcciones/{id}/activar', [App\Http\Controllers\ClienteDireccionController::class, 'activar']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
