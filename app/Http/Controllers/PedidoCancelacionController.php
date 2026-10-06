@@ -13,6 +13,7 @@ use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PedidoCancelacionController extends Controller
@@ -79,10 +80,10 @@ class PedidoCancelacionController extends Controller
     }
 
     /**
-     * El motorizado solicita cancelar un pedido que no pudo entregar (ej. el cliente no
-     * contesta). Requiere el token del repartidor y un pedido asignado a él. El pedido
-     * sigue su curso hasta que un admin apruebe; si se marca la culpa del cliente, el
-     * admin verá sugerida una deuda al aprobar.
+     * El motorizado cancela un pedido que no pudo entregar (ej. el cliente no contesta).
+     * Requiere el token del repartidor y un pedido asignado a él. El pedido queda
+     * CANCELADO en el momento; la solicitud queda pendiente solo para que un admin
+     * revise el motivo y decida si genera una deuda al cliente (si se marcó su culpa).
      */
     public function requestCancellationBiker(Request $request, $pedidoId)
     {
@@ -112,19 +113,34 @@ class PedidoCancelacionController extends Controller
             ], 400);
         }
 
-        $solicitud = PedidoCancelacionSolicitud::create([
-            'pedido_id' => $pedidoId,
-            'estado_pedido_al_solicitar' => $estadoActual,
-            'motivo' => $request->motivo,
-            'detalle' => $request->detalle,
-            'culpa_cliente' => $request->boolean('culpa_cliente'),
-            'status' => 'pending',
-            'solicitado_por_motorizado_id' => $reparto->id,
-        ]);
+        $solicitud = DB::transaction(function () use ($request, $pedidoId, $estadoActual, $reparto) {
+            $solicitud = PedidoCancelacionSolicitud::create([
+                'pedido_id' => $pedidoId,
+                'estado_pedido_al_solicitar' => $estadoActual,
+                'motivo' => $request->motivo,
+                'detalle' => $request->detalle,
+                'culpa_cliente' => $request->boolean('culpa_cliente'),
+                'status' => 'pending',
+                'solicitado_por_motorizado_id' => $reparto->id,
+            ]);
+
+            // El pedido se cancela ya: no puede quedar en el aire mientras se revisa
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $pedidoId;
+            $tracking->estado = 0;
+            $tracking->user_id = $reparto->id;
+            $tracking->user_type = 'motorizado';
+            $tracking->save();
+
+            return $solicitud;
+        });
+
+        $this->notificarCliente($pedido, 'Tu pedido #' . $pedido->id . ' ha sido cancelado.');
+        $this->notificarSocioCancelado($pedido, 'El motorizado canceló el pedido #' . $pedido->id . ': ' . $request->motivo);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Solicitud enviada. Un administrador la revisará.',
+            'message' => 'El pedido fue cancelado. Un administrador revisará el motivo.',
             'solicitud_id' => $solicitud->id,
         ], 201);
     }
@@ -186,19 +202,24 @@ class PedidoCancelacionController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Pedido no encontrado'], 404);
         }
 
-        $ultimoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest('id')->first();
-        if (!$ultimoTracking || in_array((int) $ultimoTracking->estado, [0, 8], true)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El pedido ya cambió a un estado final (entregado/cancelado); no se puede aprobar esta solicitud. Puede declinarla.',
-            ], 400);
-        }
+        // Si la pidió el motorizado, el pedido ya se canceló al enviarla: aquí solo se
+        // revisa el motivo y se decide la deuda. Si la pidió el local, se cancela ahora.
+        $yaCancelado = (bool) $solicitud->solicitado_por_motorizado_id;
+        if (!$yaCancelado) {
+            $ultimoTracking = PedidoTracking::where('pedido_id', $pedido->id)->latest('id')->first();
+            if (!$ultimoTracking || in_array((int) $ultimoTracking->estado, [0, 8], true)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El pedido ya cambió a un estado final (entregado/cancelado); no se puede aprobar esta solicitud. Puede declinarla.',
+                ], 400);
+            }
 
-        $tracking = new PedidoTracking();
-        $tracking->pedido_id = $pedido->id;
-        $tracking->estado = 0;
-        $tracking->setTraceability($request);
-        $tracking->save();
+            $tracking = new PedidoTracking();
+            $tracking->pedido_id = $pedido->id;
+            $tracking->estado = 0;
+            $tracking->setTraceability($request);
+            $tracking->save();
+        }
 
         $solicitud->status = 'approved';
         $solicitud->revisado_por_admin_id = Auth::id();
@@ -226,17 +247,22 @@ class PedidoCancelacionController extends Controller
             }
         }
 
-        $mensajeCliente = 'Tu pedido #' . $pedido->id . ' ha sido cancelado.';
-        if ($deuda) {
-            $mensajeCliente .= ' Quedó una deuda pendiente de S/ ' . number_format((float) $deuda->monto, 2) . '. Comunícate con Soporte para regularizarla.';
+        $avisoDeuda = $deuda
+            ? 'Quedó una deuda pendiente de S/ ' . number_format((float) $deuda->monto, 2) . '. Comunícate con Soporte para regularizarla.'
+            : null;
+        if (!$yaCancelado) {
+            $this->notificarCliente($pedido, 'Tu pedido #' . $pedido->id . ' ha sido cancelado.' . ($avisoDeuda ? ' ' . $avisoDeuda : ''));
+        } elseif ($avisoDeuda) {
+            // El cliente ya supo de la cancelación: ahora se le informa de la deuda
+            $this->notificarCliente($pedido, 'Sobre tu pedido #' . $pedido->id . ' cancelado: ' . $avisoDeuda);
         }
-        $this->notificarCliente($pedido, $mensajeCliente);
 
+        $base = $yaCancelado ? 'Revisión guardada.' : 'Solicitud aprobada. El pedido fue cancelado.';
         return response()->json([
             'status' => 'success',
             'message' => $deuda
-                ? 'Solicitud aprobada. El pedido fue cancelado y se generó una deuda de S/ ' . number_format((float) $deuda->monto, 2) . '.'
-                : 'Solicitud aprobada. El pedido fue cancelado.',
+                ? $base . ' Se generó una deuda de S/ ' . number_format((float) $deuda->monto, 2) . '.'
+                : $base,
             'deuda_id' => $deuda?->id,
         ]);
     }
@@ -259,6 +285,14 @@ class PedidoCancelacionController extends Controller
         $solicitud->revisado_por_admin_id = Auth::id();
         $solicitud->revisado_at = now();
         $solicitud->save();
+
+        // Solicitud del motorizado: el pedido ya estaba cancelado, solo se cierra la revisión
+        if ($solicitud->solicitado_por_motorizado_id) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Revisión cerrada sin deuda. El pedido sigue cancelado.',
+            ]);
+        }
 
         $pedido = Pedido::find($solicitud->pedido_id);
         if ($pedido) {
@@ -307,6 +341,26 @@ class PedidoCancelacionController extends Controller
                 );
             } catch (\Exception $e) {
                 Log::error('Error al notificar cliente sobre cancelación de pedido: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function notificarSocioCancelado(Pedido $pedido, string $mensaje)
+    {
+        $local = BusinessRegistration::find($pedido->id_local);
+        if ($local && $local->token_fmc) {
+            try {
+                $this->firebaseService->sendNotification(
+                    $local->token_fmc,
+                    'Pedido cancelado',
+                    $mensaje,
+                    [],
+                    'socio',
+                    $pedido->id_local,
+                    'socio'
+                );
+            } catch (\Exception $e) {
+                Log::error('Error al notificar al socio sobre pedido cancelado por el motorizado: ' . $e->getMessage());
             }
         }
     }

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\ClienteDeuda;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -14,6 +16,9 @@ use Illuminate\Validation\Rule;
  */
 class ClienteDeudaController extends Controller
 {
+    public function __construct(private FirebaseService $firebaseService)
+    {
+    }
     // ───────────────────────── Admin ─────────────────────────
 
     public function index(Request $request)
@@ -42,10 +47,15 @@ class ClienteDeudaController extends Controller
         }
         if ($request->filled('q')) {
             $q = '%' . $request->q . '%';
-            $query->whereHas('cliente', fn ($c) => $c->where('nombre', 'like', $q)
-                ->orWhere('apellido', 'like', $q)
-                ->orWhere('documento', 'like', $q)
-                ->orWhere('celular', 'like', $q));
+            $query->where(function ($w) use ($q, $request) {
+                $w->whereHas('cliente', fn ($c) => $c->where('nombre', 'like', $q)
+                    ->orWhere('apellido', 'like', $q)
+                    ->orWhere('documento', 'like', $q)
+                    ->orWhere('celular', 'like', $q));
+                if (ctype_digit(trim($request->q))) {
+                    $w->orWhere('pedido_id', (int) $request->q);
+                }
+            });
         }
 
         $page = $query->paginate((int) $request->input('per_page', 20));
@@ -109,12 +119,45 @@ class ClienteDeudaController extends Controller
             'observaciones_admin' => 'nullable|string|max:1000',
         ]);
 
+        $estadoAnterior = $deuda->estado;
         $deuda->update($datos + [
             'gestionada_por' => $request->user()->id,
             'gestionada_at' => now(),
         ]);
 
+        // El cliente queda libre: se le avisa para que sepa que ya puede pedir
+        if ($estadoAnterior === ClienteDeuda::PENDIENTE && $deuda->estado !== ClienteDeuda::PENDIENTE) {
+            $this->avisarDeudaCerrada($deuda);
+        }
+
         return response()->json(['success' => true, 'deuda' => $this->formatear($deuda->fresh()->load('cliente', 'motorizado'))]);
+    }
+
+    /** Aviso push al cliente cuando se le revoca o se marca como pagada una deuda. */
+    private function avisarDeudaCerrada(ClienteDeuda $deuda): void
+    {
+        try {
+            $cliente = Cliente::find($deuda->cliente_id);
+            if (!$cliente || !$cliente->token_fmc) {
+                return;
+            }
+            $pendientes = ClienteDeuda::resumenPendiente((int) $cliente->id);
+            $mensaje = $pendientes['tiene_deuda']
+                ? 'Se actualizó tu deuda. Aún tienes S/ ' . number_format($pendientes['total_adeudado'], 2) . ' pendientes.'
+                : '¡Listo! Tu deuda fue regularizada. Ya puedes volver a hacer pedidos.';
+
+            $this->firebaseService->sendNotification(
+                $cliente->token_fmc,
+                'Estado de tu cuenta',
+                $mensaje,
+                ['type' => 'deuda_actualizada'],
+                'cliente',
+                $cliente->id,
+                'cliente'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo avisar al cliente del cierre de su deuda: ' . $e->getMessage());
+        }
     }
 
     public function destroy($id)
