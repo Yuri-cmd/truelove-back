@@ -46,6 +46,8 @@ class PerfilNegocioController extends Controller
             // Mover el archivo
             $file->move($path, $fileName);
             
+            $this->optimizarImagen($path . '/' . $fileName, \App\Services\ImagenOptimizador::ANCHO_LOGO);
+
             $rutaRelativa = 'logos-negocio/' . $fileName;
     
             // Obtener el business_registration_id directamente del usuario autenticado
@@ -145,6 +147,8 @@ class PerfilNegocioController extends Controller
         // Mover el archivo
         $file->move($path, $fileName);
         
+        $this->optimizarImagen($path . '/' . $fileName, \App\Services\ImagenOptimizador::ANCHO_BANNER);
+
         $rutaRelativa = 'banners-negocio/' . $fileName;
 
         // Obtener el business_registration_id directamente del usuario autenticado
@@ -261,6 +265,16 @@ class PerfilNegocioController extends Controller
      * actualiza el campo correspondiente ($campo: 'ruta_logo' o 'banner')
      * en el perfil del negocio indicado. Retorna la ruta relativa guardada.
      */
+    /** Reduce el peso de la imagen recién subida. Un fallo aquí nunca debe impedir la subida. */
+    private function optimizarImagen(string $ruta, int $anchoMax): void
+    {
+        try {
+            app(\App\Services\ImagenOptimizador::class)->reducir($ruta, $anchoMax);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('No se pudo reducir la imagen subida: ' . $e->getMessage());
+        }
+    }
+
     private function guardarImagenNegocio($file, string $carpeta, $businessId, string $campo): string
     {
         $fileName = time() . '_' . $file->getClientOriginalName();
@@ -271,6 +285,10 @@ class PerfilNegocioController extends Controller
         }
 
         $file->move($path, $fileName);
+        $this->optimizarImagen(
+            $path . '/' . $fileName,
+            $carpeta === 'logos-negocio' ? \App\Services\ImagenOptimizador::ANCHO_LOGO : \App\Services\ImagenOptimizador::ANCHO_BANNER
+        );
         $rutaRelativa = $carpeta . '/' . $fileName;
 
         $perfilActual = PerfilNegocio::where('business_registration_id', $businessId)->first();
