@@ -51,6 +51,15 @@ return [
         // app (opcional) para comprobar la firma X-Hub-Signature-256 de cada evento.
         'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
         'app_secret' => env('META_APP_SECRET'),
+        // Tope de mensajes de WhatsApp por mes (control de gasto: ~US$0.03 por mensaje de
+        // plantilla entregado). Al llegar a (tope - reserva) el back deja de llamar a la API y
+        // responde ok sin enviar. La reserva cubre envíos simultáneos justo en el límite.
+        'cuota_mensual' => env('WHATSAPP_CUOTA_MENSUAL', 250),
+        'cuota_reserva' => env('WHATSAPP_CUOTA_RESERVA', 0),
+        // Límite de envíos por número de teléfono (evita que se pidan códigos en cadena)
+        'limite_intervalo_seg' => env('WHATSAPP_LIMITE_INTERVALO_SEG', 60),
+        'limite_por_hora' => env('WHATSAPP_LIMITE_POR_HORA', 3),
+        'limite_por_dia' => env('WHATSAPP_LIMITE_POR_DIA', 6),
     ],
 
     'mapbox' => [

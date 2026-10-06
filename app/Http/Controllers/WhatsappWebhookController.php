@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\WhatsappLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -9,6 +10,9 @@ use Illuminate\Support\Facades\Log;
  * Webhook de la API de WhatsApp Cloud (Meta).
  *  - GET  : verificación de la URL (Meta envía hub.mode, hub.verify_token y hub.challenge).
  *  - POST : eventos (estado de los mensajes enviados y mensajes entrantes).
+ *
+ * Los mensajes entrantes solo se registran: NO se responde ni se marcan como leídos, para no abrir
+ * conversaciones con quien escribe al número (cada conversación abierta puede generar costo).
  */
 class WhatsappWebhookController extends Controller
 {
@@ -48,26 +52,66 @@ class WhatsappWebhookController extends Controller
 
                 // Estado de mensajes enviados: sent, delivered, read, failed
                 foreach ((array) ($valor['statuses'] ?? []) as $estado) {
-                    Log::info('WhatsApp estado', [
-                        'message_id' => $estado['id'] ?? null,
-                        'estado' => $estado['status'] ?? null,
-                        'para' => $estado['recipient_id'] ?? null,
-                        'errores' => $estado['errors'] ?? null,
-                    ]);
+                    $this->actualizarEstado($estado);
                 }
 
                 // Mensajes entrantes de clientes
                 foreach ((array) ($valor['messages'] ?? []) as $mensaje) {
-                    Log::info('WhatsApp mensaje entrante', [
-                        'message_id' => $mensaje['id'] ?? null,
-                        'de' => $mensaje['from'] ?? null,
-                        'tipo' => $mensaje['type'] ?? null,
-                        'texto' => $mensaje['text']['body'] ?? null,
+                    $id = $mensaje['id'] ?? null;
+                    if (!$id) {
+                        continue;
+                    }
+                    // Meta puede reenviar el mismo evento: se registra una sola vez
+                    WhatsappLog::firstOrCreate(['message_id' => $id], [
+                        'direccion' => WhatsappLog::ENTRANTE,
+                        'telefono' => (string) ($mensaje['from'] ?? ''),
+                        'estado' => 'recibido',
+                        'motivo' => 'mensaje_entrante',
+                        'contenido' => mb_substr((string) ($mensaje['text']['body'] ?? '[' . ($mensaje['type'] ?? 'otro') . ']'), 0, 255),
+                        'cerrado_en' => now(),
                     ]);
                 }
             }
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /** Actualiza el log del mensaje enviado: sent → delivered → read, o failed. Nunca retrocede. */
+    private function actualizarEstado(array $estado): void
+    {
+        $log = WhatsappLog::where('message_id', $estado['id'] ?? '')->first();
+        if (!$log || in_array($log->estado, ['fallido', 'leido'], true)) {
+            return;
+        }
+
+        $nuevo = match ($estado['status'] ?? null) {
+            'sent' => 'enviado',
+            'delivered' => 'entregado',
+            'read' => 'leido',
+            'failed' => 'fallido',
+            default => null,
+        };
+        if (!$nuevo) {
+            return;
+        }
+
+        if ($nuevo === 'fallido') {
+            $error = $estado['errors'][0] ?? [];
+            $log->update([
+                'estado' => 'fallido',
+                'error_codigo' => isset($error['code']) ? (string) $error['code'] : null,
+                'error_mensaje' => $error['title'] ?? ($error['message'] ?? null),
+                'cerrado_en' => now(),
+            ]);
+            return;
+        }
+
+        $orden = WhatsappLog::ORDEN;
+        if (($orden[$nuevo] ?? 0) <= ($orden[$log->estado] ?? 0)) {
+            return;
+        }
+
+        $log->update(['estado' => $nuevo, 'cerrado_en' => $nuevo === 'leido' ? now() : null]);
     }
 }

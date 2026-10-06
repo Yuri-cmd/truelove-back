@@ -12,7 +12,6 @@ class ProbarWhatsapp extends Command
         {--plantilla=hello_world : Nombre de la plantilla aprobada}
         {--idioma=en_US : Código de idioma de la plantilla}
         {--params= : Valores de las variables de la plantilla, separados por coma}
-        {--texto= : Enviar un texto libre en vez de plantilla (solo dentro de las 24 h de una conversación)}
         {--dry-run : Muestra lo que se enviaría, sin enviarlo}';
 
     protected $description = 'Prueba el envío de mensajes por la API de WhatsApp Cloud (Meta)';
@@ -44,9 +43,7 @@ class ProbarWhatsapp extends Command
 
         // 2) Simulación
         if ($this->option('dry-run')) {
-            $payload = $this->option('texto')
-                ? ['messaging_product' => 'whatsapp', 'to' => $whatsapp->normalizarTelefono($telefono), 'type' => 'text', 'text' => ['body' => $this->option('texto')]]
-                : $whatsapp->payloadPlantilla($telefono, $this->option('plantilla'), $this->option('idioma'), $parametros);
+            $payload = $whatsapp->payloadPlantilla($telefono, $this->option('plantilla'), $this->option('idioma'), $parametros);
             $this->info('Se enviaría (no se envió nada):');
             $this->line(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
             return self::SUCCESS;
@@ -54,9 +51,17 @@ class ProbarWhatsapp extends Command
 
         // 3) Envío real
         $destino = $whatsapp->normalizarTelefono($telefono);
-        $r = $this->option('texto')
-            ? $whatsapp->enviarTexto($telefono, $this->option('texto'))
-            : $whatsapp->enviarPlantilla($telefono, $this->option('plantilla'), $this->option('idioma'), $parametros);
+        $r = $whatsapp->enviarPlantilla($telefono, $this->option('plantilla'), $this->option('idioma'), $parametros, 'prueba');
+
+        if (!empty($r['limitado'])) {
+            $this->warn("Límite por número: espera {$r['reintentar_en']} s antes de volver a enviar a {$destino}.");
+            return self::FAILURE;
+        }
+
+        if (!empty($r['omitido'])) {
+            $this->warn('La cuota mensual está agotada: no se envió nada (quedó registrado como omitido_cuota).');
+            return self::SUCCESS;
+        }
 
         if ($r['ok']) {
             $this->info("✅ Meta aceptó el mensaje para {$destino}");

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\WhatsappLog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -10,6 +11,15 @@ use Illuminate\Support\Facades\Log;
  * https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages
  *
  * El token (META_TOKEN) nunca se registra en logs ni en las respuestas.
+ *
+ * Reglas de costo:
+ *  - Cada envío queda en la tabla whatsapp_logs.
+ *  - Solo se envían plantillas. No hay texto libre ni respuestas: así no se abren conversaciones
+ *    (de pago) con quien nos escribe.
+ *  - Cada número tiene un límite de envíos (uno cada N segundos, y máximo por hora y por día): si lo
+ *    supera no se envía y se responde ok=false, limitado=true, reintentar_en=<segundos>.
+ *  - Al llegar a la cuota mensual gratuita (WHATSAPP_CUOTA_MENSUAL menos una reserva) ya no se
+ *    llama a la API: el envío se registra como omitido y se responde ok=true, omitido=true.
  */
 class WhatsappCloudService
 {
@@ -71,13 +81,98 @@ class WhatsappCloudService
         return ['ok' => $respuesta->successful(), 'status' => $respuesta->status(), 'datos' => $respuesta->json() ?? []];
     }
 
+    /** Mensajes que ya gastaron cuota este mes. */
+    public function usadosEsteMes(): int
+    {
+        return WhatsappLog::consumenCuotaEsteMes()->count();
+    }
+
+    /** Máximo de envíos del mes: la cuota gratuita menos una reserva por si hay envíos simultáneos. */
+    public function limiteMensual(): int
+    {
+        return max(0, (int) config('services.whatsapp.cuota_mensual') - (int) config('services.whatsapp.cuota_reserva'));
+    }
+
+    public function cuotaAgotada(): bool
+    {
+        return $this->usadosEsteMes() >= $this->limiteMensual();
+    }
+
+    /**
+     * Segundos que faltan para que este número pueda recibir otro mensaje, o 0 si ya puede.
+     * Cuenta todos los envíos al número (también los fallidos u omitidos), para frenar reintentos en cadena.
+     */
+    public function segundosHastaPoderEnviar(string $telefono): int
+    {
+        $limites = [
+            [(int) config('services.whatsapp.limite_intervalo_seg'), 1],
+            [3600, (int) config('services.whatsapp.limite_por_hora')],
+            [86400, (int) config('services.whatsapp.limite_por_dia')],
+        ];
+
+        $espera = 0;
+        foreach ($limites as [$ventana, $maximo]) {
+            if ($ventana <= 0 || $maximo <= 0) {
+                continue;
+            }
+            $envios = WhatsappLog::where('direccion', WhatsappLog::SALIENTE)
+                ->where('telefono', $telefono)
+                ->where('created_at', '>=', now()->subSeconds($ventana))
+                ->orderBy('created_at')
+                ->pluck('created_at');
+
+            if ($envios->count() >= $maximo) {
+                // Puede volver a enviar cuando salga de la ventana el envío que lo deja al límite
+                $mas_antiguo_que_cuenta = $envios[$envios->count() - $maximo];
+                $espera = max($espera, (int) ceil($mas_antiguo_que_cuenta->copy()->addSeconds($ventana)->diffInSeconds(now(), true)));
+            }
+        }
+
+        return $espera;
+    }
+
     /**
      * Mensaje con una plantilla aprobada (la única forma de iniciar una conversación).
      *
+     * Si la cuota del mes se agotó no llama a la API: devuelve ok=true y omitido=true, para que
+     * el flujo que lo pidió (por ejemplo la verificación del celular) continúe sin gastar.
+     *
      * @param array<int, string> $parametrosCuerpo valores de {{1}}, {{2}}… del cuerpo
      */
-    public function enviarPlantilla(string $para, string $plantilla, string $idioma = 'es', array $parametrosCuerpo = []): array
-    {
+    public function enviarPlantilla(
+        string $para,
+        string $plantilla,
+        string $idioma = 'es',
+        array $parametrosCuerpo = [],
+        ?string $motivo = null,
+        ?int $idCliente = null
+    ): array {
+        $telefono = $this->normalizarTelefono($para);
+
+        // Límite por número: no se registra ni se envía nada (así un abuso tampoco llena la tabla)
+        if ($espera = $this->segundosHastaPoderEnviar($telefono)) {
+            return [
+                'ok' => false, 'limitado' => true, 'reintentar_en' => $espera,
+                'status' => 429, 'message_id' => null,
+                'error' => ['message' => "Espera {$espera} s antes de pedir otro código"], 'datos' => [],
+            ];
+        }
+
+        $registro = WhatsappLog::create([
+            'direccion' => WhatsappLog::SALIENTE,
+            'telefono' => $telefono,
+            'motivo' => $motivo,
+            'plantilla' => $plantilla,
+            'id_cliente' => $idCliente,
+            'estado' => 'pendiente',
+        ]);
+
+        if ($this->cuotaAgotada()) {
+            $registro->update(['estado' => 'omitido_cuota', 'cerrado_en' => now()]);
+            Log::warning('WhatsApp Cloud: cuota mensual agotada, no se envía', ['to' => $telefono]);
+            return ['ok' => true, 'omitido' => true, 'status' => 0, 'message_id' => null, 'error' => null, 'datos' => []];
+        }
+
         $plantillaPayload = ['name' => $plantilla, 'language' => ['code' => $idioma]];
         if ($parametrosCuerpo) {
             $plantillaPayload['components'] = [[
@@ -86,23 +181,24 @@ class WhatsappCloudService
             ]];
         }
 
-        return $this->enviar([
+        $resultado = $this->enviar([
             'messaging_product' => 'whatsapp',
-            'to' => $this->normalizarTelefono($para),
+            'to' => $telefono,
             'type' => 'template',
             'template' => $plantillaPayload,
         ]);
-    }
 
-    /** Texto libre: solo llega si el cliente escribió en las últimas 24 horas. */
-    public function enviarTexto(string $para, string $texto): array
-    {
-        return $this->enviar([
-            'messaging_product' => 'whatsapp',
-            'to' => $this->normalizarTelefono($para),
-            'type' => 'text',
-            'text' => ['preview_url' => false, 'body' => $texto],
-        ]);
+        $registro->update($resultado['ok']
+            ? ['estado' => 'enviado', 'message_id' => $resultado['message_id'], 'http_status' => $resultado['status']]
+            : [
+                'estado' => 'fallido',
+                'http_status' => $resultado['status'],
+                'error_codigo' => isset($resultado['error']['code']) ? (string) $resultado['error']['code'] : null,
+                'error_mensaje' => $resultado['error']['message'] ?? null,
+                'cerrado_en' => now(),
+            ]);
+
+        return $resultado;
     }
 
     /** Cuerpo exacto que se enviaría (para la opción --dry-run). */
