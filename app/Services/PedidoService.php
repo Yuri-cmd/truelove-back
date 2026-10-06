@@ -238,61 +238,18 @@ class PedidoService
     }
 
     /**
-     * Motorizados activos con su última ubicación a $radioKm o menos de alguno de
-     * los locales indicados. Hace 3 consultas en total (motorizados, últimas
-     * ubicaciones y locales) en vez de una por cada motorizado y pedido.
+     * Motorizados a los que se avisa de un pedido nuevo: todos los que están con
+     * estado 1 y activo 1, sin importar dónde estén.
      *
-     * @param  array<int> $idsLocales business_registration_id de los pedidos pendientes
      * @return array<int, array{token: ?string, id: int}>
      */
-    public function motorizadosCercanosALocales(array $idsLocales, float $radioKm = 10): array
+    public function motorizadosParaAvisoDePedido(): array
     {
-        $locales = Establecimiento::whereIn('business_registration_id', array_unique($idsLocales))
-            ->get(['latitud', 'longitud']);
-        if ($locales->isEmpty()) {
-            return [];
-        }
-
-        $motorizados = RepartoRegistro::where('estado', 1)->where('aprobado', 1)->where('activo', 1)
-            ->get(['id', 'token_fmc']);
-        if ($motorizados->isEmpty()) {
-            return [];
-        }
-
-        // Última ubicación de cada motorizado en una sola consulta
-        $ubicaciones = Location::whereIn('id', function ($q) use ($motorizados) {
-                $q->selectRaw('MAX(id)')
-                    ->from('locations')
-                    ->whereIn('motorizado_id', $motorizados->pluck('id'))
-                    ->groupBy('motorizado_id');
-            })
-            ->get()
-            ->keyBy('motorizado_id');
-
-        $notificar = [];
-        foreach ($motorizados as $motorizado) {
-            $ubicacion = $ubicaciones->get($motorizado->id);
-            if (!$ubicacion) {
-                continue;
-            }
-
-            foreach ($locales as $local) {
-                $distancia = $this->calcularDistanciaHaversine(
-                    $ubicacion->latitude,
-                    $ubicacion->longitude,
-                    $local->latitud,
-                    $local->longitud
-                );
-                if ($distancia <= $radioKm) {
-                    $notificar[] = ['token' => $motorizado->token_fmc, 'id' => $motorizado->id];
-                    break;
-                }
-            }
-        }
-
-        return $notificar;
+        return RepartoRegistro::where('estado', 1)->where('activo', 1)
+            ->get(['id', 'token_fmc'])
+            ->map(fn ($m) => ['token' => $m->token_fmc, 'id' => $m->id])
+            ->all();
     }
-
     // Método para obtener el listado de pedidos y calcular el tiempo estimado
     public function obtenerPedidosCercanos()
     {

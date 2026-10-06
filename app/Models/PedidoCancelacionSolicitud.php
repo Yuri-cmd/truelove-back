@@ -17,17 +17,27 @@ class PedidoCancelacionSolicitud extends Model
         'motivo',
         'status',
         'solicitado_por_socio_id',
+        'solicitado_por_motorizado_id',
+        'culpa_cliente',
+        'detalle',
+        'deuda_id',
         'revisado_por_admin_id',
         'revisado_at',
     ];
 
     protected $casts = [
         'revisado_at' => 'datetime',
+        'culpa_cliente' => 'boolean',
     ];
 
     public function pedido()
     {
         return $this->belongsTo(Pedido::class);
+    }
+
+    public function motorizado()
+    {
+        return $this->belongsTo(RepartoRegistro::class, 'solicitado_por_motorizado_id');
     }
 
     public function revisor()

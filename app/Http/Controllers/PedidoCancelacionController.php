@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
 use App\Models\Cliente;
+use App\Models\ClienteDeuda;
 use App\Models\Establecimiento;
 use App\Models\Pedido;
 use App\Models\PedidoCancelacionSolicitud;
 use App\Models\PedidoTracking;
+use App\Models\RepartoRegistro;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -77,11 +79,62 @@ class PedidoCancelacionController extends Controller
     }
 
     /**
+     * El motorizado solicita cancelar un pedido que no pudo entregar (ej. el cliente no
+     * contesta). Requiere el token del repartidor y un pedido asignado a él. El pedido
+     * sigue su curso hasta que un admin apruebe; si se marca la culpa del cliente, el
+     * admin verá sugerida una deuda al aprobar.
+     */
+    public function requestCancellationBiker(Request $request, $pedidoId)
+    {
+        $request->validate([
+            'motivo' => 'required|string|min:3|max:255',
+            'detalle' => 'nullable|string|max:1000',
+            'culpa_cliente' => 'nullable|boolean',
+        ]);
+
+        $user = $request->user();
+        $reparto = $user ? RepartoRegistro::where('user_id', $user->id)->first() : null;
+        $pedido = Pedido::find($pedidoId);
+        if (!$reparto || !$pedido || (int) $pedido->id_motorizado !== (int) $reparto->id) {
+            return response()->json(['status' => 'error', 'message' => 'Pedido no asignado a este repartidor'], 403);
+        }
+
+        $ultimoTracking = PedidoTracking::where('pedido_id', $pedidoId)->latest('id')->first();
+        $estadoActual = $ultimoTracking ? (int) $ultimoTracking->estado : null;
+        if ($estadoActual === null || in_array($estadoActual, [0, 8], true)) {
+            return response()->json(['status' => 'error', 'message' => 'El pedido ya terminó (entregado o cancelado).'], 400);
+        }
+
+        if (PedidoCancelacionSolicitud::where('pedido_id', $pedidoId)->pending()->exists()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Ya hay una solicitud de cancelación pendiente para este pedido.',
+            ], 400);
+        }
+
+        $solicitud = PedidoCancelacionSolicitud::create([
+            'pedido_id' => $pedidoId,
+            'estado_pedido_al_solicitar' => $estadoActual,
+            'motivo' => $request->motivo,
+            'detalle' => $request->detalle,
+            'culpa_cliente' => $request->boolean('culpa_cliente'),
+            'status' => 'pending',
+            'solicitado_por_motorizado_id' => $reparto->id,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Solicitud enviada. Un administrador la revisará.',
+            'solicitud_id' => $solicitud->id,
+        ], 201);
+    }
+
+    /**
      * Listado de solicitudes pendientes (para el módulo de Pedidos del admin).
      */
     public function getPendingRequests()
     {
-        $solicitudes = PedidoCancelacionSolicitud::with(['pedido'])
+        $solicitudes = PedidoCancelacionSolicitud::with(['pedido', 'motorizado:id,nombres,apellidos'])
             ->pending()
             ->orderBy('created_at', 'desc')
             ->get();
@@ -98,7 +151,7 @@ class PedidoCancelacionController extends Controller
      */
     public function getRequestHistory(Request $request)
     {
-        $query = PedidoCancelacionSolicitud::with(['pedido', 'revisor:id,name'])
+        $query = PedidoCancelacionSolicitud::with(['pedido', 'motorizado:id,nombres,apellidos', 'revisor:id,name'])
             ->where('status', '!=', 'pending')
             ->orderBy('revisado_at', 'desc');
 
@@ -152,11 +205,39 @@ class PedidoCancelacionController extends Controller
         $solicitud->revisado_at = now();
         $solicitud->save();
 
-        $this->notificarCliente($pedido, 'Tu pedido #' . $pedido->id . ' ha sido cancelado.');
+        // El admin decide si el cliente queda con una deuda y de cuánto (por defecto, el total del pedido)
+        $deuda = null;
+        if ($request->boolean('generar_deuda')) {
+            $monto = $request->filled('monto') ? (float) $request->monto : ClienteDeuda::totalDelPedido($pedido);
+            if ($monto > 0) {
+                $deuda = ClienteDeuda::create([
+                    'cliente_id' => $pedido->id_cliente,
+                    'pedido_id' => $pedido->id,
+                    'motorizado_id' => $solicitud->solicitado_por_motorizado_id,
+                    'monto' => $monto,
+                    'motivo' => $request->input('motivo_deuda') ?: $solicitud->motivo,
+                    'estado' => ClienteDeuda::PENDIENTE,
+                    'registrado_por' => 'admin',
+                    'gestionada_por' => Auth::id(),
+                    'gestionada_at' => now(),
+                ]);
+                $solicitud->deuda_id = $deuda->id;
+                $solicitud->save();
+            }
+        }
+
+        $mensajeCliente = 'Tu pedido #' . $pedido->id . ' ha sido cancelado.';
+        if ($deuda) {
+            $mensajeCliente .= ' Quedó una deuda pendiente de S/ ' . number_format((float) $deuda->monto, 2) . '. Comunícate con Soporte para regularizarla.';
+        }
+        $this->notificarCliente($pedido, $mensajeCliente);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Solicitud aprobada. El pedido fue cancelado.',
+            'message' => $deuda
+                ? 'Solicitud aprobada. El pedido fue cancelado y se generó una deuda de S/ ' . number_format((float) $deuda->monto, 2) . '.'
+                : 'Solicitud aprobada. El pedido fue cancelado.',
+            'deuda_id' => $deuda?->id,
         ]);
     }
 
@@ -198,7 +279,11 @@ class PedidoCancelacionController extends Controller
             $cliente = Cliente::find($pedido->id_cliente);
             $solicitud->pedido->local = $local ? $local->nombre_establecimiento : null;
             $solicitud->pedido->cliente = $cliente ? trim($cliente->nombre . ' ' . $cliente->apellido) : null;
+            $solicitud->monto_sugerido = ClienteDeuda::totalDelPedido($pedido);
         }
+        $solicitud->solicitante = $solicitud->solicitado_por_motorizado_id
+            ? 'Motorizado ' . trim(($solicitud->motorizado->nombres ?? '') . ' ' . ($solicitud->motorizado->apellidos ?? ''))
+            : 'Local';
         return $solicitud;
     }
 

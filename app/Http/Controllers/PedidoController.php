@@ -95,6 +95,22 @@ class PedidoController extends Controller
                 $data['clave_idempotencia'] = $claveIdempotencia;
             }
 
+            // Cliente con deuda pendiente: no puede hacer pedidos nuevos hasta regularizarla.
+            if ($request->filled('id_cliente')) {
+                $resumenDeuda = \App\Models\ClienteDeuda::resumenPendiente((int) $request->id_cliente);
+                if ($resumenDeuda['tiene_deuda']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'code' => 'deuda_pendiente',
+                        'message' => 'Tienes una deuda pendiente de S/ ' . number_format($resumenDeuda['total_adeudado'], 2)
+                            . '. No puedes realizar nuevos pedidos hasta regularizarla. Comunícate con Soporte.',
+                        'total_adeudado' => $resumenDeuda['total_adeudado'],
+                        'deudas' => $resumenDeuda['deudas'],
+                    ], 422);
+                }
+            }
+
             // Salvavidas por ventana de tiempo: cubre tanto a las apps sin
             // actualizar (nunca mandan clave) como un toque MANUAL de "Confirmar"
             // en la app nueva tras un error (genera una clave nueva, así que la
@@ -392,14 +408,15 @@ class PedidoController extends Controller
     }
 
     /**
-     * Avisa a los motorizados cercanos al local del pedido. Todos los avisos se
-     * envían en paralelo para que lleguen al mismo tiempo.
+     * Avisa de un pedido nuevo a todos los motorizados con estado 1 y activo 1, sin
+     * importar su ubicación. Los avisos se envían en paralelo para que lleguen a la vez.
      */
-    public function sendMotorizadosCerca(int $idLocal)
+    public function sendMotorizadosCerca()
     {
         $destinatarios = [];
-        foreach ($this->pedidoService->motorizadosCercanosALocales([$idLocal]) as $motorizado) {
-            if ($motorizado['token']) {
+        $activos = $this->pedidoService->motorizadosParaAvisoDePedido();
+        foreach ($activos as $motorizado) {
+            if (!empty($motorizado['token'])) {
                 $destinatarios[] = [
                     'token' => $motorizado['token'],
                     'userId' => $motorizado['id'],
@@ -408,6 +425,12 @@ class PedidoController extends Controller
                 ];
             }
         }
+
+        Log::info('[Motorizados] aviso de pedido nuevo', [
+            'activos' => count($activos),
+            'con_token' => count($destinatarios),
+            'sin_token' => count($activos) - count($destinatarios),
+        ]);
 
         $this->firebaseService->sendNotificationsWithSoundBatch(
             $destinatarios,
@@ -498,9 +521,12 @@ class PedidoController extends Controller
             $local_fmc = $pedido->id_local ? BusinessRegistration::find($pedido->id_local)->token_fmc ?? null : null;
             $cliente_fmc = $pedido->id_cliente ? Cliente::find($pedido->id_cliente)->token_fmc ?? null : null;
 
-            $estado = estadoPedido($request->estado ?? null);
-            $mensajeLocal = mensajeNotificacionPedido($request->estado ?? null, $pedido->id, 'local');
-            $mensajeCliente = mensajeNotificacionPedido($request->estado ?? null, $pedido->id, 'cliente');
+            // La app del motorizado no envía 'estado' al iniciar el viaje: sin esto el
+            // título salía null y Firebase rechazaba el aviso (HTTP 400) al local y al cliente.
+            $estadoAviso = $request->estado ?? 4; // 4 = motorizado asignado
+            $estado = estadoPedido($estadoAviso);
+            $mensajeLocal = mensajeNotificacionPedido($estadoAviso, $pedido->id, 'local');
+            $mensajeCliente = mensajeNotificacionPedido($estadoAviso, $pedido->id, 'cliente');
 
             if ($local_fmc) {
                 $this->firebaseService->sendNotification($local_fmc, $estado, $mensajeLocal, [], 'socio', $pedido->id_local, 'socio');
@@ -617,10 +643,9 @@ class PedidoController extends Controller
         // Al aceptar el local, avisar a los motorizados de inmediato. Se envía después
         // de responder al local para que la aceptación no espere a Firebase.
         if ($request->estado == 2 && $pedido->id_motorizado == null && ($pedido->tipo_pedido == '0' || $pedido->tipo_pedido == 0)) {
-            $idLocalPedido = (int) $pedido->id_local;
-            dispatch(function () use ($idLocalPedido) {
+            dispatch(function () {
                 try {
-                    $this->sendMotorizadosCerca($idLocalPedido);
+                    $this->sendMotorizadosCerca();
                 } catch (\Throwable $e) {
                     Log::warning('Error avisando a los motorizados: ' . $e->getMessage());
                 }

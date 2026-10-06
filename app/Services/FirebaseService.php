@@ -50,7 +50,7 @@ class FirebaseService
                     return null;
                 }
 
-                Log::info("Access Token obtenido: " . json_encode($accessToken));
+                Log::info('Access token de Firebase renovado (expira en ' . ($accessToken['expires_in'] ?? '?') . ' s)');
                 return $accessToken["access_token"] ?? null;
             } catch (\Exception $e) {
                 Log::error("Excepción obteniendo Access Token: " . $e->getMessage());
@@ -103,6 +103,10 @@ class FirebaseService
 
     public function sendNotification($token, $title, $body, $data = [], $appName = null, $userId = null, $userType = null)
     {
+        // FCM/APNs rechaza (HTTP 400) un título o cuerpo null: siempre van como texto.
+        $title = ($title === null || $title === '') ? 'TrueLove' : (string) $title;
+        $body = (string) ($body ?? '');
+
         $log = $this->createLog($token, $title, $body, $data, $appName, $userId, $userType);
 
         if ($log) {

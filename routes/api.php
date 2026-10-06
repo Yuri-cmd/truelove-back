@@ -259,6 +259,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', 'updateAdmin');
         });
 
+        // Deudas de clientes (pedidos no entregados por culpa del cliente)
+        Route::controller(App\Http\Controllers\ClienteDeudaController::class)->prefix('deudas')->group(function () {
+            Route::get('/', 'index');
+            Route::get('/buscar-clientes', 'buscarClientes');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+        });
+
         // Solicitudes de cancelación de pedidos (aprobar/declinar).
         // Debe registrarse ANTES de "pedidos/{id}" para que "cancelacion-solicitudes"
         // no sea interpretado como un {id} de pedido.
@@ -525,6 +534,8 @@ Route::get('socio/get/pedidos/{id}', [SocioController::class, 'getPedidos']);
 Route::get('socio/get/pedido/{id}', [SocioController::class, 'getPedido']);
 Route::put('socio/update/estado/pedido/{id}', [PedidoController::class, 'updateEstadoPedido']);
 Route::post('socio/pedidos/{id}/solicitar-cancelacion', [PedidoCancelacionController::class, 'requestCancellation']);
+// Estado de cuenta del cliente (deudas pendientes): la app lo consulta antes de pedir
+Route::get('/clientes/{idCliente}/deudas', [App\Http\Controllers\ClienteDeudaController::class, 'estadoCuenta']);
 Route::get('/categories/{id_empresa}', [CategoriaController::class, 'index']);
 Route::post('/categories', [CategoriaController::class, 'store']);
 Route::put('/categories/{id}', [CategoriaController::class, 'update']);
@@ -559,6 +570,8 @@ Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/biker/foto-perfil/{id}', [BikerController::class, 'actualizarFotoPerfil']);
 // Notas de la casa: requieren el token del repartidor (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
+    // El repartidor pide cancelar un pedido que no pudo entregar (la aprueba un admin)
+    Route::post('/biker/pedidos/{idPedido}/solicitar-cancelacion', [App\Http\Controllers\PedidoCancelacionController::class, 'requestCancellationBiker']);
     Route::get('/biker/pedidos/{idPedido}/notas-entrega', [App\Http\Controllers\EntregaNotaController::class, 'index']);
     Route::post('/biker/pedidos/{idPedido}/notas-entrega', [App\Http\Controllers\EntregaNotaController::class, 'store']);
     Route::delete('/biker/notas-entrega/{id}', [App\Http\Controllers\EntregaNotaController::class, 'destroy']);
