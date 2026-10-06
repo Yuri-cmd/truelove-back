@@ -18,6 +18,7 @@ class PedidoCancelacionSolicitud extends Model
         'status',
         'solicitado_por_socio_id',
         'solicitado_por_motorizado_id',
+        'foto_evidencia',
         'culpa_cliente',
         'detalle',
         'deuda_id',
@@ -29,6 +30,15 @@ class PedidoCancelacionSolicitud extends Model
         'revisado_at' => 'datetime',
         'culpa_cliente' => 'boolean',
     ];
+
+    protected $appends = ['foto_evidencia_url'];
+
+    public function getFotoEvidenciaUrlAttribute()
+    {
+        return $this->foto_evidencia
+            ? url(\Illuminate\Support\Facades\Storage::disk('custom_public')->url($this->foto_evidencia))
+            : null;
+    }
 
     public function pedido()
     {

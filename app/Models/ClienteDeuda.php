@@ -15,13 +15,20 @@ class ClienteDeuda extends Model
 
     protected $fillable = [
         'cliente_id', 'pedido_id', 'motorizado_id', 'monto', 'motivo', 'estado',
-        'registrado_por', 'observaciones_admin', 'gestionada_por', 'gestionada_at',
+        'registrado_por', 'observaciones_admin', 'gestionada_por', 'gestionada_at', 'foto_evidencia',
     ];
 
     protected $casts = [
         'monto' => 'decimal:2',
         'gestionada_at' => 'datetime',
     ];
+
+    public function getFotoEvidenciaUrlAttribute()
+    {
+        return $this->foto_evidencia
+            ? url(\Illuminate\Support\Facades\Storage::disk('custom_public')->url($this->foto_evidencia))
+            : null;
+    }
 
     public function cliente()
     {

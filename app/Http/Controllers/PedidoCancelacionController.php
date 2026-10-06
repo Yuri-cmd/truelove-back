@@ -14,6 +14,7 @@ use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class PedidoCancelacionController extends Controller
@@ -91,6 +92,10 @@ class PedidoCancelacionController extends Controller
             'motivo' => 'required|string|min:3|max:255',
             'detalle' => 'nullable|string|max:1000',
             'culpa_cliente' => 'nullable|boolean',
+            // Evidencia (foto de la puerta, del producto, del chat…). La app nueva la exige,
+            // pero el back no la pide: las versiones anteriores de la app no la envían y
+            // tardan en aprobarse en las tiendas.
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $user = $request->user();
@@ -113,13 +118,40 @@ class PedidoCancelacionController extends Controller
             ], 400);
         }
 
-        $solicitud = DB::transaction(function () use ($request, $pedidoId, $estadoActual, $reparto) {
+        $fotoEvidencia = $request->hasFile('foto')
+            ? $request->file('foto')->store('cancelaciones', 'custom_public')
+            : null;
+
+        try {
+            $solicitud = $this->crearCancelacionDelMotorizado($request, $pedidoId, $estadoActual, $reparto, $fotoEvidencia);
+        } catch (\Throwable $e) {
+            // No dejar una foto huérfana si la cancelación no se pudo guardar
+            if ($fotoEvidencia) {
+                Storage::disk('custom_public')->delete($fotoEvidencia);
+            }
+            throw $e;
+        }
+
+        $this->notificarCliente($pedido, 'Tu pedido #' . $pedido->id . ' ha sido cancelado.');
+        $this->notificarSocioCancelado($pedido, 'El motorizado canceló el pedido #' . $pedido->id . ': ' . $request->motivo);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'El pedido fue cancelado. Un administrador revisará el motivo.',
+            'solicitud_id' => $solicitud->id,
+        ], 201);
+    }
+
+    private function crearCancelacionDelMotorizado(Request $request, $pedidoId, int $estadoActual, RepartoRegistro $reparto, ?string $fotoEvidencia): PedidoCancelacionSolicitud
+    {
+        return DB::transaction(function () use ($request, $pedidoId, $estadoActual, $reparto, $fotoEvidencia) {
             $solicitud = PedidoCancelacionSolicitud::create([
                 'pedido_id' => $pedidoId,
                 'estado_pedido_al_solicitar' => $estadoActual,
                 'motivo' => $request->motivo,
                 'detalle' => $request->detalle,
                 'culpa_cliente' => $request->boolean('culpa_cliente'),
+                'foto_evidencia' => $fotoEvidencia,
                 'status' => 'pending',
                 'solicitado_por_motorizado_id' => $reparto->id,
             ]);
@@ -134,15 +166,6 @@ class PedidoCancelacionController extends Controller
 
             return $solicitud;
         });
-
-        $this->notificarCliente($pedido, 'Tu pedido #' . $pedido->id . ' ha sido cancelado.');
-        $this->notificarSocioCancelado($pedido, 'El motorizado canceló el pedido #' . $pedido->id . ': ' . $request->motivo);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'El pedido fue cancelado. Un administrador revisará el motivo.',
-            'solicitud_id' => $solicitud->id,
-        ], 201);
     }
 
     /**
@@ -237,6 +260,7 @@ class PedidoCancelacionController extends Controller
                     'motorizado_id' => $solicitud->solicitado_por_motorizado_id,
                     'monto' => $monto,
                     'motivo' => $request->input('motivo_deuda') ?: $solicitud->motivo,
+                    'foto_evidencia' => $solicitud->foto_evidencia,
                     'estado' => ClienteDeuda::PENDIENTE,
                     'registrado_por' => 'admin',
                     'gestionada_por' => Auth::id(),

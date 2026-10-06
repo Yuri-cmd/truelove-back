@@ -182,6 +182,7 @@ class ClienteDeudaController extends Controller
             'estado' => $d->estado,
             'registrado_por' => $d->registrado_por,
             'observaciones_admin' => $d->observaciones_admin,
+            'foto_evidencia_url' => $d->foto_evidencia_url,
             'created_at' => $d->created_at?->toIso8601String(),
             'gestionada_at' => $d->gestionada_at?->toIso8601String(),
         ];
