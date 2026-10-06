@@ -124,10 +124,10 @@ class PedidoCancelacionController extends Controller
                 'solicitado_por_motorizado_id' => $reparto->id,
             ]);
 
-            // El pedido se cancela ya: no puede quedar en el aire mientras se revisa
+            // El pedido se finaliza para el motorizado, se guarda con estado 8.
             $tracking = new PedidoTracking();
             $tracking->pedido_id = $pedidoId;
-            $tracking->estado = 0;
+            $tracking->estado = 8;
             $tracking->user_id = $reparto->id;
             $tracking->user_type = 'motorizado';
             $tracking->save();
