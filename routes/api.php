@@ -427,6 +427,7 @@ Route::get('/documento/ruc/{numero}', [DocumentoController::class, 'ruc']);
 Route::post('/upload-photos', [ClienteController::class, 'uploadPhotos']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone'])->middleware('throttle:10,1'); // 10 por minuto por IP
+Route::get('/send-code-phone/{id}/estado', [ClienteController::class, 'estadoEnvioCodigo'])->middleware('throttle:60,1');
 Route::get('/get/tipo/negocio', [TipoNegocioController::class, 'getAll']);
 Route::get('/get/locales/top/{id?}', [LocalesController::class, 'getLocalesTop']);
 Route::get('/get/local/{id}', [LocalesController::class, 'getLocalById']);

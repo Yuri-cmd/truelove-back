@@ -278,11 +278,13 @@ class ClienteController extends Controller
                 ], 502);
             }
 
-            // La app compara el código recibido con el que escribe el cliente
+            // La app compara el código recibido con el que escribe el cliente.
+            // envio_id permite consultar después si Meta pudo entregarlo (estadoEnvioCodigo).
             return response()->json([
                 'message' => 'Código enviado por WhatsApp',
                 'status' => 200,
                 'canal' => 'whatsapp',
+                'envio_id' => $wa['log_id'] ?? null,
                 'verification_code' => (string) $newVerificationCode,
             ]);
         } catch (Exception $e) {
@@ -291,6 +293,30 @@ class ClienteController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Cómo va un envío de código: Meta responde 200 al enviar aunque el número no tenga WhatsApp,
+     * y avisa del fallo unos segundos después por el webhook. La app lo consulta para avisar al cliente.
+     */
+    public function estadoEnvioCodigo($id)
+    {
+        $log = \App\Models\WhatsappLog::where('id', $id)
+            ->where('direccion', 'saliente')
+            ->where('motivo', 'verificacion')
+            ->first();
+
+        if (!$log) {
+            return response()->json(['message' => 'Envío no encontrado'], 404);
+        }
+
+        return response()->json([
+            'estado' => $log->estado,
+            'entregado' => in_array($log->estado, ['entregado', 'leido'], true),
+            'fallido' => $log->estado === 'fallido',
+            // 131026: el destinatario no puede recibir el mensaje (típico de un número sin WhatsApp)
+            'sin_whatsapp' => $log->estado === 'fallido' && $log->error_codigo === '131026',
+        ]);
     }
 
     public function uploadPhotos(Request $request)

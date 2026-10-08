@@ -171,7 +171,7 @@ class WhatsappCloudService
         if ($this->cuotaAgotada()) {
             $registro->update(['estado' => 'omitido_cuota', 'cerrado_en' => now()]);
             Log::warning('WhatsApp Cloud: cuota mensual agotada, no se envía', ['to' => $telefono]);
-            return ['ok' => true, 'omitido' => true, 'status' => 0, 'message_id' => null, 'error' => null, 'datos' => []];
+            return ['ok' => true, 'omitido' => true, 'log_id' => $registro->id, 'status' => 0, 'message_id' => null, 'error' => null, 'datos' => []];
         }
 
         $plantillaPayload = ['name' => $plantilla, 'language' => ['code' => $idioma]];
@@ -211,6 +211,8 @@ class WhatsappCloudService
                 'error_mensaje' => $resultado['error']['message'] ?? null,
                 'cerrado_en' => now(),
             ]);
+
+        $resultado['log_id'] = $registro->id;
 
         return $resultado;
     }
