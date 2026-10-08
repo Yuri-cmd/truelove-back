@@ -35,12 +35,6 @@ return [
         ],
     ],
 
-    'twilio' => [
-        'sid' => env('TWILIO_SID'),
-        'auth_token' => env('TWILIO_AUTH_TOKEN'),
-        'phone_number' => env('TWILIO_PHONE_NUMBER'),
-    ],
-
     // WhatsApp Cloud API (Meta)
     'whatsapp' => [
         'token' => env('META_TOKEN'),
@@ -56,9 +50,7 @@ return [
         // responde ok sin enviar. La reserva cubre envíos simultáneos justo en el límite.
         'cuota_mensual' => env('WHATSAPP_CUOTA_MENSUAL', 250),
         'cuota_reserva' => env('WHATSAPP_CUOTA_RESERVA', 0),
-        // Verificación del celular por WhatsApp (plantilla de Autenticación aprobada en Meta).
-        // Mientras WHATSAPP_VERIFICACION sea false se sigue usando SMS.
-        'verificacion_activa' => env('WHATSAPP_VERIFICACION', false),
+        // Plantilla de Autenticación aprobada en Meta con la que se envía el código de verificación.
         'plantilla_codigo' => env('WHATSAPP_PLANTILLA_CODIGO', 'codigo_verificacion'),
         'plantilla_codigo_idioma' => env('WHATSAPP_PLANTILLA_CODIGO_IDIOMA', 'es'),
         // Límite de envíos por número de teléfono (evita que se pidan códigos en cadena)
