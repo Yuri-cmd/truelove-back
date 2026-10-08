@@ -65,6 +65,9 @@ Route::post('/admin/verify-code', [AuthAdminController::class, 'verifyCode']);
 Route::post('/admin/reset-password', [AuthAdminController::class, 'resetPassword']);
 
 Route::post('/notifications/update-status', [App\Http\Controllers\NotificationTrackingController::class, 'updateStatus']);
+// Diagnóstico de notificaciones del repartidor (app biker)
+Route::post('/notifications/diagnostico/motorizado/{id}', [App\Http\Controllers\NotificationTrackingController::class, 'resumenMotorizado'])->middleware('throttle:30,1');
+Route::post('/notifications/diagnostico/motorizado/{id}/probar', [App\Http\Controllers\NotificationTrackingController::class, 'probarMotorizado'])->middleware('throttle:5,1');
 
 Route::get('/app-version/{app_name}', [AppVersionController::class, 'getVersion']);
 

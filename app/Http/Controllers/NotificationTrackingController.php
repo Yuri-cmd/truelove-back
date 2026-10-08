@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\Models\NotificationLog;
+use App\Models\RepartoRegistro;
+use App\Services\FirebaseService;
 use Illuminate\Support\Facades\Log;
 
 class NotificationTrackingController extends Controller
@@ -142,6 +144,67 @@ class NotificationTrackingController extends Controller
                 'message' => 'Error al marcar las notificaciones como leídas'
             ], 500);
         }
+    }
+
+    /**
+     * Diagnóstico del repartidor (pantalla "Diagnóstico de notificaciones" de la app):
+     * si el servidor tiene su token, si coincide con el del teléfono y cuántos avisos
+     * de los últimos 7 días confirmó la app.
+     */
+    public function resumenMotorizado(Request $request, $id)
+    {
+        $m = RepartoRegistro::find($id);
+        if (!$m) {
+            return response()->json(['message' => 'Repartidor no encontrado'], 404);
+        }
+
+        $logs = NotificationLog::where('user_type', 'motorizado')->where('user_id', $id)
+            ->where('created_at', '>=', now()->subDays(7));
+
+        $tokenTelefono = (string) $request->input('token', '');
+
+        return response()->json([
+            'token_en_servidor' => !empty($m->token_fmc),
+            // Solo si el teléfono manda su token: el servidor responde si es el mismo, sin exponer el suyo
+            'token_coincide' => ($tokenTelefono !== '' && !empty($m->token_fmc)) ? hash_equals($m->token_fmc, $tokenTelefono) : null,
+            'enviados_7d' => (clone $logs)->count(),
+            'recibidos_7d' => (clone $logs)->whereNotNull('received_at')->count(),
+            'ultimo_recibido' => NotificationLog::where('user_type', 'motorizado')->where('user_id', $id)
+                ->whereNotNull('received_at')->max('received_at'),
+        ]);
+    }
+
+    /** Manda un aviso de prueba al repartidor y dice qué respondió Google. */
+    public function probarMotorizado($id, FirebaseService $firebase)
+    {
+        $m = RepartoRegistro::find($id);
+        if (!$m) {
+            return response()->json(['message' => 'Repartidor no encontrado'], 404);
+        }
+        if (empty($m->token_fmc)) {
+            return response()->json(['resultado' => 'sin_token']);
+        }
+
+        $respuesta = $firebase->sendNotification(
+            $m->token_fmc,
+            '✅ Prueba de notificaciones',
+            'Si ves este aviso, tu teléfono recibe las notificaciones de TrueLove.',
+            ['type' => 'diagnostico'],
+            'motorizado',
+            $m->id,
+            'motorizado'
+        );
+
+        if (isset($respuesta['name'])) {
+            return response()->json(['resultado' => 'enviado']);
+        }
+
+        $estado = $respuesta['error']['status'] ?? null;
+        return response()->json([
+            // UNREGISTERED: Google ya no reconoce ese token (app reinstalada o datos borrados)
+            'resultado' => $estado === 'NOT_FOUND' || $estado === 'UNREGISTERED' ? 'token_invalido' : 'error',
+            'detalle' => $respuesta['error']['message'] ?? null,
+        ]);
     }
 
     public function updateStatus(Request $request)
