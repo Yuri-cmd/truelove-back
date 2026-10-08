@@ -108,6 +108,11 @@ return [
     |
     */
 
+    // Buzones internos que reciben avisos (se leen desde config, no con env(), para que
+    // sigan funcionando con config:cache)
+    'soporte' => env('SOPORTE_EMAIL', 'deliverytruelove@gmail.com'),
+    'errores' => env('ERROR_NOTIFICATION_EMAIL', 'deliverytruelove@gmail.com'),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),

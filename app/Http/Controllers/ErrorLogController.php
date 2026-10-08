@@ -28,8 +28,8 @@ class ErrorLogController extends Controller
             $errorLog = ErrorLog::create($validated);
 
             // Enviar correo
-            // Puedes cambiar el correo de destino según necesites
-            $adminEmail = env('ERROR_NOTIFICATION_EMAIL', 'truelovedeliveryperu@hotmail.com');
+            // Destino configurable con ERROR_NOTIFICATION_EMAIL (config/mail.php)
+            $adminEmail = config('mail.errores');
             
             Mail::to($adminEmail)->send(new ErrorLoggedMail($errorLog));
 

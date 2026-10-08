@@ -233,7 +233,7 @@ class ClienteController extends Controller
         ], 200);
     }
 
-    public function sendCodePhone(Request $request)
+    public function sendCodePhone(Request $request, \App\Services\WhatsappCloudService $whatsapp)
     {
         try {
             // Validar que el teléfono es requerido
@@ -251,10 +251,39 @@ class ClienteController extends Controller
             // Generar código de verificación (6 dígitos numéricos)
             $newVerificationCode = random_int(100000, 999999);
 
-            $message = 'Su código de verificación es: ' . $newVerificationCode;
+            // WhatsApp primero (más barato que el SMS). Si está desactivado, falla o se agotó la
+            // cuota, se usa el SMS de siempre, salvo que la app nueva acepte omitir la verificación.
+            $canal = 'sms';
+            if (config('services.whatsapp.verificacion_activa') && !$whatsapp->configuracionFaltante()) {
+                $wa = $whatsapp->enviarCodigo($phone, (string) $newVerificationCode);
 
-            // Enviar el SMS
-            $result = $this->twilioService->sendSms($phone, $message);
+                if (!empty($wa['limitado'])) {
+                    return response()->json([
+                        'message' => 'Espera ' . $wa['reintentar_en'] . ' segundos antes de pedir otro código.',
+                        'reintentar_en' => $wa['reintentar_en'],
+                    ], 429);
+                }
+
+                if (!empty($wa['omitido']) && $request->boolean('acepta_omitir')) {
+                    // Cuota de WhatsApp agotada: la app nueva continúa sin código
+                    return response()->json([
+                        'message' => 'Verificación omitida',
+                        'status' => 200,
+                        'verificacion_omitida' => true,
+                    ]);
+                }
+
+                if ($wa['ok'] && empty($wa['omitido'])) {
+                    $canal = 'whatsapp';
+                }
+            }
+
+            if ($canal === 'whatsapp') {
+                $result = true;
+            } else {
+                $message = 'Su código de verificación es: ' . $newVerificationCode;
+                $result = $this->twilioService->sendSms($phone, $message);
+            }
 
             if (!$result) {
                 return response()->json(['error' => 'Error al enviar SMS'], 500);
@@ -262,8 +291,9 @@ class ClienteController extends Controller
 
             // Retornar el código (solo en desarrollo, no en producción)
             return response()->json([
-                'message' => 'SMS enviado correctamente',
+                'message' => $canal === 'whatsapp' ? 'Código enviado por WhatsApp' : 'SMS enviado correctamente',
                 'status' => 200,
+                'canal' => $canal,
                 'verification_code' => (string) $newVerificationCode,
             ]);
         } catch (Exception $e) {

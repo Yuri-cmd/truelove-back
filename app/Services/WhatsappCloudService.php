@@ -145,7 +145,8 @@ class WhatsappCloudService
         string $idioma = 'es',
         array $parametrosCuerpo = [],
         ?string $motivo = null,
-        ?int $idCliente = null
+        ?int $idCliente = null,
+        ?string $codigoBoton = null
     ): array {
         $telefono = $this->normalizarTelefono($para);
 
@@ -174,11 +175,24 @@ class WhatsappCloudService
         }
 
         $plantillaPayload = ['name' => $plantilla, 'language' => ['code' => $idioma]];
+        $componentes = [];
         if ($parametrosCuerpo) {
-            $plantillaPayload['components'] = [[
+            $componentes[] = [
                 'type' => 'body',
                 'parameters' => array_map(fn ($v) => ['type' => 'text', 'text' => (string) $v], array_values($parametrosCuerpo)),
-            ]];
+            ];
+        }
+        // Las plantillas de Autenticación llevan el código también en el botón "Copiar código"
+        if ($codigoBoton !== null) {
+            $componentes[] = [
+                'type' => 'button',
+                'sub_type' => 'url',
+                'index' => '0',
+                'parameters' => [['type' => 'text', 'text' => $codigoBoton]],
+            ];
+        }
+        if ($componentes) {
+            $plantillaPayload['components'] = $componentes;
         }
 
         $resultado = $this->enviar([
@@ -199,6 +213,23 @@ class WhatsappCloudService
             ]);
 
         return $resultado;
+    }
+
+    /**
+     * Envía el código de verificación con la plantilla de Autenticación configurada.
+     * Mismas reglas que enviarPlantilla: límite por número, cuota mensual y registro en whatsapp_logs.
+     */
+    public function enviarCodigo(string $para, string $codigo, ?int $idCliente = null): array
+    {
+        return $this->enviarPlantilla(
+            $para,
+            (string) config('services.whatsapp.plantilla_codigo'),
+            (string) config('services.whatsapp.plantilla_codigo_idioma'),
+            [$codigo],
+            'verificacion',
+            $idCliente,
+            $codigo
+        );
     }
 
     /** Cuerpo exacto que se enviaría (para la opción --dry-run). */
