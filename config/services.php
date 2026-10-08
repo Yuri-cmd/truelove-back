@@ -53,6 +53,9 @@ return [
         // Plantilla de Autenticación aprobada en Meta con la que se envía el código de verificación.
         'plantilla_codigo' => env('WHATSAPP_PLANTILLA_CODIGO', 'codigo_verificacion'),
         'plantilla_codigo_idioma' => env('WHATSAPP_PLANTILLA_CODIGO_IDIOMA', 'es'),
+        // Exigir número validado para hacer pedidos. Las apps nuevas lo piden enviando exige_validacion;
+        // con esta bandera en true se exige a todos (cuando ya no queden apps antiguas).
+        'exigir_validacion' => env('WHATSAPP_EXIGIR_VALIDACION', false),
         // Límite de envíos por número de teléfono (evita que se pidan códigos en cadena)
         'limite_intervalo_seg' => env('WHATSAPP_LIMITE_INTERVALO_SEG', 60),
         'limite_por_hora' => env('WHATSAPP_LIMITE_POR_HORA', 3),

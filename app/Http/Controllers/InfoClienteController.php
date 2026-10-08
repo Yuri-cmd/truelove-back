@@ -19,6 +19,8 @@ class InfoClienteController extends Controller
     {
         try {
             $clientes = Cliente::orderBy('created_at', 'desc')->get();
+            // numero_validado: validado Y sigue siendo el mismo número (no solo la columna)
+            $clientes->each(fn ($c) => $c->numero_validado = $c->numeroEstaValidado());
             return response()->json($clientes);
         } catch (\Exception $e) {
             Log::error('Error al obtener clientes: ' . $e->getMessage());
@@ -27,6 +29,40 @@ class InfoClienteController extends Controller
                 'message' => 'Error al obtener la lista de clientes'
             ], 500);
         }
+    }
+
+    /**
+     * El admin marca (o desmarca) el número del cliente como validado, sin pedirle el código.
+     * Sirve para clientes cuyo número ya se comprobó por otro medio.
+     */
+    public function cambiarNumeroValidado(Request $request, $id)
+    {
+        $request->validate(['validado' => 'required|boolean']);
+        $cliente = Cliente::findOrFail($id);
+
+        if ($request->boolean('validado')) {
+            $numero = $cliente->numeroAValidar();
+            if ($numero === null) {
+                return response()->json(['message' => 'El cliente no tiene un número de contacto registrado.'], 422);
+            }
+            $cliente->forceFill([
+                'numero_validado' => true,
+                'numero_validado_celular' => $numero,
+                'numero_validado_en' => now(),
+            ])->save();
+        } else {
+            $cliente->forceFill([
+                'numero_validado' => false,
+                'numero_validado_celular' => null,
+                'numero_validado_en' => null,
+            ])->save();
+        }
+
+        Log::info('Admin cambió la validación del número', [
+            'cliente' => $cliente->id, 'validado' => $request->boolean('validado'), 'admin' => optional($request->user())->id,
+        ]);
+
+        return response()->json(['success' => true, 'numero_validado' => $cliente->numeroEstaValidado()]);
     }
 
     /**

@@ -95,6 +95,23 @@ class PedidoController extends Controller
                 $data['clave_idempotencia'] = $claveIdempotencia;
             }
 
+            // Número de contacto validado: lo piden las apps nuevas (exige_validacion) o todos si la
+            // bandera está activa. Con la cuota de WhatsApp agotada no se puede validar, así que no se exige.
+            // TODO(legacy-validacion): exigirlo siempre cuando ya no queden apps sin validación.
+            if ($request->filled('id_cliente')
+                && ($request->boolean('exige_validacion') || config('services.whatsapp.exigir_validacion'))) {
+                $clientePedido = \App\Models\Cliente::find($request->id_cliente);
+                if ($clientePedido && !$clientePedido->numeroEstaValidado()
+                    && !app(\App\Services\WhatsappCloudService::class)->cuotaAgotada()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'code' => 'numero_no_validado',
+                        'message' => 'Valida tu número de celular para poder hacer pedidos.',
+                    ], 422);
+                }
+            }
+
             // Cliente con deuda pendiente: no puede hacer pedidos nuevos hasta regularizarla.
             if ($request->filled('id_cliente')) {
                 $resumenDeuda = \App\Models\ClienteDeuda::resumenPendiente((int) $request->id_cliente);

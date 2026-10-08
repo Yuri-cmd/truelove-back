@@ -240,6 +240,11 @@ class ClienteController extends Controller
                 $phone = '+51' . ltrim($phone, '0'); // Elimina ceros iniciales en caso de que existan
             }
 
+            // Un celular peruano tiene 9 dígitos y empieza con 9: se rechaza antes de enviar nada
+            if (!preg_match('/^\+519\d{8}$/', $phone)) {
+                return response()->json(['message' => 'Ingresa un número de celular válido (9 dígitos que empiecen con 9).'], 422);
+            }
+
             // Generar código de verificación (6 dígitos numéricos)
             $newVerificationCode = random_int(100000, 999999);
 
@@ -278,6 +283,13 @@ class ClienteController extends Controller
                 ], 502);
             }
 
+            // El servidor guarda el código (hash) para poder validar el número después (validarNumero)
+            \Illuminate\Support\Facades\Cache::put(
+                'verif_celular:' . Cliente::normalizarCelular($phone),
+                ['hash' => hash('sha256', (string) $newVerificationCode), 'intentos' => 0],
+                now()->addMinutes(30)
+            );
+
             // La app compara el código recibido con el que escribe el cliente.
             // envio_id permite consultar después si Meta pudo entregarlo (estadoEnvioCodigo).
             return response()->json([
@@ -293,6 +305,52 @@ class ClienteController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Marca el número de contacto del cliente como validado, comprobando en el servidor el código
+     * que se envió por WhatsApp. Sin esto el cliente no puede hacer pedidos desde las apps nuevas.
+     */
+    public function validarNumero(Request $request, $idCliente)
+    {
+        $request->validate(['numero' => 'required|string', 'codigo' => 'required|string']);
+
+        $cliente = Cliente::find($idCliente);
+        if (!$cliente) {
+            return response()->json(['message' => 'Cliente no encontrado'], 404);
+        }
+
+        $numero = Cliente::normalizarCelular($request->numero);
+        // Solo cuenta validar el número de contacto principal (WhatsApp, o celular si no hay WhatsApp)
+        if ($numero === null || $numero !== $cliente->numeroAValidar()) {
+            return response()->json([
+                'success' => true,
+                'numero_validado' => $cliente->numeroEstaValidado(),
+            ]);
+        }
+
+        $clave = 'verif_celular:' . $numero;
+        $guardado = \Illuminate\Support\Facades\Cache::get($clave);
+        if (!$guardado) {
+            return response()->json(['message' => 'El código venció. Pide uno nuevo.'], 422);
+        }
+        if (($guardado['intentos'] ?? 0) >= 5) {
+            return response()->json(['message' => 'Demasiados intentos. Pide un código nuevo.'], 429);
+        }
+        if (!hash_equals($guardado['hash'], hash('sha256', trim($request->codigo)))) {
+            $guardado['intentos'] = ($guardado['intentos'] ?? 0) + 1;
+            \Illuminate\Support\Facades\Cache::put($clave, $guardado, now()->addMinutes(30));
+            return response()->json(['message' => 'Código incorrecto'], 422);
+        }
+
+        \Illuminate\Support\Facades\Cache::forget($clave);
+        $cliente->forceFill([
+            'numero_validado' => true,
+            'numero_validado_celular' => $numero,
+            'numero_validado_en' => now(),
+        ])->save();
+
+        return response()->json(['success' => true, 'numero_validado' => true]);
     }
 
     /**
@@ -424,6 +482,7 @@ class ClienteController extends Controller
             }
 
             $profile->foto_perfil = $profile->foto_perfil ? config('app.url') . "/storage/{$profile->foto_perfil}" : '';
+            $profile->numero_validado = $profile->numeroEstaValidado();
 
             return response()->json([
                 'message' => 'Perfil encontrado',
@@ -481,6 +540,7 @@ class ClienteController extends Controller
             }
 
             $cliente->save();
+            $cliente->sincronizarValidacion();
             \Log::info("Profile updated successfully for client: " . $request->id_cliente);
 
             return response()->json(['success' => true, 'message' => 'Perfil actualizado'], 200);

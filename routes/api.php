@@ -144,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::controller(InfoClienteController::class)->group(function () {
             Route::get('/cliente', 'all');
             Route::get('/cliente/{id}/details', 'getDetails');
+            Route::post('/cliente/{id}/numero-validado', 'cambiarNumeroValidado');
             Route::delete('/cliente/{id}/delete', 'delete');
         });
 
@@ -428,6 +429,7 @@ Route::post('/upload-photos', [ClienteController::class, 'uploadPhotos']);
 Route::post('/update-profile', [ClienteController::class, 'actualizarInfoCliente']);
 Route::post('/send-code-phone', [ClienteController::class, 'sendCodePhone'])->middleware('throttle:10,1'); // 10 por minuto por IP
 Route::get('/send-code-phone/{id}/estado', [ClienteController::class, 'estadoEnvioCodigo'])->middleware('throttle:60,1');
+Route::post('/clientes/{idCliente}/validar-numero', [ClienteController::class, 'validarNumero'])->middleware('throttle:20,1');
 Route::get('/get/tipo/negocio', [TipoNegocioController::class, 'getAll']);
 Route::get('/get/locales/top/{id?}', [LocalesController::class, 'getLocalesTop']);
 Route::get('/get/local/{id}', [LocalesController::class, 'getLocalById']);
