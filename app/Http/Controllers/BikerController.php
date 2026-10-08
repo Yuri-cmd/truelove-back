@@ -245,17 +245,64 @@ class BikerController extends Controller
         return response()->json(['message' => 'Location updated successfully'], 200);
     }
 
+    /**
+     * Registra el token de notificaciones del teléfono del repartidor.
+     *
+     * - Un token vacío se rechaza: antes una versión de la app que mandaba null lo dejaba
+     *   borrado en el servidor y el repartidor dejaba de recibir pedidos.
+     * - Un teléfono solo puede estar en una cuenta: si otro repartidor tenía este mismo token
+     *   (cambio de cuenta en el mismo teléfono) se le quita, para no mandarle avisos ajenos.
+     */
     public function updateToken(Request $request)
     {
+        $request->validate([
+            'id_reparto' => 'required|integer',
+            'token_fcm' => 'required|string|min:20|max:255',
+        ]);
+
         $reparto = RepartoRegistro::findOrFail($request->id_reparto);
-        $reparto->token_fmc = $request->token_fcm;
+
+        // Si la app manda su sesión, el token solo puede cambiarlo el dueño de la cuenta
+        $usuario = $request->user('sanctum');
+        if ($usuario && $reparto->user_id !== $usuario->id) {
+            return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
+        }
+
+        $token = trim($request->token_fcm);
+
+        RepartoRegistro::where('token_fmc', $token)->where('id', '!=', $reparto->id)->update(['token_fmc' => null]);
+
+        $reparto->token_fmc = $token;
         $reparto->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Token actualizado correctamente',
-            'data' => $reparto
         ]);
+    }
+
+    /**
+     * Al cerrar sesión la app quita el token de este teléfono, para que los avisos de ese
+     * repartidor no sigan llegando a un teléfono donde ya no tiene la sesión (o donde entró otro).
+     * Solo lo borra si es el mismo token, así un cierre de sesión tardío no pisa uno nuevo.
+     */
+    public function clearToken(Request $request)
+    {
+        $request->validate([
+            'id_reparto' => 'required|integer',
+            'token_fcm' => 'required|string|max:255',
+        ]);
+
+        $reparto = RepartoRegistro::find($request->id_reparto);
+        if ($reparto && $reparto->token_fmc === $request->token_fcm) {
+            $usuario = $request->user('sanctum');
+            if (!$usuario || $reparto->user_id === $usuario->id) {
+                $reparto->token_fmc = null;
+                $reparto->save();
+            }
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function getPerfl($repartoId)

@@ -578,6 +578,7 @@ Route::get('biker/get/pedidos/{id}', [BikerController::class, 'getPedidos']);
 Route::post('biker/iniciar_viaje', [PedidoController::class, 'iniciarViaje']);
 Route::post('biker/location/update', [BikerController::class, 'updateLocation']);
 Route::post('biker/update-token', [BikerController::class, 'updateToken']);
+Route::post('biker/clear-token', [BikerController::class, 'clearToken']);
 Route::get('/ratings/biker/{idUsuario}', [RatingController::class, 'getRatingsBiker']);
 Route::get('/biker/perfil/{idUsuario}', [BikerController::class, 'getPerfl']);
 Route::post('/biker/foto-perfil/{id}', [BikerController::class, 'actualizarFotoPerfil']);
