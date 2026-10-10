@@ -201,14 +201,95 @@ class PeriodoCuotaService
         $periodo = PeriodoCuotaSocio::find($periodoId);
 
         if ($periodo && in_array($periodo->estado, ['pendiente', 'vencido'])) {
-            $periodo->update([
-                'pago_id' => $pagoId,
-                'estado' => 'en_revision'
-            ]);
+            DB::transaction(function () use ($periodo, $pagoId) {
+                $periodo->update([
+                    'pago_id' => $pagoId,
+                    'estado' => 'en_revision'
+                ]);
+                $this->recortarPeriodoPorPagoAdelantado($periodo);
+            });
             return $periodo;
         }
 
         return null;
+    }
+
+    /**
+     * Pago adelantado (cuota por porcentaje): cierra el período hoy y traslada
+     * los días restantes al inicio del siguiente período, para que esas ventas
+     * se cobren allí y no queden sin cobrar.
+     */
+    private function recortarPeriodoPorPagoAdelantado(PeriodoCuotaSocio $periodo): void
+    {
+        $cuota = $periodo->cuota;
+        if (!$cuota || $cuota->tipo_cuota !== 'porcentaje') {
+            return;
+        }
+
+        $hoy = Carbon::now()->startOfDay();
+        $finOriginal = Carbon::parse($periodo->periodo_fin)->startOfDay();
+
+        if ($finOriginal->lte($hoy) || Carbon::parse($periodo->periodo_inicio)->startOfDay()->gt($hoy)) {
+            return;
+        }
+
+        $siguiente = PeriodoCuotaSocio::where('socio_id', $periodo->socio_id)
+            ->where('cuota_socio_id', $periodo->cuota_socio_id)
+            ->where('estado', 'pendiente')
+            ->whereDate('periodo_inicio', $finOriginal->copy()->addDay())
+            ->first();
+
+        $periodo->update([
+            'periodo_fin' => $hoy,
+            'fecha_vencimiento' => $hoy,
+        ]);
+
+        if ($siguiente) {
+            $siguiente->update(['periodo_inicio' => $hoy->copy()->addDay()]);
+        }
+
+        Log::info("Período {$periodo->id} recortado por pago adelantado: fin {$finOriginal->toDateString()} -> {$hoy->toDateString()}");
+    }
+
+    /**
+     * Revierte el recorte de un pago adelantado (pago rechazado).
+     */
+    private function restaurarPeriodoRecortado(PeriodoCuotaSocio $periodo): void
+    {
+        $cuota = $periodo->cuota;
+        if (!$cuota || $cuota->tipo_cuota !== 'porcentaje') {
+            return;
+        }
+
+        $inicio = Carbon::parse($periodo->periodo_inicio)->startOfDay();
+        $finActual = Carbon::parse($periodo->periodo_fin)->startOfDay();
+
+        $finOriginal = match($cuota->periodicidad) {
+            'diario' => $inicio->copy(),
+            'semanal' => $inicio->copy()->addWeek()->subDay(),
+            'quincenal' => $inicio->copy()->addWeeks(2)->subDay(),
+            'mensual' => $inicio->copy()->addMonth()->subDay(),
+            default => $inicio->copy()->addWeek()->subDay()
+        };
+
+        if ($finOriginal->lte($finActual)) {
+            return;
+        }
+
+        $siguiente = PeriodoCuotaSocio::where('socio_id', $periodo->socio_id)
+            ->where('cuota_socio_id', $periodo->cuota_socio_id)
+            ->where('estado', 'pendiente')
+            ->whereDate('periodo_inicio', $finActual->copy()->addDay())
+            ->first();
+
+        $periodo->update([
+            'periodo_fin' => $finOriginal,
+            'fecha_vencimiento' => $finOriginal,
+        ]);
+
+        if ($siguiente) {
+            $siguiente->update(['periodo_inicio' => $finOriginal->copy()->addDay()]);
+        }
     }
 
     /**
@@ -240,10 +321,13 @@ class PeriodoCuotaService
         $periodo = PeriodoCuotaSocio::find($periodoId);
 
         if ($periodo && $periodo->estado === 'en_revision') {
-            $periodo->update([
-                'estado' => 'pendiente',
-                'pago_id' => null
-            ]);
+            DB::transaction(function () use ($periodo) {
+                $periodo->update([
+                    'estado' => 'pendiente',
+                    'pago_id' => null
+                ]);
+                $this->restaurarPeriodoRecortado($periodo);
+            });
             return $periodo;
         }
 
