@@ -27,7 +27,8 @@ class CalculoCuotaService
         $socio = BusinessRegistration::findOrFail($periodo->socio_id);
         
         // 1. CALCULAR VENTAS Y PEDIDOS DEL PERÍODO
-        $resultado = $this->calcularVentasYPedidos($socio->id, $periodo->periodo_inicio, $periodo->periodo_fin);
+        [$desde, $hasta] = $periodo->rangoVentas();
+        $resultado = $this->calcularVentasYPedidos($socio->id, $desde, $hasta);
         
         $totalVentas = $resultado['total_ventas'];
         $cantidadPedidos = $resultado['cantidad_pedidos'];
@@ -65,18 +66,19 @@ class CalculoCuotaService
      * Cuenta pedidos completados (estado 8 = entregado) y recojo (estado 9 = listo para recoger)
      * 
      * @param int $socioId
-     * @param string $fechaInicio
-     * @param string $fechaFin
+     * @param \DateTimeInterface|string $fechaInicio Fecha y hora exacta de inicio
+     * @param \DateTimeInterface|string $fechaFin Fecha y hora exacta de fin
      * @return array ['total_ventas' => float, 'cantidad_pedidos' => int]
      */
     public function calcularVentasYPedidos($socioId, $fechaInicio, $fechaFin)
     {
+        // Los límites ya vienen con hora exacta (ver PeriodoCuotaSocio::rangoVentas)
+        $desde = Carbon::parse($fechaInicio);
+        $hasta = Carbon::parse($fechaFin);
+
         // Buscar pedidos completados del socio en el rango de fechas
         $pedidosCompletados = Pedido::where('id_local', $socioId)
-            ->whereBetween('created_at', [
-                Carbon::parse($fechaInicio)->startOfDay(),
-                Carbon::parse($fechaFin)->endOfDay()
-            ])
+            ->whereBetween('created_at', [$desde, $hasta])
             ->whereHas('trackings', function($query) {
                 $query->whereIn('estado', [8, 9]); // Estado 8 = entregado, 9 = recojo en local
             })

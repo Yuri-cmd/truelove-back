@@ -678,12 +678,9 @@ class CuotaSocioController extends Controller
         $cuota = CuotaSocio::find($periodo->cuota_socio_id);
         $porcentaje = $cuota && $cuota->tipo_cuota === 'porcentaje' ? (float)$cuota->porcentaje_comision : null;
 
-        // Buscar pedidos completados (delivery + recojo) en el rango del período
+        // Buscar pedidos completados (delivery + recojo) en el rango exacto del período
         $pedidos = Pedido::where('pedidos.id_local', $socio->id)
-            ->whereBetween('pedidos.created_at', [
-                Carbon::parse($periodo->periodo_inicio)->startOfDay(),
-                Carbon::parse($periodo->periodo_fin)->endOfDay()
-            ])
+            ->whereBetween('pedidos.created_at', $periodo->rangoVentas())
             ->whereHas('trackings', function($query) {
                 $query->whereIn('estado', [8, 9]); // 8 = entregado, 9 = recojo en local
             })
@@ -1132,10 +1129,11 @@ class CuotaSocioController extends Controller
             $calculoService = app(CalculoCuotaService::class);
 
             // Obtener ventas y pedidos del período
+            [$desde, $hasta] = $periodo->rangoVentas();
             $resultado = $calculoService->calcularVentasYPedidos(
                 $periodo->socio_id,
-                $periodo->periodo_inicio,
-                $periodo->periodo_fin
+                $desde,
+                $hasta
             );
 
             return response()->json([

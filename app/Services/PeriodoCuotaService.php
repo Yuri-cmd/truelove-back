@@ -239,16 +239,25 @@ class PeriodoCuotaService
             ->whereDate('periodo_inicio', $finOriginal->copy()->addDay())
             ->first();
 
+        // Corte exacto: lo vendido hasta ahora se paga en este período, lo posterior pasa al siguiente
+        $corte = Carbon::now();
+
         $periodo->update([
             'periodo_fin' => $hoy,
             'fecha_vencimiento' => $hoy,
+            'ventas_hasta' => $corte,
         ]);
 
         if ($siguiente) {
-            $siguiente->update(['periodo_inicio' => $hoy->copy()->addDay()]);
+            $siguiente->update([
+                'periodo_inicio' => $hoy->copy()->addDay(),
+                'ventas_desde' => $corte->copy()->addSecond(),
+            ]);
         }
 
-        Log::info("Período {$periodo->id} recortado por pago adelantado: fin {$finOriginal->toDateString()} -> {$hoy->toDateString()}");
+        app(CalculoCuotaService::class)->calcularCuotaDelPeriodo($periodo->id);
+
+        Log::info("Período {$periodo->id} recortado por pago adelantado: fin {$finOriginal->toDateString()} -> {$corte->toDateTimeString()}");
     }
 
     /**
@@ -285,11 +294,17 @@ class PeriodoCuotaService
         $periodo->update([
             'periodo_fin' => $finOriginal,
             'fecha_vencimiento' => $finOriginal,
+            'ventas_hasta' => null,
         ]);
 
         if ($siguiente) {
-            $siguiente->update(['periodo_inicio' => $finOriginal->copy()->addDay()]);
+            $siguiente->update([
+                'periodo_inicio' => $finOriginal->copy()->addDay(),
+                'ventas_desde' => null,
+            ]);
         }
+
+        app(CalculoCuotaService::class)->calcularCuotaDelPeriodo($periodo->id);
     }
 
     /**

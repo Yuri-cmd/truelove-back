@@ -25,7 +25,9 @@ class PeriodoCuotaSocio extends Model
         'estado',
         'pago_id',
         'fecha_vencimiento',
-        'notificado_vencimiento'
+        'notificado_vencimiento',
+        'ventas_hasta',
+        'ventas_desde'
     ];
 
     protected $casts = [
@@ -37,8 +39,24 @@ class PeriodoCuotaSocio extends Model
         'cantidad_pedidos' => 'integer',
         'monto_calculado' => 'decimal:2',
         'fecha_calculo' => 'datetime',
-        'notificado_vencimiento' => 'boolean'
+        'notificado_vencimiento' => 'boolean',
+        'ventas_hasta' => 'datetime',
+        'ventas_desde' => 'datetime'
     ];
+
+    /**
+     * Rango exacto de fecha y hora en que cuentan las ventas del período.
+     * Normalmente son los días completos; un pago adelantado lo ajusta a la hora del pago.
+     *
+     * @return array{0: Carbon, 1: Carbon} [desde, hasta]
+     */
+    public function rangoVentas(): array
+    {
+        $desde = $this->ventas_desde ?: Carbon::parse($this->periodo_inicio)->startOfDay();
+        $hasta = $this->ventas_hasta ?: Carbon::parse($this->periodo_fin)->endOfDay();
+
+        return [$desde, $hasta];
+    }
 
     protected $appends = ['numero_periodo', 'dias_para_vencer', 'esta_vencido'];
 
