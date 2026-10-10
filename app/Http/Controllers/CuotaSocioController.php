@@ -680,10 +680,7 @@ class CuotaSocioController extends Controller
 
         // Buscar pedidos completados (delivery + recojo) en el rango exacto del período
         $pedidos = Pedido::where('pedidos.id_local', $socio->id)
-            ->whereBetween('pedidos.created_at', $periodo->rangoVentas())
-            ->whereHas('trackings', function($query) {
-                $query->whereIn('estado', [8, 9]); // 8 = entregado, 9 = recojo en local
-            })
+            ->completadosEntre(...$periodo->rangoVentas())
             ->leftJoin('clientes', 'clientes.id', '=', 'pedidos.id_cliente')
             ->select('pedidos.*', 'clientes.nombre as cliente_nombre', 'clientes.apellido as cliente_apellido')
             ->orderBy('pedidos.created_at', 'desc')

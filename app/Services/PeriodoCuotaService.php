@@ -229,7 +229,7 @@ class PeriodoCuotaService
         $hoy = Carbon::now()->startOfDay();
         $finOriginal = Carbon::parse($periodo->periodo_fin)->startOfDay();
 
-        if ($finOriginal->lte($hoy) || Carbon::parse($periodo->periodo_inicio)->startOfDay()->gt($hoy)) {
+        if ($finOriginal->lt($hoy) || Carbon::parse($periodo->periodo_inicio)->startOfDay()->gt($hoy)) {
             return;
         }
 
@@ -281,7 +281,17 @@ class PeriodoCuotaService
             default => $inicio->copy()->addWeek()->subDay()
         };
 
+        // Sin recorte de fecha (pago el último día): solo se quita el corte por hora
         if ($finOriginal->lte($finActual)) {
+            if ($periodo->ventas_hasta) {
+                $periodo->update(['ventas_hasta' => null]);
+                PeriodoCuotaSocio::where('socio_id', $periodo->socio_id)
+                    ->where('cuota_socio_id', $periodo->cuota_socio_id)
+                    ->where('estado', 'pendiente')
+                    ->whereDate('periodo_inicio', $finActual->copy()->addDay())
+                    ->update(['ventas_desde' => null]);
+                app(CalculoCuotaService::class)->calcularCuotaDelPeriodo($periodo->id);
+            }
             return;
         }
 

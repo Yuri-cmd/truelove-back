@@ -77,11 +77,9 @@ class CalculoCuotaService
         $hasta = Carbon::parse($fechaFin);
 
         // Buscar pedidos completados del socio en el rango de fechas
+        // Cuenta en el período en que se completó el pedido (estado 8 = entregado, 9 = recojo en local)
         $pedidosCompletados = Pedido::where('id_local', $socioId)
-            ->whereBetween('created_at', [$desde, $hasta])
-            ->whereHas('trackings', function($query) {
-                $query->whereIn('estado', [8, 9]); // Estado 8 = entregado, 9 = recojo en local
-            })
+            ->completadosEntre($desde, $hasta)
             ->get();
         
         $cantidadPedidos = $pedidosCompletados->count();
