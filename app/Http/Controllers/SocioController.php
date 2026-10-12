@@ -417,6 +417,10 @@ class SocioController extends Controller
             $pedido->cancelacion_solicitud_pendiente = PedidoCancelacionSolicitud::where('pedido_id', $pedido->id)
                 ->where('status', 'pending')
                 ->exists();
+            // Con motorizado asignado (o recogido) el local solo puede solicitar la cancelación
+            $pedido->requiere_solicitud_cancelacion = $pedido->requiereSolicitudCancelacion(
+                $ultimoTracking ? (int) $ultimoTracking->estado : null
+            );
 
             // Agregar información adicional
             $pedido->detalle = $namesString;
@@ -558,10 +562,10 @@ class SocioController extends Controller
                     return response()->json(['status' => 'error', 'message' => 'No es posible volver a un estado anterior'], 400);
                 }
 
-                // El pedido ya fue recogido por el motorizado: no se permite cancelar directamente,
+                // Con motorizado asignado (o ya recogido) no se permite cancelar directamente:
                 // debe solicitarse la cancelación con una justificación para que el admin la apruebe.
-                if ($estado === 0 && in_array((int) $ultimoTracking->estado, [5, 6, 7], true)) {
-                    return response()->json(['status' => 'error', 'message' => 'El pedido ya fue recogido por el motorizado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
+                if ($estado === 0 && $pedido->requiereSolicitudCancelacion((int) $ultimoTracking->estado)) {
+                    return response()->json(['status' => 'error', 'message' => 'El pedido ya tiene un motorizado asignado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
                 }
             }
 
@@ -1043,6 +1047,10 @@ class SocioController extends Controller
         $pedido->cancelacion_solicitud_pendiente = PedidoCancelacionSolicitud::where('pedido_id', $pedido->id)
             ->where('status', 'pending')
             ->exists();
+        // Con motorizado asignado (o recogido) el local solo puede solicitar la cancelación
+        $pedido->requiere_solicitud_cancelacion = $pedido->requiereSolicitudCancelacion(
+            $ultimoTracking ? (int) $ultimoTracking->estado : null
+        );
 
         // Agregar información adicional
         $pedido->detalle = $namesString;

@@ -26,6 +26,16 @@ class Pedido extends Model
     }
 
     /**
+     * El local no puede cancelar directo un pedido que ya tiene motorizado asignado
+     * (o que ya fue recogido, estados 5-7): debe enviar una solicitud con motivo que
+     * un administrador aprueba, para no dejar al repartidor con un viaje a medias.
+     */
+    public function requiereSolicitudCancelacion(?int $estadoActual): bool
+    {
+        return $this->id_motorizado !== null || in_array($estadoActual, [5, 6, 7], true);
+    }
+
+    /**
      * Pedidos completados (8 = entregado, 9 = recojo en local) cuya fecha y hora de
      * completado cae en el rango. Se usa para asignar ventas a períodos de cuota:
      * un pedido cuenta en el período en que se completó, no en el que se creó.

@@ -47,10 +47,17 @@ class PedidoCancelacionController extends Controller
         $ultimoTracking = PedidoTracking::where('pedido_id', $pedidoId)->latest('id')->first();
         $estadoActual = $ultimoTracking ? (int) $ultimoTracking->estado : null;
 
-        if ($estadoActual === null || !in_array($estadoActual, self::ESTADOS_RECOGIDO, true)) {
+        if ($estadoActual === null || in_array($estadoActual, [0, 8], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Este pedido solo puede solicitarse en cancelación cuando ya fue recogido por el motorizado. Para otros estados, cancele el pedido directamente.',
+                'message' => 'El pedido ya se encuentra en un estado final (Entregado/Cancelado).',
+            ], 400);
+        }
+
+        if (!$pedido->requiereSolicitudCancelacion($estadoActual)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Este pedido solo puede solicitarse en cancelación cuando ya tiene motorizado asignado. Para otros estados, cancele el pedido directamente.',
             ], 400);
         }
 

@@ -656,10 +656,10 @@ class PedidoController extends Controller
                 return response()->json(['error' => 'No es posible volver a un estado anterior'], 400);
             }
 
-            // El pedido ya fue recogido por el motorizado: no se permite cancelar directamente,
+            // Con motorizado asignado (o ya recogido) no se permite cancelar directamente:
             // debe solicitarse la cancelación con una justificación para que el admin la apruebe.
-            if ((int) $request->estado === 0 && in_array((int) $ultimoTracking->estado, [5, 6, 7], true)) {
-                return response()->json(['error' => 'El pedido ya fue recogido por el motorizado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
+            if ((int) $request->estado === 0 && $pedido->requiereSolicitudCancelacion((int) $ultimoTracking->estado)) {
+                return response()->json(['error' => 'El pedido ya tiene un motorizado asignado. Debe solicitar la cancelación con una justificación para que el administrador la apruebe.'], 409);
             }
         }
 
