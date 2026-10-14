@@ -897,9 +897,12 @@ class PedidoController extends Controller
             if ($pedidoTracking && $local) {
                 $logo = PerfilNegocio::where('business_registration_id', $pedido->id_local)->first();
                 $pedidoDetalles = PedidoDetalle::where('pedido_id', $pedido->id)->get();
-                $total = $pedidoDetalles->sum(function ($detalle) {
+                $subtotal = $pedidoDetalles->sum(function ($detalle) {
                     return $detalle->precio * $detalle->cantidad;
                 });
+                $precioDelivery = $pedido->precio_delivery ?? 0;
+                $descuento = $pedido->descuento ?? 0;
+                $total = ($subtotal + $precioDelivery) - $descuento;
                 $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
                 if ($pedidoTracking->estado !== 8) {
                     $existeCalificacion = true;
@@ -912,7 +915,12 @@ class PedidoController extends Controller
                     'hora_entrega' => Carbon::parse($pedidoTracking->created_at)->format('H:i'),
                     'local' => $local->nombre_establecimiento,
                     'logo' => $logo->ruta_logo ? config('app.url') . '/' . $logo->ruta_logo : 'https://magusemail.com/truelove-back/public/default_avatar.png',
+                    // 'total' antes solo sumaba productos (sin delivery ni descuento),
+                    // lo que subestimaba el monto realmente cobrado al cliente.
                     'total' => $total,
+                    'subtotal' => $subtotal,
+                    'precio_delivery' => $precioDelivery,
+                    'descuento' => $descuento,
                     'cantidad' => count($pedidoDetalles),
                     'items' => $pedidoDetalles->map(function ($detalle) {
                         return [
