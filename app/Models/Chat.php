@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Events\ChatMensajeEnviado;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Chat extends Model
 {
@@ -14,6 +16,23 @@ class Chat extends Model
         'receiver_id',
         'message',
     ];
+
+    /**
+     * Ver el comentario en App\Models\PedidoTracking::booted(): el try/catch
+     * es obligatorio para que enviar un mensaje nunca falle solo porque
+     * Reverb esté caído o no desplegado — el socket es un plus, no un
+     * requisito para que el chat funcione.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Chat $chat) {
+            try {
+                ChatMensajeEnviado::dispatch($chat);
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo emitir ChatMensajeEnviado: ' . $e->getMessage());
+            }
+        });
+    }
 
     //cliente
     public function sender()
