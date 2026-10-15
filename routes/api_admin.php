@@ -72,6 +72,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Logs de notificaciones
         Route::get('/notification-logs', [App\Http\Controllers\NotificationTrackingController::class, 'index']);
 
+        // Panel de mensajes de WhatsApp (accesible solo por URL directa, sin enlace en el menú)
+        Route::get('/whatsapp/stats', [App\Http\Controllers\WhatsappStatsController::class, 'index']);
+
         // Gestión de socios
         Route::controller(SocioController::class)->group(function () {
             Route::get('/socio', 'all');
