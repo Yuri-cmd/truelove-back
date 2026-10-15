@@ -50,6 +50,10 @@ return [
         // responde ok sin enviar. La reserva cubre envíos simultáneos justo en el límite.
         'cuota_mensual' => env('WHATSAPP_CUOTA_MENSUAL', 250),
         'cuota_reserva' => env('WHATSAPP_CUOTA_RESERVA', 0),
+        // Costo aproximado (en soles) por mensaje de plantilla entregado, usado solo para
+        // mostrar un estimado en el panel de mensajes. Calculado del cargo real en Meta
+        // Business Suite (S/ 6.49 / 65 mensajes). Ajustar si Meta cambia sus tarifas.
+        'costo_por_mensaje' => env('WHATSAPP_COSTO_POR_MENSAJE', 0.0998),
         // Plantilla de Autenticación aprobada en Meta con la que se envía el código de verificación.
         'plantilla_codigo' => env('WHATSAPP_PLANTILLA_CODIGO', 'codigo_verificacion'),
         'plantilla_codigo_idioma' => env('WHATSAPP_PLANTILLA_CODIGO_IDIOMA', 'es'),

@@ -8,23 +8,26 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsappStatsController extends Controller
 {
-    /** Costo aproximado por mensaje que consume cuota (plantilla de utilidad, Meta Perú). */
-    private const COSTO_APROX_POR_MENSAJE = 0.03;
+    /**
+     * Costo aproximado por mensaje que consume cuota (plantilla, Meta Perú).
+     * Calculado a partir del cargo real reportado por Meta Business Suite: S/ 6.49 / 65 mensajes.
+     * Configurable vía META_COSTO_POR_MENSAJE si Meta ajusta sus tarifas.
+     */
+    private const COSTO_APROX_POR_MENSAJE = 0.0998;
 
     public function index(WhatsappCloudService $whatsapp)
     {
         try {
-            $inicioMes = now()->startOfMonth();
+            // Solo cuentan los mensajes que realmente salieron (tienen message_id); los
+            // fallidos u omitidos por cuota no los factura ni los cuenta Meta.
+            $enviadosMes = WhatsappLog::consumenCuotaEsteMes()->count();
 
-            $enviadosMes = WhatsappLog::where('direccion', WhatsappLog::SALIENTE)
-                ->where('created_at', '>=', $inicioMes)
-                ->count();
+            // No se usan mensajes de ventana de servicio al cliente (solo plantillas de pago),
+            // así que no hay mensajes gratuitos en este flujo.
+            $gratuitosMes = 0;
 
-            $consumenCuota = WhatsappLog::consumenCuotaEsteMes()->count();
-
-            $gratuitosMes = max(0, $enviadosMes - $consumenCuota);
-
-            $cargosAproximados = round($consumenCuota * self::COSTO_APROX_POR_MENSAJE, 2);
+            $costoPorMensaje = (float) config('services.whatsapp.costo_por_mensaje', self::COSTO_APROX_POR_MENSAJE);
+            $cargosAproximados = round($enviadosMes * $costoPorMensaje, 2);
 
             $cuenta = [
                 'nombre' => null,
