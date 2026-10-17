@@ -904,7 +904,11 @@ class PedidoController extends Controller
                 $descuento = $pedido->descuento ?? 0;
                 $total = ($subtotal + $precioDelivery) - $descuento;
                 $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
-                if ($pedidoTracking->estado !== 8) {
+                // 'estado' es string en la tabla (ver pedido_trackings.estado) — con
+                // !== (comparación estricta) contra el int 8 esto daba SIEMPRE true,
+                // ocultando "Calificar" incluso para pedidos recién entregados sin
+                // calificar. (int) normaliza antes de comparar.
+                if ((int) $pedidoTracking->estado !== 8) {
                     $existeCalificacion = true;
                 }
                 $data[] = [
