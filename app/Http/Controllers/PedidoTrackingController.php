@@ -24,9 +24,23 @@ class PedidoTrackingController extends Controller
     }
     public function obtenerEstado($id)
     {
+        $data = self::estadoPayload($id);
+        if ($data === null) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+        return response()->json($data);
+    }
+
+    /**
+     * Arma el mismo payload que consume el polling HTTP (`obtenerEstado`) y el
+     * evento de broadcast (`PedidoEstadoActualizado`), para que ambos canales
+     * — WebSocket y HTTP de respaldo — muestren siempre exactamente lo mismo.
+     */
+    public static function estadoPayload($id): ?array
+    {
         $ultimoTracking = PedidoTracking::where('pedido_id', $id)->latest('id')->first();
         if (!$ultimoTracking) {
-            return response()->json(['error' => 'Pedido no encontrado'], 404);
+            return null;
         }
 
         $pedido = Pedido::find($id);
@@ -61,8 +75,8 @@ class PedidoTrackingController extends Controller
         $descuento = ($pedido->descuento ?? 0);
         $total -= $descuento;
 
-        return response()->json([
-            'id' => $id,
+        return [
+            'id' => (int) $id,
             'estado' => $ultimoTracking->estado,
             'tiempo' => $tiempoRestante,
             'tiempo_original' => $tiempoEstimado,
@@ -78,7 +92,7 @@ class PedidoTrackingController extends Controller
             'total' => round($total, 2),
             'created_at' => $createdAt->toDateTimeString(),
             'server_time' => $now->toDateTimeString(),
-        ]);
+        ];
     }
 
     public function updateEstado(Request $request)
