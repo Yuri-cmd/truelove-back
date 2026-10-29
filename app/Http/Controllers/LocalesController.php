@@ -106,6 +106,12 @@ class LocalesController extends Controller
             business_registrations.businessType,
             business_registrations.omitir_pago_adelantado,
             CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
+            (SELECT ROUND(AVG(r.restaurant_rating), 1) FROM ratings r
+                INNER JOIN pedidos p ON p.id = r.id_pedido
+                WHERE p.id_local = business_registrations.id) AS rating_promedio,
+            (SELECT COUNT(*) FROM ratings r
+                INNER JOIN pedidos p ON p.id = r.id_pedido
+                WHERE p.id_local = business_registrations.id) AS rating_total,
             0 AS distancia
         FROM business_registrations
         INNER JOIN establecimientos
@@ -175,6 +181,12 @@ class LocalesController extends Controller
             business_registrations.omitir_pago_adelantado,
             CASE WHEN business_registrations.activo = 1 THEN TRUE ELSE FALSE END AS activo,
             local_priorities.prioridad,
+            (SELECT ROUND(AVG(r.restaurant_rating), 1) FROM ratings r
+                INNER JOIN pedidos p ON p.id = r.id_pedido
+                WHERE p.id_local = business_registrations.id) AS rating_promedio,
+            (SELECT COUNT(*) FROM ratings r
+                INNER JOIN pedidos p ON p.id = r.id_pedido
+                WHERE p.id_local = business_registrations.id) AS rating_total,
             (6371 * acos(
                 cos(radians($lat)) * cos(radians(establecimientos.latitud)) *
                 cos(radians(establecimientos.longitud) - radians($lng)) +
