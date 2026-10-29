@@ -4,6 +4,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DescuentoClienteController;
 use App\Http\Controllers\FavoritoController;
+use App\Http\Controllers\FavoritoLocalController;
 use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MenuController;
@@ -47,6 +48,8 @@ Route::get('/busqueda/locales/{id}/{term?}', [LocalesController::class, 'searchL
 Route::post('/favoritos/toggle', [FavoritoController::class, 'toggle']);
 Route::get('/favoritos/{idCliente}/empresa/{idEmpresa}', [FavoritoController::class, 'porEmpresa']);
 Route::get('/favoritos/{idCliente}', [FavoritoController::class, 'porCliente']);
+Route::post('/favoritos-locales/toggle', [FavoritoLocalController::class, 'toggle']);
+Route::get('/favoritos-locales/{idCliente}/{idLocal}', [FavoritoLocalController::class, 'estado']);
 Route::get('/listar/menus/categoria/{empresa_id}', [MenuController::class, 'getMenuCategoria']);
 Route::get('/customer-local-location/{idPedido}', [PedidoController::class, 'getLocalYcustomerPosition']);
 Route::post('/pedido/ubicacion-cliente', [PedidoController::class, 'actualizarUbicacionCliente']);
