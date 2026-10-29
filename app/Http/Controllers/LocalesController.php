@@ -154,36 +154,54 @@ class LocalesController extends Controller
             return response()->json(['error' => 'El cliente no tiene una dirección con coordenadas válidas'], 422);
         }
 
-        $ruta = $this->pedidoService->obtenerRuta(
-            round($c['lat'], 6), round($c['lng'], 6),
-            round((float) $local->latitud, 6), round((float) $local->longitud, 6)
-        );
-        if (!$ruta) {
-            return response()->json(['precio_delivery' => null, 'tiempo_min' => null, 'tiempo_max' => null, 'distancia_km' => null]);
+        $latCliente = round($c['lat'], 6);
+        $lngCliente = round($c['lng'], 6);
+        $latLocal = round((float) $local->latitud, 6);
+        $lngLocal = round((float) $local->longitud, 6);
+
+        $ruta = $this->pedidoService->obtenerRuta($latCliente, $lngCliente, $latLocal, $lngLocal);
+
+        // Igual que get/precio/delivery: si Mapbox no responde, el precio se
+        // calcula con la distancia en línea recta. Sin ruta no hay duración,
+        // así que en ese caso no se devuelve tiempo estimado.
+        if ($ruta) {
+            $km = $ruta['km'];
+        } else {
+            $km = $this->pedidoService->calcularDistanciaHaversine($latCliente, $lngCliente, $latLocal, $lngLocal);
+            \Log::warning('getEntregaLocal: Mapbox no devolvió ruta, se usa distancia en línea recta', [
+                'id_local' => $idLocal,
+                'id_cliente' => $idCliente,
+                'id_direccion' => $direccion->id,
+                'origen' => [$latCliente, $lngCliente],
+                'destino' => [$latLocal, $lngLocal],
+            ]);
         }
 
-        $precio = $this->pedidoService->calcularPrecioPorDistancia($ruta['km'], $idLocal);
+        $precio = $this->pedidoService->calcularPrecioPorDistancia($km, $idLocal);
 
-        // Preparación: promedio de los últimos 30 días, solo si hay muestra
-        // suficiente; si no, un valor fijo para locales nuevos.
-        $prep = DB::selectOne(
-            "SELECT AVG(tiempo) AS promedio, COUNT(*) AS total
-             FROM pedidos
-             WHERE id_local = ? AND tiempo > 0 AND tiempo <= 120
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
-            [$idLocal]
-        );
-        $preparacion = ($prep && (int) $prep->total >= 5) ? (float) $prep->promedio : 20.0;
+        $tiempoMin = null;
+        $tiempoMax = null;
+        if ($ruta) {
+            // Preparación: promedio de los últimos 30 días, solo si hay muestra
+            // suficiente; si no, un valor fijo para locales nuevos.
+            $prep = DB::selectOne(
+                "SELECT AVG(tiempo) AS promedio, COUNT(*) AS total
+                 FROM pedidos
+                 WHERE id_local = ? AND tiempo > 0 AND tiempo <= 120
+                   AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
+                [$idLocal]
+            );
+            $preparacion = ($prep && (int) $prep->total >= 5) ? (float) $prep->promedio : 20.0;
 
-        $total = $preparacion + $ruta['min'];
-        $min = (int) (round($total / 5) * 5);
-        $max = $min + 10;
+            $tiempoMin = (int) (round(($preparacion + $ruta['min']) / 5) * 5);
+            $tiempoMax = $tiempoMin + 10;
+        }
 
         return response()->json([
             'precio_delivery' => number_format((float) $precio, 2, '.', ''),
-            'tiempo_min' => $min,
-            'tiempo_max' => $max,
-            'distancia_km' => round($ruta['km'], 1),
+            'tiempo_min' => $tiempoMin,
+            'tiempo_max' => $tiempoMax,
+            'distancia_km' => round($km, 1),
         ]);
     }
 
