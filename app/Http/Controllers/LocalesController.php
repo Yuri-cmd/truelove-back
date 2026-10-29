@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BusinessRegistration;
 use App\Models\ClienteDireccion;
+use App\Models\Establecimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -130,6 +131,60 @@ class LocalesController extends Controller
         $local->activo = $local->estaAbierto ? 1 : 0;
 
         return response()->json($local);
+    }
+
+    /**
+     * Costo de envío y tiempo estimado de entrega de un local hacia la
+     * dirección del cliente (?id_direccion=, o la vigente si no viene).
+     * Una sola llamada a Mapbox da distancia y duración de viaje; el tiempo
+     * de preparación es el promedio de los últimos pedidos del local.
+     */
+    public function getEntregaLocal(Request $request, $idLocal, $idCliente)
+    {
+        $local = Establecimiento::where('business_registration_id', $idLocal)->first();
+        if (!$local) {
+            return response()->json(['error' => 'Local no encontrado'], 404);
+        }
+
+        $direccion = $request->filled('id_direccion')
+            ? ClienteDireccion::where('id', $request->query('id_direccion'))->where('id_cliente', $idCliente)->first()
+            : ClienteDireccion::vigente($idCliente);
+        $c = $direccion ? $this->coordenadasService->desdeDireccion($direccion) : null;
+        if (!$c || !$c['valida']) {
+            return response()->json(['error' => 'El cliente no tiene una dirección con coordenadas válidas'], 422);
+        }
+
+        $ruta = $this->pedidoService->obtenerRuta(
+            round($c['lat'], 6), round($c['lng'], 6),
+            round((float) $local->latitud, 6), round((float) $local->longitud, 6)
+        );
+        if (!$ruta) {
+            return response()->json(['precio_delivery' => null, 'tiempo_min' => null, 'tiempo_max' => null, 'distancia_km' => null]);
+        }
+
+        $precio = $this->pedidoService->calcularPrecioPorDistancia($ruta['km'], $idLocal);
+
+        // Preparación: promedio de los últimos 30 días, solo si hay muestra
+        // suficiente; si no, un valor fijo para locales nuevos.
+        $prep = DB::selectOne(
+            "SELECT AVG(tiempo) AS promedio, COUNT(*) AS total
+             FROM pedidos
+             WHERE id_local = ? AND tiempo > 0 AND tiempo <= 120
+               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
+            [$idLocal]
+        );
+        $preparacion = ($prep && (int) $prep->total >= 5) ? (float) $prep->promedio : 20.0;
+
+        $total = $preparacion + $ruta['min'];
+        $min = (int) (round($total / 5) * 5);
+        $max = $min + 10;
+
+        return response()->json([
+            'precio_delivery' => number_format((float) $precio, 2, '.', ''),
+            'tiempo_min' => $min,
+            'tiempo_max' => $max,
+            'distancia_km' => round($ruta['km'], 1),
+        ]);
     }
 
     private function getLocalesCercanos($lat, $lng, $category = false, $term = false, $tieneLimite = true)

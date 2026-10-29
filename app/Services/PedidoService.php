@@ -85,6 +85,27 @@ class PedidoService
         return null;
     }
 
+    /**
+     * Ruta por carretera en una sola llamada a Mapbox: distancia (km) y
+     * duración (minutos). Devuelve null si Mapbox no responde con ruta.
+     *
+     * @return array{km: float, min: float}|null
+     */
+    public function obtenerRuta($lat1, $lon1, $lat2, $lon2)
+    {
+        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
+        $data = Http::get($url)->json();
+
+        if (isset($data['routes'][0]['distance'], $data['routes'][0]['duration'])) {
+            return [
+                'km' => $data['routes'][0]['distance'] / 1000,
+                'min' => $data['routes'][0]['duration'] / 60,
+            ];
+        }
+
+        return null;
+    }
+
     public function calcularPrecioPorDistancia($distanciaKm, $idLocal = null)
     {
         // Si hay local, buscar si tiene config propia (rangos o precio_por_km)
