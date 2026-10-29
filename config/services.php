@@ -70,6 +70,17 @@ return [
         'access_token' => env('MAPBOX_ACCESS_TOKEN'),
     ],
 
+    // Enlaces para compartir restaurantes (/l/{id}) y verificación de App Links.
+    'app_links' => [
+        // Dominio público con el que se comparten los enlaces (ej. https://www.deliverytruelove.com).
+        'public_url' => env('APP_LINKS_PUBLIC_URL'),
+        'android_package' => env('APP_LINKS_ANDROID_PACKAGE', 'com.truelove.trueloveclient'),
+        // Huella SHA-256 del certificado de firma de la app (separadas por coma si hay varias).
+        'android_sha256' => env('APP_LINKS_ANDROID_SHA256'),
+        // Team ID de Apple + bundle id, ej. ABCDE12345.com.truelove.trueloveclient
+        'ios_app_id' => env('APP_LINKS_IOS_APP_ID'),
+    ],
+
     'google_maps' => [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
