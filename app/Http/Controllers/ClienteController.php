@@ -687,6 +687,17 @@ class ClienteController extends Controller
 
     public function updatePassword(Request $request)
     {
+        // Las apps instaladas ANTES de este fix de seguridad nunca mandan
+        // 'code' (ese era justo el problema) — sin este chequeo, Laravel les
+        // tiraría el mensaje genérico en inglés de validate() ("the code
+        // field is required"), confuso para alguien que sí escribió bien su
+        // código en una pantalla que ya no existe en su versión.
+        if (!$request->filled('code')) {
+            return response()->json([
+                'message' => 'Tu app está desactualizada. Actualízala desde la tienda para recuperar tu contraseña.',
+            ], 426); // 426 Upgrade Required
+        }
+
         $request->validate([
             'id' => 'required|integer',
             'code' => 'required|string',
