@@ -78,8 +78,8 @@ Route::get('/promociones/{id}', [App\Http\Controllers\PromocionController::class
 Route::get('/banners', [App\Http\Controllers\BannerController::class, 'index']);
 Route::get('/banners/{id}', [App\Http\Controllers\BannerController::class, 'show']);
 
-Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew']);
-Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword']);
+Route::post('/cliente/sendCode', [ClienteController::class, 'sendCodeNew'])->middleware('throttle:5,1');
+Route::post('/cliente/update-password', [ClienteController::class, 'updatePassword'])->middleware('throttle:10,1');
 Route::get('/cliente/repetir/orden/{idPedido}', [PedidoController::class, 'repetirOrden']);
 Route::get('/pedidos/{id}/verificar-confirmacion', [PedidoController::class, 'verificarConfirmacion']);
 Route::put('socio/update/verificar/confirmacion/{idPedido}', [PedidoController::class, 'updateVerificarConfirmacion']);

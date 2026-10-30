@@ -22,8 +22,11 @@ Route::prefix('web/cliente')->group(function () {
 
     // Reutilizan el envío de código OTP ya existente para la app.
     Route::post('send-code', [ClienteController::class, 'sendCode']);
-    Route::post('forgot-password/send-code', [ClienteController::class, 'sendCodeNew']);
-    Route::post('forgot-password/reset', [ClienteWebAuthController::class, 'resetPassword']);
+    // Sin límite, cualquiera podía pedir código para cualquier correo las
+    // veces que quisiera (así llegó este reporte: alguien lo disparó varias
+    // veces contra un cliente real sin que nada lo frenara).
+    Route::post('forgot-password/send-code', [ClienteController::class, 'sendCodeNew'])->middleware('throttle:5,1');
+    Route::post('forgot-password/reset', [ClienteWebAuthController::class, 'resetPassword'])->middleware('throttle:10,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [ClienteWebAuthController::class, 'me']);

@@ -170,6 +170,7 @@ class ClienteWebAuthController extends Controller
     {
         $request->validate([
             'id' => 'required|integer',
+            'code' => 'required|string',
             'password' => 'required|string|min:6',
         ]);
 
@@ -178,6 +179,16 @@ class ClienteWebAuthController extends Controller
         if (!$cliente) {
             return response()->json(['message' => 'Cliente no encontrado'], 404);
         }
+
+        // Antes no se verificaba el código para nada — bastaba con saber el
+        // id (secuencial) de un cliente para resetearle la contraseña, sin
+        // haber visto el correo. El código ahora se valida contra el que
+        // ClienteController::sendCodeNew guardó en caché al enviarlo.
+        $codigoGuardado = Cache::get('password_reset_code_' . $cliente->id);
+        if (!$codigoGuardado || $codigoGuardado !== (string) $request->code) {
+            return response()->json(['message' => 'El código de verificación es inválido o expiró'], 422);
+        }
+        Cache::forget('password_reset_code_' . $cliente->id);
 
         $cliente->password = Hash::make($request->password);
         $cliente->save();

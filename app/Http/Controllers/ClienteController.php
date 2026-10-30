@@ -12,6 +12,7 @@ use App\Models\EmailLog;
 use App\Models\Pedido;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
@@ -640,6 +641,13 @@ class ClienteController extends Controller
             // Generar nuevo código de verificación
             $newVerificationCode = random_int(100000, 999999);
 
+            // Se guarda en servidor (10 min) para validarlo de verdad en
+            // resetPassword — antes el código se devolvía en esta misma
+            // respuesta y NUNCA se comprobaba al cambiar la contraseña, así
+            // que cualquiera que supiera el id del cliente podía resetear su
+            // contraseña sin tocar el correo para nada.
+            Cache::put('password_reset_code_' . $user->id, (string) $newVerificationCode, now()->addMinutes(10));
+
             // Enviar el correo con el código de verificación (isNewCode = true para recuperación)
             Mail::to($request->email)->send(new SendCodeCliente($request->email, $newVerificationCode, true));
 
@@ -652,12 +660,10 @@ class ClienteController extends Controller
                 'sendCodeNew'
             );
 
-            // Retornar el código en la respuesta para ser usado en la aplicación
             return response()->json([
                 'success' => true,
                 'message' => 'Código de verificación enviado al correo electrónico',
                 'status' => 200,
-                'verification_code' => $newVerificationCode,
                 'id' => $user->id
             ]);
         } catch (Exception $e) {
@@ -681,11 +687,28 @@ class ClienteController extends Controller
 
     public function updatePassword(Request $request)
     {
+        $request->validate([
+            'id' => 'required|integer',
+            'code' => 'required|string',
+            'password' => 'required|string|min:6',
+        ]);
+
         $usuario = Cliente::where('id', $request->id)->first();
 
         if (!$usuario) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
+
+        // Antes esto no verificaba NADA aparte del id — cualquiera que
+        // supiera (o adivinara, siendo un id secuencial) el id de un
+        // cliente podía resetearle la contraseña sin el código que se le
+        // mandó al correo. Ahora se exige el código guardado en sendCodeNew.
+        $codigoGuardado = Cache::get('password_reset_code_' . $usuario->id);
+        if (!$codigoGuardado || $codigoGuardado !== (string) $request->code) {
+            return response()->json(['message' => 'El código de verificación es inválido o expiró'], 422);
+        }
+        Cache::forget('password_reset_code_' . $usuario->id);
+
         $usuario->password = Hash::make($request->password);
         $usuario->save();
 
