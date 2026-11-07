@@ -12,6 +12,7 @@ use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\RepartoRegistro;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class PedidoService
 {
@@ -68,21 +69,31 @@ class PedidoService
 
     public function obtenerDistancia($lat1, $lon1, $lat2, $lon2)
     {
-        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
+        // Mapbox puede devolver una ruta distinta (y más larga) para el MISMO
+        // par de coordenadas en momentos distintos — así se cobró de más un
+        // pedido a Huaura: dos llamadas separadas por minutos dieron 5.8km y
+        // 9.85km para el mismo origen/destino. Cachear por unas horas evita
+        // que el precio de delivery "flapee" entre pedidos cercanos en el
+        // tiempo para la misma dirección.
+        $clave = 'mapbox_distancia_' . round($lat1, 4) . '_' . round($lon1, 4) . '_' . round($lat2, 4) . '_' . round($lon2, 4);
 
-        $response = Http::get($url);
-        $data = $response->json();
+        return Cache::remember($clave, now()->addHours(6), function () use ($lat1, $lon1, $lat2, $lon2) {
+            $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
 
-        \Log::debug('Mapbox directions response', [
-            'url' => $url,
-            'response' => $data
-        ]);
+            $response = Http::get($url);
+            $data = $response->json();
 
-        if (isset($data['routes'][0]['distance'])) {
-            return $data['routes'][0]['distance'] / 1000; // en kilómetros
-        }
+            \Log::debug('Mapbox directions response', [
+                'url' => $url,
+                'response' => $data
+            ]);
 
-        return null;
+            if (isset($data['routes'][0]['distance'])) {
+                return $data['routes'][0]['distance'] / 1000; // en kilómetros
+            }
+
+            return null;
+        });
     }
 
     /**
@@ -93,17 +104,24 @@ class PedidoService
      */
     public function obtenerRuta($lat1, $lon1, $lat2, $lon2)
     {
-        $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
-        $data = Http::get($url)->json();
+        // Mismo motivo que obtenerDistancia(): evitar que dos consultas
+        // cercanas en el tiempo para el mismo origen/destino den una ruta
+        // distinta y, con ella, un precio de delivery distinto.
+        $clave = 'mapbox_ruta_' . round($lat1, 4) . '_' . round($lon1, 4) . '_' . round($lat2, 4) . '_' . round($lon2, 4);
 
-        if (isset($data['routes'][0]['distance'], $data['routes'][0]['duration'])) {
-            return [
-                'km' => $data['routes'][0]['distance'] / 1000,
-                'min' => $data['routes'][0]['duration'] / 60,
-            ];
-        }
+        return Cache::remember($clave, now()->addHours(6), function () use ($lat1, $lon1, $lat2, $lon2) {
+            $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
+            $data = Http::get($url)->json();
 
-        return null;
+            if (isset($data['routes'][0]['distance'], $data['routes'][0]['duration'])) {
+                return [
+                    'km' => $data['routes'][0]['distance'] / 1000,
+                    'min' => $data['routes'][0]['duration'] / 60,
+                ];
+            }
+
+            return null;
+        });
     }
 
     public function calcularPrecioPorDistancia($distanciaKm, $idLocal = null)
