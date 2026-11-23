@@ -904,7 +904,7 @@ class PedidoController extends Controller
                 $descuento = $pedido->descuento ?? 0;
                 $total = ($subtotal + $precioDelivery) - $descuento;
                 $existeCalificacion = Rating::where('id_pedido', $pedido->id)->first() ? true : false;
-                if ($pedidoTracking->estado !== 8) {
+                if ((int) $pedidoTracking->estado !== 8) {
                     $existeCalificacion = true;
                 }
                 $data[] = [
