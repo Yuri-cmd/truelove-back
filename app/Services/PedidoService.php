@@ -72,12 +72,15 @@ class PedidoService
         // Mapbox puede devolver una ruta distinta (y más larga) para el MISMO
         // par de coordenadas en momentos distintos — así se cobró de más un
         // pedido a Huaura: dos llamadas separadas por minutos dieron 5.8km y
-        // 9.85km para el mismo origen/destino. Cachear por unas horas evita
-        // que el precio de delivery "flapee" entre pedidos cercanos en el
-        // tiempo para la misma dirección.
+        // 9.85km para el mismo origen/destino, y a otra clienta en Jin Wa le
+        // subió de S/5.50 a S/6.00 entre junio y noviembre para la MISMA
+        // dirección (2.01km vs 2.44km calculados). El local y la dirección
+        // del cliente casi nunca cambian de sitio, así que cachear 30 días
+        // (no solo unas horas) evita que el precio de delivery varíe para
+        // pedidos del mismo origen/destino separados por días o meses.
         $clave = 'mapbox_distancia_' . round($lat1, 4) . '_' . round($lon1, 4) . '_' . round($lat2, 4) . '_' . round($lon2, 4);
 
-        return Cache::remember($clave, now()->addHours(6), function () use ($lat1, $lon1, $lat2, $lon2) {
+        return Cache::remember($clave, now()->addDays(30), function () use ($lat1, $lon1, $lat2, $lon2) {
             $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
 
             $response = Http::get($url);
@@ -104,12 +107,13 @@ class PedidoService
      */
     public function obtenerRuta($lat1, $lon1, $lat2, $lon2)
     {
-        // Mismo motivo que obtenerDistancia(): evitar que dos consultas
-        // cercanas en el tiempo para el mismo origen/destino den una ruta
-        // distinta y, con ella, un precio de delivery distinto.
+        // Mismo motivo que obtenerDistancia(): evitar que dos consultas en
+        // momentos distintos (horas, días o meses después) para el mismo
+        // origen/destino den una ruta distinta y, con ella, un precio de
+        // delivery distinto.
         $clave = 'mapbox_ruta_' . round($lat1, 4) . '_' . round($lon1, 4) . '_' . round($lat2, 4) . '_' . round($lon2, 4);
 
-        return Cache::remember($clave, now()->addHours(6), function () use ($lat1, $lon1, $lat2, $lon2) {
+        return Cache::remember($clave, now()->addDays(30), function () use ($lat1, $lon1, $lat2, $lon2) {
             $url = "https://api.mapbox.com/directions/v5/mapbox/driving/{$lon1},{$lat1};{$lon2},{$lat2}?access_token={$this->apiKey}&geometries=geojson";
             $data = Http::get($url)->json();
 
