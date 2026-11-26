@@ -29,6 +29,8 @@
         .tiendas { display: flex; gap: 8px; margin-top: 10px; }
         .tiendas a { flex: 1; background: var(--fondo); color: var(--negro); font-size: 14px; padding: 12px; }
         .nota { margin-top: 14px; font-size: 12px; color: var(--gris); text-align: center; }
+        .boton.cerrado { background: #9a9a9a; }
+        .badge-cerrado { display: inline-block; margin: 0 0 10px; padding: 4px 10px; border-radius: 999px; background: #fdeaea; color: var(--rojo); font-size: 12px; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -37,7 +39,12 @@
         <div class="cuerpo">
             <h1>{{ $nombre }}</h1>
             <p>{{ $tipo ? $tipo . ' · ' : '' }}{{ $direccion }}</p>
-            <a class="boton principal" id="abrir" href="truelove://restaurante/{{ $idLocal }}">Abrir en la app</a>
+            @unless($abierto)
+            <span class="badge-cerrado">Cerrado ahora</span>
+            @endunless
+            <a class="boton principal @unless($abierto) cerrado @endunless" id="abrir" href="truelove://restaurante/{{ $idLocal }}">
+                {{ $abierto ? 'Abrir en la app' : 'Ver cuando abra' }}
+            </a>
             @if($playStore || $appStore)
             <div class="tiendas">
                 @if($playStore)<a class="boton" href="{{ $playStore }}">Google Play</a>@endif

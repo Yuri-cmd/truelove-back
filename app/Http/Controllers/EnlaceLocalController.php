@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppVersion;
+use App\Services\NegocioService;
 use Illuminate\Support\Facades\DB;
 
 class EnlaceLocalController extends Controller
 {
+    public function __construct(private NegocioService $negocioService)
+    {
+    }
+
     /**
      * Página pública que se comparte desde la app: https://{dominio}/l/{id}.
      * Lleva las etiquetas Open Graph para que WhatsApp, Telegram, etc. muestren
@@ -52,6 +57,11 @@ class EnlaceLocalController extends Controller
             'enlace' => rtrim(config('services.app_links.public_url') ?: url('/'), '/') . "/l/{$idLocal}",
             'playStore' => $app?->url_android,
             'appStore' => $app?->url_ios,
+            // Antes esta página siempre mostraba "Abrir en la app" aunque el
+            // local estuviera cerrado, usando la misma lógica que ya usa el
+            // listado de locales (LocalesController) para no duplicar reglas
+            // de horario.
+            'abierto' => $this->negocioService->localEstaAbierto((int) $idLocal),
         ]);
     }
 
