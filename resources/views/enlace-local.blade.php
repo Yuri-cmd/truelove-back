@@ -39,12 +39,15 @@
         <div class="cuerpo">
             <h1>{{ $nombre }}</h1>
             <p>{{ $tipo ? $tipo . ' · ' : '' }}{{ $direccion }}</p>
-            @unless($abierto)
+            @if($abierto)
+            <a class="boton principal" id="abrir" href="truelove://restaurante/{{ $idLocal }}">Abrir en la app</a>
+            @else
+            {{-- Cerrado: sin link al deep link. Antes el botón seguía apuntando
+            a truelove://restaurante/{id}, así que aunque dijera "Ver cuando
+            abra" igual abría la app y dejaba entrar al local cerrado. --}}
             <span class="badge-cerrado">Cerrado ahora</span>
-            @endunless
-            <a class="boton principal @unless($abierto) cerrado @endunless" id="abrir" href="truelove://restaurante/{{ $idLocal }}">
-                {{ $abierto ? 'Abrir en la app' : 'Ver cuando abra' }}
-            </a>
+            <span class="boton principal cerrado">No disponible por ahora</span>
+            @endif
             @if($playStore || $appStore)
             <div class="tiendas">
                 @if($playStore)<a class="boton" href="{{ $playStore }}">Google Play</a>@endif
